@@ -1,0 +1,18 @@
+def hello(a: int, b: str, c: bool):
+    print("hello")
+    return True
+
+res = hello()
+# if res:
+#     print("hello ok no error")
+
+print("hello finally")
+
+def test():
+    return "a"
+    if a == 1:
+        return "b"
+    elif a == 2:
+        return "c"
+    else:
+        return "d"
