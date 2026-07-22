@@ -1,13 +1,2 @@
 def topla(a: int, b:int):
-    if a > b:
-        return a - b
-    else:
-        return b - a
-
-    # elif a > b:
-    #     return a - b
-    # else:
-    #     return b - a
-
-    def topl2a(a: int, b:int):
-        pass
+    a: int = 425

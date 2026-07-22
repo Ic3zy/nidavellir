@@ -59,6 +59,23 @@ class AssignAST:
         self.target = target
         self.value = value
 
+class VarAssignAST:
+    def __init__(self, target, type, value):
+        self.target = target
+        self.value = value
+        self.type = type
+
 class ExpressionAST:
     def __init__(self, target):
         self.target = target
+
+class BinaryExprAST:
+    def __init__(self, left, op, right):
+        self.left = left
+        self.op = op
+        self.right = right
+
+class UnaryExprAST:
+    def __init__(self, op, right):
+        self.op = op
+        self.right = right

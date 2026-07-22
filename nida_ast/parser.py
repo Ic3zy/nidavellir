@@ -57,73 +57,11 @@ class Parser:
             return None
         return curr[0] if isinstance(curr, tuple) else curr
     
-    def parse_primary_expression(self):
-        token = self.current
-        kind = self.peek_kind()
-
-        expr = None
-
-        if kind == "NUMBER":
-            self.advance()
-            expr = NumberAST(token)
-
-        elif kind == "STRING":
-            self.advance()
-            expr = StringAST(token)
-
-        elif kind == "NAME":
-            self.advance()
-            expr = VariableAST(token)
-
-        elif kind == "LPAREN":
-            self.advance()
-            expr = self.parse_expression()
-            if self.peek_kind() == "RPAREN":
-                self.advance()
-
-        else:
-            raise self.print_error()
-
-        while self.current is not None:
-            next_kind = self.peek_kind()
-
-            if next_kind == "LBRACKET": # [
-                self.advance()
-                index_expr = self.parse_expression()
-                if self.peek_kind() == "RBRACKET":
-                    self.advance() # ]
-                expr = IndexAccessAST(target=expr, index=index_expr)
-
-            elif next_kind == "DOT":
-                self.advance() # .
-                member_name = self.advance()
-                expr = MemberAccessAST(target=expr, member=member_name)
-
-            elif next_kind == "LPAREN": 
-                self.advance() 
-                args = []
-                while self.current is not None and self.peek_kind() != "RPAREN":
-                    args.append(self.parse_expression())
-                    if self.peek_kind() == "COMMA":
-                        self.advance() 
-                if self.peek_kind() == "RPAREN":
-                    self.advance() 
-                expr = CallAST(callee=expr, args=args)
-
-            else:
-                break
-
-        return expr
-
-    def parse_assignment_or_expr(self):
-        target = self.parse_primary_expression()
-
-        if self.peek_kind() == "EQUAL":
-            self.advance() 
-            value = self.parse_expression()
-            return AssignAST(target=target, value=value)
-
-        return ExpressionAST(target)
+    def consume(self, kind):
+        if self.peek_kind() == kind:
+            return self.advance()
+            
+        raise self.print_error()
 
     # func blocks
     def parse_def(self):
@@ -244,7 +182,7 @@ class Parser:
         return IfAST(if_keywords, if_body, elifs, elses)
 
     def parse_kind(self, kind):
-        if kind in ("DEDENT", "RPAREN", "COLON", "COMMA", "ELIF", "ELSE"):
+        if kind in ("DEDENT", "RPAREN", "COMMA", "ELIF", "ELSE"):
             raise self.print_error()
 
         func = self.keywords.get(kind, None)
