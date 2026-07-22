@@ -50,6 +50,12 @@ class CallAST:
         self.callee = callee
         self.args = args
 
+class ChainAccessAST:
+    def __init__(self, base, chain, args=None):
+        self.base = base
+        self.chain = chain
+        self.args = args
+
 class ReturnAST:
     def __init__(self, value):
         self.value = value

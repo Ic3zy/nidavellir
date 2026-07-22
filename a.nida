@@ -1,2 +1,1 @@
-def topla(a: int, b:int):
-    a: int = 425
+end_line = min(len(self.lines), target_line + 3)

@@ -10,6 +10,7 @@ class Parser:
         self.index = 0
         self.asts = []
         self.keywords = create_keywords(self)
+        print(self.tokens)
 
     def get_token(self, index):
         if 0 <= index < len(self.tokens):
@@ -20,7 +21,7 @@ class Parser:
     def current(self):
         return self.get_token(self.index)
 
-    def print_error(self):
+    def print_error(self, msg):
         curr = self.current
         if curr is None:
             return
@@ -44,6 +45,8 @@ class Parser:
             else:
                 print(f" {l:3d} | {line_str}")
 
+        print(msg)
+
         sys.exit(1)
 
     def advance(self):
@@ -60,14 +63,96 @@ class Parser:
     def consume(self, kind):
         if self.peek_kind() == kind:
             return self.advance()
+
+        raise self.print_error("Syntax Error: Expected '{}'".format(kind))
+
+    def check_function_call(self):
+        start_index = self.index
+        while self.peek_kind() != "LPAREN":
+            if self.peek_kind() == "DOT":
+                self.advance()
+
+            elif self.peek_kind() == "NAME":
+                self.advance()
+
+            else:
+                self.index = start_index
+                return False
+
+        self.index = start_index
+        print("func call")
+        return True
+
+    def check_assignment(self):
+        for i in range(4):
+            if self.peek_kind() == "ASSIGN":
+                self.index -= i
+                return True
+            else:
+                self.advance()
+
+        self.index -= 4
+
+        return None
+
+    def parse_function_call(self):
+        print("parse call")
+        start_name = self.current
+        self.advance()
+        chain = []
+        while self.peek_kind() != "LPAREN":
+            if self.peek_kind() == "DOT":
+                self.advance()
+                continue
+            elif self.peek_kind() == "NAME":
+                chain.append(self.advance())
+                continue
+            else:
+                print("expected dot or name")
+                raise self.print_error("Syntax Error: Expected dot or name")
             
-        raise self.print_error()
+        self.advance() # skip lparen
+        args = []
+        while self.current is not None and self.peek_kind() != "RPAREN":
+            args.append(self.advance())
+
+        self.advance() # skip rparen
+        print("chain", chain)
+        print("args", args)
+
+        return ChainAccessAST(start_name, chain, args)
+
+    def parse_name(self):
+        statement_kyw = {
+            # "with": self.parse_with,
+            # "for": self.parse_for,
+            # "while": self.parse_while,
+        }
+
+        token = self.current
+        if token is None:
+            raise self.print_error("Syntax Error: Expected name")
+
+        name = token[1]
+        if name in statement_kyw:
+            return statement_kyw[name]()
+
+        if self.check_function_call():
+            return self.parse_function_call()
+
+        if self.check_assignment():
+            return
+            return self.parse_assignment()
+        else:
+            return
+            raise self.print_error()
+
 
     # func blocks
     def parse_def(self):
         self.advance()
         if self.peek_kind() != "NAME":
-            raise self.print_error()
+            raise self.print_error("Syntax Error: Expected name")
 
         old_token = self.advance()
 
@@ -83,34 +168,29 @@ class Parser:
                 type = old_token
                 name = self.advance()
         else:
-            self.advance()
             name = old_token
+
+        print("current d", self.current)
+
+        self.consume("LPAREN")
 
         while self.current is not None and self.peek_kind() != "RPAREN":
             args.append(self.advance())
 
         self.advance() # skip rparen
+        self.advance() # skip colon
+
+        self.consume("INDENT")
         
         body = []
         count = 0
         while self.current is not None and self.peek_kind() != "DEDENT":
-            if count == 0 and self.peek_kind() != "COLON":
-                print("expected colon")
-            
-            if count == 1 and self.peek_kind() != "INDENT":
-                print("expected indent")
-
-            count += 1
-
-            if count == 2 and self.peek_kind() == "INDENT" or count == 1 and self.peek_kind() == "COLON":
-                self.advance()
-                continue
-
             kind = self.peek_kind()
             parsed = self.parse_kind(kind)
             if parsed is not None:
                 body.append(parsed)
             else:
+                body.append(self.current)
                 self.advance()
 
         self.advance() # skip dedent
@@ -183,14 +263,15 @@ class Parser:
 
     def parse_kind(self, kind):
         if kind in ("DEDENT", "RPAREN", "COMMA", "ELIF", "ELSE"):
-            raise self.print_error()
+            print("e: ", kind)
+            raise self.print_error("Syntax Error: Expected '{}'".format(kind))
 
         func = self.keywords.get(kind, None)
         if func is not None:
             return func()
 
         if kind == "NAME":
-            return self.parse_assignment_or_expr()
+            return self.parse_name()
 
         return None
     
