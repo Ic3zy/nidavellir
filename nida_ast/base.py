@@ -7,6 +7,10 @@ class FunctionAST:
     def generate_code(self):
         pass
 
+class ElseAST:
+    def __init__(self, body):
+        self.body = body
+
 class ElifAST:
     def __init__(self, cond, body):
         self.cond = cond
@@ -19,17 +23,42 @@ class IfAST:
         self.elifs = elifs
         self.else_body = else_body
 
+class NumberAST:
+    def __init__(self, value):
+        self.value = value
+
+class StringAST:
+    def __init__(self, value):
+        self.value = value
+
+class VariableAST:
+    def __init__(self, name):
+        self.name = name
+
+class IndexAccessAST:
+    def __init__(self, target, index):
+        self.target = target
+        self.index = index
+
+class MemberAccessAST:
+    def __init__(self, target, member):
+        self.target = target
+        self.member = member
+
+class CallAST:
+    def __init__(self, callee, args):
+        self.callee = callee
+        self.args = args
+
 class ReturnAST:
     def __init__(self, value):
         self.value = value
 
 class AssignAST:
-    def __init__(self, name, value):
-        self.name = name
+    def __init__(self, target, value):
+        self.target = target
         self.value = value
 
-class BinaryAST:
-    def __init__(self, left, op, right):
-        self.left = left
-        self.op = op
-        self.right = right
+class ExpressionAST:
+    def __init__(self, target):
+        self.target = target

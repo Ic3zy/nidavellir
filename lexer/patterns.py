@@ -20,7 +20,13 @@ TOKEN_PATTERNS = [
     ("STRING",    r'"[^"]*"|\'[^\']*\''),
     ("NUMBER",    r'\d+(\.\d+)?'),
     ("NAME",      r'[a-zA-Z_][a-zA-Z0-9_]*'), 
+
     ("IF",        None),
+    ("ELIF",      None),
+    ("ELSE",      None),
+
+    ("RETURN",    None),
+    ("DEF",       None),
 ]
 
 MASTER_REGEX = "|".join(f"(?P<{name}>{pattern})" for name, pattern in TOKEN_PATTERNS)

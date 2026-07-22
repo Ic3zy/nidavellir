@@ -50,13 +50,13 @@ class Lexer:
                 indent_diff = indent - self.last_indent
 
                 for _ in range(indent_diff):
-                    self.tokens.append("INDENT")
+                    self.tokens.append(("INDENT", None, self.line_count))
 
             elif indent < self.last_indent:
                 indent_diff = self.last_indent - indent
 
                 for _ in range(indent_diff):
-                    self.tokens.append("DEDENT")
+                    self.tokens.append(("DEDENT", None, self.line_count))
 
             line_tokens = self.tokenize_line(line, self.line_count)
             self.tokens.extend(line_tokens)
