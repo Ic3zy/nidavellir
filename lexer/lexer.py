@@ -64,7 +64,7 @@ class Lexer:
             self.last_indent = indent
 
         while self.last_indent > 0:
-            self.tokens.append("DEDENT")
+            self.tokens.append(("DEDENT", None, self.line_count))
             self.last_indent -= 1
 
         return self.tokens

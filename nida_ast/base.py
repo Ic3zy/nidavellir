@@ -24,8 +24,9 @@ class IfAST:
         self.else_body = else_body
 
 class NumberAST:
-    def __init__(self, value):
+    def __init__(self, value, data_type=None):
         self.value = value
+        self.data_type = data_type
 
 class StringAST:
     def __init__(self, value):
@@ -61,8 +62,9 @@ class ReturnAST:
         self.value = value
 
 class AssignAST:
-    def __init__(self, target, value):
+    def __init__(self, target, chain, value):
         self.target = target
+        self.chain = chain
         self.value = value
 
 class VarAssignAST:
@@ -85,3 +87,8 @@ class UnaryExprAST:
     def __init__(self, op, right):
         self.op = op
         self.right = right
+
+class WhileAST:
+    def __init__(self, conditions, body):
+        self.conditions = conditions
+        self.body = body

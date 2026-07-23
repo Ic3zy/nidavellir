@@ -24,7 +24,7 @@ class Parser:
     def print_error(self, msg):
         curr = self.current
         if curr is None:
-            return
+            raise Exception("Syntax Error: Unexpected end of file")
 
         target_line = curr[2]
         
@@ -66,6 +66,27 @@ class Parser:
 
         raise self.print_error("Syntax Error")
 
+    def parse_number(self, data_type=None):
+        token_value = self.advance()
+        
+        return NumberAST(value=token_value[1], data_type=data_type)
+
+    def parse_expression(self):
+        kind = self.peek_kind()
+
+        if kind == "NUMBER":
+            return self.parse_number()
+        
+        elif kind == "STRING":
+            token = self.advance()
+            return StringAST(value=token[1])
+            
+        elif kind == "NAME":
+            return self.parse_identifier_or_call()
+            
+        else:
+            raise self.print_error(f"Syntax Error: Unexpected expression token '{kind}'")
+
     def check_function_call(self):
         start_index = self.index
         while self.peek_kind() != "LPAREN":
@@ -101,8 +122,30 @@ class Parser:
             
         return False
     
+    def parse_chain_target(self):
+        start_token = self.consume("NAME")
+        chain = []
+
+        while self.peek_kind() == "DOT":
+            self.advance()
+
+            if self.peek_kind() == "NAME":
+                field_token = self.advance()
+                chain.append(field_token[1])
+            else:
+                raise self.print_error("Syntax Error: Expected field name after '.'")
+
+        return start_token[1], chain
+    
     def parse_assignment(self):
-        pass
+        name, chain = self.parse_chain_target()
+
+        self.consume("ASSIGN")
+
+        value = self.parse_expression()
+
+        return AssignAST(name, chain, value)
+
 
     def parse_function_call(self):
         start_name = self.advance()
@@ -132,11 +175,27 @@ class Parser:
 
         return ChainAccessAST(start_name, chain, args)
 
+    def parse_while(self):
+        self.consume("NAME")
+        conditions = []
+        while self.peek_kind() != "COLON":
+            conditions.append(self.current)
+            self.advance()
+
+        self.consume("COLON")
+        body = []
+        while self.current is not None and self.peek_kind() != "DEDENT":
+            body.append(self.advance())
+            
+        self.advance() # skip dedent
+
+        return WhileAST(conditions, body)
+
     def parse_name(self):
         statement_kyw = {
             # "with": self.parse_with,
             # "for": self.parse_for,
-            # "while": self.parse_while,
+            "while": self.parse_while,
         }
 
         token = self.current
@@ -294,3 +353,5 @@ class Parser:
                 self.advance()
 
         print(self.asts)
+        print(self.asts[0].conditions)
+        print(self.asts[0].body)
