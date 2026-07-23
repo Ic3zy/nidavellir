@@ -1,1 +1,1 @@
-end_line = min(len(self.lines), target_line + 3)
+min( max() )

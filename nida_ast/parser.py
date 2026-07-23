@@ -64,7 +64,7 @@ class Parser:
         if self.peek_kind() == kind:
             return self.advance()
 
-        raise self.print_error("Syntax Error: Expected '{}'".format(kind))
+        raise self.print_error("Syntax Error")
 
     def check_function_call(self):
         start_index = self.index
@@ -84,41 +84,51 @@ class Parser:
         return True
 
     def check_assignment(self):
-        for i in range(4):
-            if self.peek_kind() == "ASSIGN":
-                self.index -= i
+        offset = 0
+        while True:
+            tok = self.get_token(self.index + offset)
+            if tok is None:
+                break
+            
+            kind = tok[0] if isinstance(tok, tuple) else tok
+            
+            if kind in ("ASSIGN", "COLON"):
                 return True
-            else:
-                self.advance()
-
-        self.index -= 4
-
-        return None
+            if kind in ("NEWLINE", "DEDENT", "SEMI"): 
+                break
+            
+            offset += 1
+            
+        return False
+    
+    def parse_assignment(self):
+        pass
 
     def parse_function_call(self):
-        print("parse call")
-        start_name = self.current
-        self.advance()
+        start_name = self.advance()
+
         chain = []
         while self.peek_kind() != "LPAREN":
             if self.peek_kind() == "DOT":
                 self.advance()
                 continue
             elif self.peek_kind() == "NAME":
-                chain.append(self.advance())
+                kind = self.parse_kind(self.advance())
+
+                if kind is not None:
+                    chain.append(kind)
+                    continue
                 continue
             else:
-                print("expected dot or name")
                 raise self.print_error("Syntax Error: Expected dot or name")
             
-        self.advance() # skip lparen
+        self.consume("LPAREN")
         args = []
         while self.current is not None and self.peek_kind() != "RPAREN":
-            args.append(self.advance())
+            kind = self.parse_kind(self.peek_kind())
+            args.append(kind)
 
-        self.advance() # skip rparen
-        print("chain", chain)
-        print("args", args)
+        self.consume("RPAREN")
 
         return ChainAccessAST(start_name, chain, args)
 
@@ -141,7 +151,6 @@ class Parser:
             return self.parse_function_call()
 
         if self.check_assignment():
-            return
             return self.parse_assignment()
         else:
             return
@@ -175,7 +184,8 @@ class Parser:
         self.consume("LPAREN")
 
         while self.current is not None and self.peek_kind() != "RPAREN":
-            args.append(self.advance())
+            kind = self.parse_kind(self.advance())
+            args.append(kind)
 
         self.advance() # skip rparen
         self.advance() # skip colon
@@ -190,12 +200,10 @@ class Parser:
             if parsed is not None:
                 body.append(parsed)
             else:
-                body.append(self.current)
                 self.advance()
 
         self.advance() # skip dedent
 
-        print("current d", self.current)
         print(type, "\n")
         print(name, "\n")
         print(args, "\n")
