@@ -88,6 +88,14 @@ class Parser:
             self.consume("RPAREN")
             return expr
 
+        if kind == "TRUE":
+            self.advance()
+            return BooleanAST(True)
+
+        if kind == "FALSE":
+            self.advance()
+            return BooleanAST(False)
+
         self.print_error(f"Unexpected token in expression")
 
     def parse_factor(self):
@@ -279,10 +287,14 @@ class Parser:
 
         body = []
         while self.current is not None and self.peek_kind() != "DEDENT":
-            body.append(self.parse_kind(self.peek_kind()))
+            kind = self.parse_kind(self.peek_kind())
+            if kind is not None:
+                body.append(kind)
+            else:
+                self.advance()
 
         self.consume("DEDENT")
-        return ElseAST(body)
+        return BlockAST(body)
     
     def parse_elif(self):
         self.consume("ELIF")
@@ -294,8 +306,11 @@ class Parser:
 
         body = []
         while self.current is not None and self.peek_kind() != "DEDENT":
-            print(self.current)
-            body.append(self.parse_kind(self.peek_kind()))
+            kind = self.parse_kind(self.peek_kind())
+            if kind is not None:
+                body.append(kind)
+            else:
+                self.advance()
 
         self.consume("DEDENT")
 
@@ -313,7 +328,11 @@ class Parser:
 
         body = []
         while self.current is not None and self.peek_kind() != "DEDENT":
-            body.append(self.parse_kind(self.peek_kind()))
+            kind = self.parse_kind(self.peek_kind())
+            if kind is not None:
+                body.append(kind)
+            else:
+                self.advance()
 
         self.consume("DEDENT")
 
@@ -330,6 +349,56 @@ class Parser:
 
         return IfAST(cond, body, elifs, else_body)
 
+    def parse_def(self):
+        self.consume("DEF")
+
+        start = self.consume("NAME")
+
+        name = None
+        type = None
+
+        if self.peek_kind() == "NAME":
+            type = start
+            name = self.advance()
+        elif self.peek_kind() == "LPAREN":
+            name = start
+        else:
+            self.print_error("Syntax Error: Expected function name")
+
+        self.consume("LPAREN")
+
+        args = []
+        while self.current is not None and self.peek_kind() == "NAME":
+            if self.check_assignment():
+                raise self.print_error("Syntax Error: Unexpected assignment")
+
+            field_token = self.advance()
+            args.append(VariableAST(name=field_token[1]))
+            if self.peek_kind() == "COMMA":
+                self.advance()
+
+        self.consume("RPAREN")
+        self.consume("COLON")
+        self.consume("NEWLINE")
+        self.consume("INDENT")
+
+        body = []
+        while self.current is not None and self.peek_kind() != "DEDENT":
+            kind = self.parse_kind(self.peek_kind())
+            if kind is not None:
+                body.append(kind)
+            else:
+                self.advance()
+
+        self.consume("DEDENT")
+
+        return FunctionAST(name=name[1], args=args, body=body, type=type)
+
+    def parse_return(self):
+        self.consume("RETURN")
+        value = self.parse_expression()
+        return ReturnAST(value)
+
     def parse_kind(self, kind):
         print("PARSE KIND", kind)
         if kind is None:
@@ -344,6 +413,9 @@ class Parser:
 
         if kind == "NEWLINE":
             return None
+
+        if kind == "RETURN":
+            return self.parse_return()
 
         if kind == "NAME":
             return self.parse_name()
@@ -370,6 +442,7 @@ class Parser:
             return OperatorAST(op=token[1])
 
         return None
+    
     def parse_all(self):
         while self.current is not None:
             kind = self.peek_kind()

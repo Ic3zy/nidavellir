@@ -1,15 +1,19 @@
 class FunctionAST:
-    def __init__(self, name, args, body):
+    def __init__(self, name, args, body, type):
         self.name = name
         self.args = args
         self.body = body
+        self.type = type
 
-    def generate_code(self):
-        pass
+    def __repr__(self):
+        return f"FunctionAST(name={self.name}, args={self.args}, body={self.body}, type={self.type})"
 
-class ElseAST:
+class BlockAST:
     def __init__(self, body):
         self.body = body
+
+    def __repr__(self):
+        return f"BlockAST(body={self.body})"
 
 class ElifAST:
     def __init__(self, cond, body):
@@ -124,3 +128,10 @@ class BinaryOpAST:
         self.left = left
         self.op = op
         self.right = right
+
+class BooleanAST:
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return f"BooleanAST(value={self.value})"

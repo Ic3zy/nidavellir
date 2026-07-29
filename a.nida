@@ -1,1 +1,7 @@
-x = print(a + 5)
+def a(
+        b,c
+        ):
+    if b == c:
+        return True
+    else:
+        return False
