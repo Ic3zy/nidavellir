@@ -23,6 +23,9 @@ class IfAST:
         self.elifs = elifs
         self.else_body = else_body
 
+    def __repr__(self):
+        return f"IfAST(cond={self.cond}, body={self.body}, elifs={self.elifs}, else_body={self.else_body})"
+
 class NumberAST:
     def __init__(self, value, data_type=None):
         self.value = value
@@ -47,8 +50,9 @@ class MemberAccessAST:
         self.member = member
 
 class CallAST:
-    def __init__(self, callee, args):
-        self.callee = callee
+    def __init__(self, target, chain, args):
+        self.target = target
+        self.chain = chain
         self.args = args
 
 class ChainAccessAST:
@@ -62,10 +66,14 @@ class ReturnAST:
         self.value = value
 
 class AssignAST:
-    def __init__(self, target, chain, value):
+    def __init__(self, target, chain, type_annotation, value):
         self.target = target
         self.chain = chain
+        self.type_annotation = type_annotation
         self.value = value
+
+    def __repr__(self):
+        return f"AssignAST(target={self.target}, chain={self.chain}, type_annotation={self.type_annotation}, value={self.value})"
 
 class VarAssignAST:
     def __init__(self, target, type, value):
@@ -102,3 +110,17 @@ class ForAST:
 class ListAST:
     def __init__(self, body):
         self.body = body
+
+class OperatorAST:
+    def __init__(self, op):
+        self.op = op
+
+class PassAST:
+    def __init__(self):
+        pass
+
+class BinaryOpAST:
+    def __init__(self, left, op, right):
+        self.left = left
+        self.op = op
+        self.right = right

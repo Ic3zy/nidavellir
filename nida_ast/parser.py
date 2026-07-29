@@ -45,6 +45,8 @@ class Parser:
             else:
                 print(f" {l:3d} | {line_str}")
 
+        print(self.current[1])
+
         print(msg)
 
         sys.exit(1)
@@ -71,58 +73,60 @@ class Parser:
         
         return NumberAST(value=token_value[1], data_type=data_type)
 
-    def parse_expression(self):
+    def parse_primary(self):
         kind = self.peek_kind()
 
         if kind == "NUMBER":
-            return self.parse_number()
+            return NumberAST(self.advance()[1])
         
-        elif kind == "STRING":
-            token = self.advance()
-            return StringAST(value=token[1])
-            
-        elif kind == "NAME":
-            return self.parse_identifier_or_call()
-            
-        else:
-            raise self.print_error(f"Syntax Error: Unexpected expression token '{kind}'")
+        if kind == "NAME":
+            return self.parse_name()
 
-    def check_function_call(self):
-        start_index = self.index
-        while self.peek_kind() != "LPAREN":
-            if self.peek_kind() == "DOT":
-                self.advance()
+        if kind == "LPAREN":
+            self.advance()
+            expr = self.parse_expression()
+            self.consume("RPAREN")
+            return expr
 
-            elif self.peek_kind() == "NAME":
-                self.advance()
+        self.print_error(f"Unexpected token in expression")
 
-            else:
-                self.index = start_index
-                return False
+    def parse_factor(self):
+        left = self.parse_primary()
 
-        self.index = start_index
-        print("func call")
-        return True
+        while self.peek_kind() in ("STAR", "SLASH"):
+            op_token = self.advance()
+            right = self.parse_primary()
+            left = BinaryOpAST(left=left, op=op_token[1], right=right)
 
-    def check_assignment(self):
-        offset = 0
-        while True:
-            tok = self.get_token(self.index + offset)
-            if tok is None:
-                break
-            
-            kind = tok[0] if isinstance(tok, tuple) else tok
-            
-            if kind in ("ASSIGN", "COLON"):
-                return True
-            if kind in ("NEWLINE", "DEDENT", "SEMI"): 
-                break
-            
-            offset += 1
-            
-        return False
-    
+        return left
+
+    def parse_term(self):
+        left = self.parse_factor()
+
+        while self.peek_kind() in ("PLUS", "MINUS"):
+            op_token = self.advance()
+            right = self.parse_factor()
+            left = BinaryOpAST(left=left, op=op_token[1], right=right)
+
+        return left
+
+    def parse_equality(self):
+        left = self.parse_term()
+
+        while self.peek_kind() in ("EQEQ", "NEQ", "GT", "LT", "GTE", "LTE"):
+            op_token = self.advance()
+            right = self.parse_term()
+            left = BinaryOpAST(left=left, op=op_token[1], right=right)
+
+        return left
+
+    def parse_expression(self):
+        print(self.current)
+        return self.parse_equality()
+
     def parse_chain_target(self):
+        print("AAAA")
+        print("current", self.current)
         start_token = self.consume("NAME")
         chain = []
 
@@ -136,222 +140,244 @@ class Parser:
                 raise self.print_error("Syntax Error: Expected field name after '.'")
 
         return start_token[1], chain
+
+    def check_function_call(self):
+        start_index = self.index
+
+        if self.peek_kind() != "NAME":
+            return False
+
+        self.advance()
+
+        while self.peek_kind() == "DOT":
+            self.advance()
+            if self.peek_kind() == "NAME":
+                self.advance()
+
+        if self.peek_kind() != "LPAREN":
+            self.index = start_index
+            return False
+
+        find_lparen = False
+        is_func = False
+
+        while self.current is not None:
+            kind = self.peek_kind()
+            
+            if kind == "LPAREN":
+                find_lparen = True
+
+            if kind == "RPAREN":
+                if find_lparen:
+                    is_func = True
+                break
+                
+            if kind == "NEWLINE" and not find_lparen:
+                break
+
+            self.advance()
+
+        self.index = start_index
+        return is_func
     
+    def check_assignment(self):
+        offset = 0
+        paren_depth = 0
+        bracket_depth = 0
+        brace_depth = 0
+
+        while True:
+            tok = self.get_token(self.index + offset)
+            if tok is None:
+                break
+            
+            kind = tok[0] if isinstance(tok, tuple) else tok
+
+            if kind == "LPAREN": paren_depth += 1
+            elif kind == "RPAREN": paren_depth -= 1
+            elif kind == "LBRACKET": bracket_depth += 1
+            elif kind == "RBRACKET": bracket_depth -= 1
+            elif kind == "LBRACE": brace_depth += 1
+            elif kind == "RBRACE": brace_depth -= 1
+
+            if kind in ("NEWLINE", "DEDENT", "SEMI"):
+                break
+
+            if paren_depth == 0 and bracket_depth == 0 and brace_depth == 0:
+                if kind in ("ASSIGN"):
+                    return True
+
+            offset += 1
+
+        return False
+
+    def skip_newlines(self):
+        while self.current is not None and self.peek_kind() == "NEWLINE":
+            self.advance()
+
     def parse_assignment(self):
-        name, chain = self.parse_chain_target()
+        target_name, chain = self.parse_chain_target()
+        
+        data_type = None
+
+        if self.peek_kind() == "COLON":
+            self.advance()
+            type_token = self.consume("NAME")
+            data_type = type_token[1]
 
         self.consume("ASSIGN")
 
-        value = self.parse_expression()
+        value_ast = self.parse_expression()
 
-        return AssignAST(name, chain, value)
-
+        return AssignAST(
+            target=target_name, 
+            chain=chain, 
+            type_annotation=data_type, 
+            value=value_ast
+        )
 
     def parse_function_call(self):
-        start_name = self.advance()
+        target_name, chain = self.parse_chain_target()
 
-        chain = []
-        while self.peek_kind() != "LPAREN":
-            if self.peek_kind() == "DOT":
-                self.advance()
-                continue
-            elif self.peek_kind() == "NAME":
-                kind = self.parse_kind(self.advance())
-
-                if kind is not None:
-                    chain.append(kind)
-                    continue
-                continue
-            else:
-                raise self.print_error("Syntax Error: Expected dot or name")
-            
         self.consume("LPAREN")
+
         args = []
         while self.current is not None and self.peek_kind() != "RPAREN":
-            kind = self.parse_kind(self.peek_kind())
-            args.append(kind)
+            arg_ast = self.parse_kind(self.peek_kind())
+            if arg_ast is not None:
+                args.append(arg_ast)
 
+            if self.peek_kind() == "COMMA":
+                self.advance()
+
+        print("current", self.current)
         self.consume("RPAREN")
 
-        return ChainAccessAST(start_name, chain, args)
-
-    def parse_while(self):
-        self.consume("NAME")
-        conditions = []
-        while self.peek_kind() != "COLON":
-            conditions.append(self.current)
-            self.advance()
-
-        self.consume("COLON")
-        body = []
-        while self.current is not None and self.peek_kind() != "DEDENT":
-            body.append(self.advance())
-            
-        self.advance() # skip dedent
-
-        return WhileAST(conditions, body)
+        return CallAST(target=target_name, chain=chain, args=args)
 
     def parse_name(self):
-        statement_kyw = {
-            # "with": self.parse_with,
-            # "for": self.parse_for,
-            "while": self.parse_while,
-        }
-
         token = self.current
         if token is None:
             raise self.print_error("Syntax Error: Expected name")
-
-        name = token[1]
-        if name in statement_kyw:
-            return statement_kyw[name]()
-
-        if self.check_function_call():
-            return self.parse_function_call()
-
-        if self.check_assignment():
-            return self.parse_assignment()
-        else:
-            return
-            raise self.print_error()
-
-
-    # func blocks
-    def parse_def(self):
-        self.advance()
-        if self.peek_kind() != "NAME":
-            raise self.print_error("Syntax Error: Expected name")
-
-        old_token = self.advance()
-
-        type = None
-        name = None
-
-        args = []
-
-        if self.peek_kind() != "LPAREN":
-            print("expected lparen")
-
-            if self.peek_kind() == "NAME":
-                type = old_token
-                name = self.advance()
-        else:
-            name = old_token
-
-        print("current d", self.current)
-
-        self.consume("LPAREN")
-
-        while self.current is not None and self.peek_kind() != "RPAREN":
-            kind = self.parse_kind(self.advance())
-            args.append(kind)
-
-        self.advance() # skip rparen
-        self.advance() # skip colon
-
-        self.consume("INDENT")
         
-        body = []
-        count = 0
-        while self.current is not None and self.peek_kind() != "DEDENT":
-            kind = self.peek_kind()
-            parsed = self.parse_kind(kind)
-            if parsed is not None:
-                body.append(parsed)
-            else:
-                self.advance()
+        if self.check_assignment():
+            print("ASSIGNMENT")
+            return self.parse_assignment()
+        elif self.check_function_call():
+            print("FUNCTION CALL")
+            return self.parse_function_call()
+        else:
+            print("NAME")
+            self.advance()
+            return VariableAST(name=token[1])
 
-        self.advance() # skip dedent
+    def parse_else(self):
+        self.consume("ELSE")
+        self.consume("COLON")
+        self.consume("NEWLINE")
+        self.consume("INDENT")
 
-        print(type, "\n")
-        print(name, "\n")
-        print(args, "\n")
-        print(body, "\n")
-
-        return FunctionAST(name, args, body)
-
-    # if blocks
-    def read_elif(self):
-        self.advance()
-
-        cond = []
-        while self.current is not None and self.peek_kind() != "COLON":
-            cond.append(self.advance())
-
-        self.advance() # skip colon
         body = []
         while self.current is not None and self.peek_kind() != "DEDENT":
-            body.append(self.advance())
-            
-        self.advance() # skip dedent
+            body.append(self.parse_kind(self.peek_kind()))
 
-        print("current elf", self.current)
+        self.consume("DEDENT")
+        return ElseAST(body)
+    
+    def parse_elif(self):
+        self.consume("ELIF")
+        cond = self.parse_expression()
+
+        self.consume("COLON")
+        self.consume("NEWLINE")
+        self.consume("INDENT")
+
+        body = []
+        while self.current is not None and self.peek_kind() != "DEDENT":
+            print(self.current)
+            body.append(self.parse_kind(self.peek_kind()))
+
+        self.consume("DEDENT")
 
         return ElifAST(cond, body)
-    
-    def read_else(self):
-        self.advance()
-        body = []
 
-        while self.current is not None and self.peek_kind() != "DEDENT":
-            body.append(self.advance())
-
-        self.advance() # skip dedent
-
-        return ElseAST(body)
 
     def parse_if(self):
-        self.advance()
-        
-        if_keywords = []
+        self.consume("IF")
 
-        while self.current is not None and self.peek_kind() != "COLON":
-            if_keywords.append(self.advance())
+        cond = self.parse_expression()
 
-        self.advance() # skip colon
+        self.consume("COLON")
+        self.consume("NEWLINE")
+        self.consume("INDENT")
 
-        if_body = []
-
+        body = []
         while self.current is not None and self.peek_kind() != "DEDENT":
-            if_body.append(self.advance())
-            
-        self.advance() # skip dedent
+            body.append(self.parse_kind(self.peek_kind()))
+
+        self.consume("DEDENT")
+
+        self.skip_newlines()
 
         elifs = []
-        elses = []
+        while self.current is not None and self.peek_kind() == "ELIF":
+            elifs.append(self.parse_elif())
+            self.skip_newlines()
 
-        if self.peek_kind() == "ELIF":
-            elifs.append(self.read_elif())
+        else_body = None
+        if self.current is not None and self.peek_kind() == "ELSE":
+            else_body = self.parse_else()
 
-        if self.peek_kind() == "ELSE":
-            elses.append(self.read_else())
-
-        return IfAST(if_keywords, if_body, elifs, elses)
+        return IfAST(cond, body, elifs, else_body)
 
     def parse_kind(self, kind):
-        if kind in ("DEDENT", "RPAREN", "COMMA", "ELIF", "ELSE"):
-            print("e: ", kind)
-            raise self.print_error("Syntax Error: Expected '{}'".format(kind))
+        print("PARSE KIND", kind)
+        if kind is None:
+            return None
 
-        func = self.keywords.get(kind, None)
+        if kind in ("DEDENT", "RPAREN", "COMMA", "ELIF", "ELSE"):
+            self.print_error(f"Syntax Error: Unexpected '{kind}'")
+
+        func = self.keywords.get(kind)
         if func is not None:
             return func()
+
+        if kind == "NEWLINE":
+            return None
 
         if kind == "NAME":
             return self.parse_name()
 
+        if kind == "NUMBER":
+            return self.parse_number()
+
+        if kind == "STRING":
+            token = self.advance()
+            return StringAST(value=token[1])
+
+        if kind == "PASS":
+            self.advance()
+            return PassAST()
+
+        if kind == "LPAREN":
+            self.advance()
+            expr = self.parse_kind(self.peek_kind())
+            self.consume("RPAREN")
+            return expr
+
+        if kind in ("PLUS", "MINUS", "STAR", "SLASH", "EQEQ", "NEQ", "GT", "LT"):
+            token = self.advance()
+            return OperatorAST(op=token[1])
+
         return None
-    
     def parse_all(self):
         while self.current is not None:
             kind = self.peek_kind()
-
+            print("PARSE KIND CALLER", kind)
             res = self.parse_kind(kind)
             if res is not None:
                 self.asts.append(res)
             else:
                 self.advance()
 
-        print(self.asts)
-        print(self.asts[0].conditions)
-        print(self.asts[0].body)
+        print("TREE", self.asts)

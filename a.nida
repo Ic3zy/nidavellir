@@ -1,8 +1,1 @@
-def __init__(self):
-    self.tokens = lexer.tokenize()
-    self.lines = lexer.sp
-    self.index = 0
-    self.asts = []
-    self.keywords = create_keywords(self)
-    print(self.tokens)
-
+x = print(a + 5)

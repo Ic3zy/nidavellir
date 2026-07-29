@@ -1,5 +1,5 @@
 TOKEN_PATTERNS = [
-    ("EQ",        r'=='),
+    ("EQEQ",      r'=='),
     ("NEQ",       r'!='),
     ("LTE",       r'<='),
     ("GTE",       r'>='),
