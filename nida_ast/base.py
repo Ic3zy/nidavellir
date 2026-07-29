@@ -92,3 +92,13 @@ class WhileAST:
     def __init__(self, conditions, body):
         self.conditions = conditions
         self.body = body
+
+class ForAST:
+    def __init__(self, target, source, body):
+        self.target = target
+        self.source = source
+        self.body = body
+
+class ListAST:
+    def __init__(self, body):
+        self.body = body
