@@ -69,6 +69,9 @@ class ReturnAST:
     def __init__(self, value):
         self.value = value
 
+    def __repr__(self):
+        return f"ReturnAST(value={self.value})"
+
 class AssignAST:
     def __init__(self, target, chain, type_annotation, value):
         self.target = target
@@ -110,6 +113,10 @@ class ForAST:
         self.target = target
         self.source = source
         self.body = body
+
+    def __repr__(self):
+        return f"ForAST(target={self.target}, source={self.source}, body={self.body})"
+    
 
 class ListAST:
     def __init__(self, body):

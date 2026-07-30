@@ -399,6 +399,50 @@ class Parser:
         value = self.parse_expression()
         return ReturnAST(value)
 
+
+    def parse_while(self):
+        self.consume("WHILE")
+        cond = self.parse_expression()
+        self.consume("COLON")
+        self.consume("NEWLINE")
+        self.consume("INDENT")
+
+        body = []
+        while self.current is not None and self.peek_kind() != "DEDENT":
+            kind = self.parse_kind(self.peek_kind())
+            if kind is not None:
+                body.append(kind)
+            else:
+                self.advance()
+
+        self.consume("DEDENT")
+
+        return WhileAST(cond, body)
+
+    def parse_for(self):
+        self.consume("FOR")
+
+        target = self.consume("NAME")
+        self.consume("IN")
+        source = self.parse_expression()
+
+        self.consume("COLON")
+        self.consume("NEWLINE")
+        self.consume("INDENT")
+
+        body = []
+        while self.current is not None and self.peek_kind() != "DEDENT":
+            kind = self.parse_kind(self.peek_kind())
+            if kind is not None:
+                body.append(kind)
+            else:
+                self.advance()
+
+        self.consume("DEDENT")
+
+        return ForAST(target, source, body)
+
+
     def parse_kind(self, kind):
         print("PARSE KIND", kind)
         if kind is None:

@@ -5,6 +5,7 @@ a = None
 with open("./a.nida", "r") as f:
     a = f.read()
 
+
 l = Lexer(a)
 parser = Parser(l)
 ast = parser.parse_all()
