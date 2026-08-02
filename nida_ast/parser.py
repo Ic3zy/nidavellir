@@ -131,7 +131,7 @@ class Parser:
     def parse_and(self):
         left = self.parse_equality()
 
-        while self.peek_kind() in ("AND", "KW_AND"):  # and / && token'ına göre
+        while self.peek_kind() in ("AND"):
             op_token = self.advance()
             right = self.parse_equality()
             left = BinaryOpAST(left=left, op=op_token[1], right=right)
