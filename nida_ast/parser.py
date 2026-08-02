@@ -118,6 +118,26 @@ class Parser:
 
         return left
 
+    def parse_or(self):
+        left = self.parse_and()
+
+        while self.peek_kind() in ("OR", "KW_OR"):  # or / || token'ına göre
+            op_token = self.advance()
+            right = self.parse_and()
+            left = BinaryOpAST(left=left, op=op_token[1], right=right)
+
+        return left
+
+    def parse_and(self):
+        left = self.parse_equality()
+
+        while self.peek_kind() in ("AND", "KW_AND"):  # and / && token'ına göre
+            op_token = self.advance()
+            right = self.parse_equality()
+            left = BinaryOpAST(left=left, op=op_token[1], right=right)
+
+        return left
+
     def parse_equality(self):
         left = self.parse_term()
 
@@ -129,12 +149,9 @@ class Parser:
         return left
 
     def parse_expression(self):
-        print(self.current)
-        return self.parse_equality()
+        return self.parse_or()
 
     def parse_chain_target(self):
-        print("AAAA")
-        print("current", self.current)
         start_token = self.consume("NAME")
         chain = []
 
@@ -258,7 +275,6 @@ class Parser:
             if self.peek_kind() == "COMMA":
                 self.advance()
 
-        print("current", self.current)
         self.consume("RPAREN")
 
         return CallAST(target=target_name, chain=chain, args=args)
@@ -269,13 +285,10 @@ class Parser:
             raise self.print_error("Syntax Error: Expected name")
         
         if self.check_assignment():
-            print("ASSIGNMENT")
             return self.parse_assignment()
         elif self.check_function_call():
-            print("FUNCTION CALL")
             return self.parse_function_call()
         else:
-            print("NAME")
             self.advance()
             return VariableAST(name=token[1])
 
