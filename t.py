@@ -9,4 +9,4 @@ with open("./a.nida", "r") as f:
 l = Lexer(a)
 parser = Parser(l)
 ast = parser.parse_all()
-print(l.tokenize())
+print(l.tokens)

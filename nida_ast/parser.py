@@ -24,7 +24,8 @@ class Parser:
     def print_error(self, msg):
         curr = self.current
         if curr is None:
-            raise Exception("Syntax Error: Unexpected end of file")
+            print("Syntax Error: Unexpected end of file")
+            sys.exit(1)
 
         target_line = curr[2]
         
@@ -78,6 +79,9 @@ class Parser:
 
         if kind == "NUMBER":
             return NumberAST(self.advance()[1])
+
+        if kind == "STRING":
+            return StringAST(self.advance()[1])
         
         if kind == "NAME":
             return self.parse_name()
@@ -121,7 +125,7 @@ class Parser:
     def parse_or(self):
         left = self.parse_and()
 
-        while self.peek_kind() in ("OR", "KW_OR"):  # or / || token'ına göre
+        while self.peek_kind() in ("OR", "KW_OR"):
             op_token = self.advance()
             right = self.parse_and()
             left = BinaryOpAST(left=left, op=op_token[1], right=right)
@@ -307,7 +311,7 @@ class Parser:
 
         return CallAST(target=target_name, chain=chain, args=args)
 
-    def parse_name(self):
+    def parse_name(self, is_func_arg=False):
         token = self.current
         if token is None:
             raise self.print_error("Syntax Error: Expected name")
@@ -319,6 +323,8 @@ class Parser:
         elif token[1] == "self":
             self.advance()
             return SelfAST()
+        elif is_func_arg:
+            return self.parse_assignment()
         else:
             self.advance()
             return VariableAST(name=token[1])
@@ -413,10 +419,7 @@ class Parser:
 
         args = []
         while self.current is not None and self.peek_kind() == "NAME":
-            if self.check_assignment():
-                raise self.print_error("Syntax Error: Unexpected assignment")
-
-            args.append(self.parse_name())
+            args.append(self.parse_name(is_func_arg=True))
             if self.peek_kind() == "COMMA":
                 self.advance()
 
@@ -552,7 +555,6 @@ class Parser:
     def parse_all(self):
         while self.current is not None:
             kind = self.peek_kind()
-            print("PARSE KIND CALLER", kind)
             res = self.parse_kind(kind)
             if res is not None:
                 self.asts.append(res)
