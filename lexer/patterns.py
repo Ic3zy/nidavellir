@@ -1,3 +1,5 @@
+# fmt: off
+
 TOKEN_PATTERNS = [
     ("EQEQ",      r'=='),
     ("NEQ",       r'!='),
@@ -17,7 +19,13 @@ TOKEN_PATTERNS = [
     ("TRUE",      r'\bTrue\b'),
     ("FALSE",     r'\bFalse\b'),
 
+    ("PLUS_ASSIGN",  r'\+='), 
+    ("MINUS_ASSIGN", r'\-='),
+    ("STAR_ASSIGN",  r'\*='),
+    ("DIV_ASSIGN",   r'/='),
+    ("MOD_ASSIGN",   r'%='),
     ("ASSIGN",    r'='),
+
     ("PLUS",      r'\+'),
     ("MINUS",     r'\-'),
     ("STAR",      r'\*'),
@@ -41,4 +49,3 @@ TOKEN_PATTERNS = [
 ]
 
 MASTER_REGEX = "|".join(f"(?P<{name}>{pattern})" for name, pattern in TOKEN_PATTERNS)
-

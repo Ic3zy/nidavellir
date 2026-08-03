@@ -1,5 +1,5 @@
 from .base import *
-from .keys import create_keywords
+from .keys import create_keywords, ASSIGN_TOKENS, COMPOUND_MAP
 import sys
 
 
@@ -28,18 +28,18 @@ class Parser:
             sys.exit(1)
 
         target_line = curr[2]
-        
+
         start_line = max(1, target_line - 3)
         end_line = min(len(self.lines), target_line + 3)
 
         print(f"\n--- Compile Error (Line {target_line}) ---")
-        
+
         for l in range(start_line, end_line + 1):
-            line_str = self.lines[l - 1].rstrip('\n')
-            
+            line_str = self.lines[l - 1].rstrip("\n")
+
             if l == target_line:
                 print(f" {l:3d} | {line_str}")
-                
+
                 indent_spaces = len(line_str) - len(line_str.lstrip())
                 caret_len = max(1, len(line_str.strip()))
                 print(" " * 6 + " " * indent_spaces + "^" * caret_len)
@@ -62,7 +62,7 @@ class Parser:
         if curr is None:
             return None
         return curr[0] if isinstance(curr, tuple) else curr
-    
+
     def consume(self, kind):
         if self.peek_kind() == kind:
             return self.advance()
@@ -71,7 +71,7 @@ class Parser:
 
     def parse_number(self, data_type=None):
         token_value = self.advance()
-        
+
         return NumberAST(value=token_value[1], data_type=data_type)
 
     def parse_primary(self):
@@ -82,7 +82,7 @@ class Parser:
 
         if kind == "STRING":
             return StringAST(self.advance()[1])
-        
+
         if kind == "NAME":
             return self.parse_name()
 
@@ -192,7 +192,7 @@ class Parser:
 
         while self.current is not None:
             kind = self.peek_kind()
-            
+
             if kind == "LPAREN":
                 find_lparen = True
 
@@ -200,7 +200,7 @@ class Parser:
                 if find_lparen:
                     is_func = True
                 break
-                
+
             if kind == "NEWLINE" and not find_lparen:
                 break
 
@@ -208,7 +208,7 @@ class Parser:
 
         self.index = start_index
         return is_func
-    
+
     def check_assignment(self):
         offset = 0
         paren_depth = 0
@@ -221,23 +221,29 @@ class Parser:
             tok = self.get_token(self.index + offset)
             if tok is None:
                 break
-            
+
             kind = tok[0] if isinstance(tok, tuple) else tok
 
-            if kind == "LPAREN": paren_depth += 1
-            elif kind == "RPAREN": paren_depth -= 1
-            elif kind == "LBRACKET": bracket_depth += 1
-            elif kind == "RBRACKET": bracket_depth -= 1
-            elif kind == "LBRACE": brace_depth += 1
-            elif kind == "RBRACE": brace_depth -= 1
+            if kind == "LPAREN":
+                paren_depth += 1
+            elif kind == "RPAREN":
+                paren_depth -= 1
+            elif kind == "LBRACKET":
+                bracket_depth += 1
+            elif kind == "RBRACKET":
+                bracket_depth -= 1
+            elif kind == "LBRACE":
+                brace_depth += 1
+            elif kind == "RBRACE":
+                brace_depth -= 1
 
             if kind in ("NEWLINE", "DEDENT", "SEMI"):
                 break
 
             if paren_depth == 0 and bracket_depth == 0 and brace_depth == 0:
-                if kind == "ASSIGN":
+                if kind in ASSIGN_TOKENS:
                     return True
-                
+
                 if prev_kind == "NAME" and kind == "NAME":
                     return True
 
@@ -245,12 +251,30 @@ class Parser:
             offset += 1
 
         return False
-    
+
     def skip_newlines(self):
         while self.current is not None and self.peek_kind() == "NEWLINE":
             self.advance()
 
-    def check_assign_type(self):
+    def get_compound_assignment(self):
+        start_index = self.index
+
+        while self.peek_kind() is not None and self.peek_kind() not in ASSIGN_TOKENS:
+            if self.peek_kind() == "NEWLINE":
+                self.index = start_index
+                return False
+
+            self.advance()
+
+        if self.peek_kind() in ASSIGN_TOKENS:
+            r = COMPOUND_MAP[self.peek_kind()]
+            self.index = start_index
+            return r
+
+        self.index = start_index
+        return False
+
+    def get_assign_type(self):
         start_index = self.index
         if self.peek_kind() == "NAME":
             type = self.advance()
@@ -262,12 +286,14 @@ class Parser:
         return False
 
     def parse_assignment(self):
-        type = self.check_assign_type()
+        type = self.get_assign_type()
         if type:
             self.advance()
 
+        comp = self.get_compound_assignment()
+
         target_name, chain = self.parse_chain_target()
-        
+
         data_type = type[1] if isinstance(type, tuple) else None
 
         if data_type and chain:
@@ -282,15 +308,16 @@ class Parser:
 
         value_ast = None
 
-        if self.peek_kind() == "ASSIGN":
-            self.consume("ASSIGN")
+        if self.peek_kind() in ASSIGN_TOKENS:
+            self.consume(self.peek_kind())
             value_ast = self.parse_expression()
+            if comp:
+                value_ast = BinaryOpAST(
+                    left=VariableAST(name=target_name), op=comp, right=value_ast
+                )
 
         return AssignAST(
-            target=target_name, 
-            chain=chain, 
-            type_annotation=data_type, 
-            value=value_ast
+            target=target_name, chain=chain, type_annotation=data_type, value=value_ast
         )
 
     def parse_function_call(self):
@@ -315,7 +342,7 @@ class Parser:
         token = self.current
         if token is None:
             raise self.print_error("Syntax Error: Expected name")
-        
+
         if self.check_assignment():
             return self.parse_assignment()
         elif self.check_function_call():
@@ -345,7 +372,7 @@ class Parser:
 
         self.consume("DEDENT")
         return BlockAST(body)
-    
+
     def parse_elif(self):
         self.consume("ELIF")
         cond = self.parse_expression()
@@ -365,7 +392,6 @@ class Parser:
         self.consume("DEDENT")
 
         return ElifAST(cond, body)
-
 
     def parse_if(self):
         self.consume("IF")
@@ -445,7 +471,6 @@ class Parser:
         value = self.parse_expression()
         return ReturnAST(value)
 
-
     def parse_class(self):
         self.consume("CLASS")
         name = self.consume("NAME")
@@ -463,7 +488,6 @@ class Parser:
 
         self.consume("DEDENT")
         return ClassAST(name=name[1], body=body)
-
 
     def parse_while(self):
         self.consume("WHILE")
@@ -506,7 +530,6 @@ class Parser:
         self.consume("DEDENT")
 
         return ForAST(target, source, body)
-
 
     def parse_kind(self, kind):
         print("PARSE KIND", kind)
@@ -551,7 +574,7 @@ class Parser:
             return OperatorAST(op=token[1])
 
         return None
-    
+
     def parse_all(self):
         while self.current is not None:
             kind = self.peek_kind()
