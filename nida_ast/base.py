@@ -160,3 +160,13 @@ class BinaryOpAST(AST):
 class BooleanAST(AST):
     def __init__(self, value):
         self.value = value
+
+class ClassAST(AST):
+    def __init__(self, name, body):
+        self.name = name
+        self.body = body
+
+class SelfAST(AST):
+    def __init__(self):
+        pass
+    

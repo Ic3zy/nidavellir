@@ -10,6 +10,7 @@ TOKEN_PATTERNS = [
     ("ELIF",      r'\belif\b'),
     ("ELSE",      r'\belse\b'),
     ("WHILE",     r'\bwhile\b'),
+    ("CLASS",     r'\bclass\b'),
     ("FOR",       r'\bfor\b'),
     ("PASS",      r'\bpass\b'),
     ("RETURN",    r'\breturn\b'),

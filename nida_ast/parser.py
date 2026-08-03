@@ -211,6 +211,8 @@ class Parser:
         bracket_depth = 0
         brace_depth = 0
 
+        prev_kind = None
+
         while True:
             tok = self.get_token(self.index + offset)
             if tok is None:
@@ -229,30 +231,56 @@ class Parser:
                 break
 
             if paren_depth == 0 and bracket_depth == 0 and brace_depth == 0:
-                if kind in ("ASSIGN"):
+                if kind == "ASSIGN":
+                    return True
+                
+                if prev_kind == "NAME" and kind == "NAME":
                     return True
 
+            prev_kind = kind
             offset += 1
 
         return False
-
+    
     def skip_newlines(self):
         while self.current is not None and self.peek_kind() == "NEWLINE":
             self.advance()
 
+    def check_assign_type(self):
+        start_index = self.index
+        if self.peek_kind() == "NAME":
+            type = self.advance()
+            if self.peek_kind() == "NAME":
+                self.index = start_index
+                return type
+
+        self.index = start_index
+        return False
+
     def parse_assignment(self):
+        type = self.check_assign_type()
+        if type:
+            self.advance()
+
         target_name, chain = self.parse_chain_target()
         
-        data_type = None
+        data_type = type[1] if isinstance(type, tuple) else None
+
+        if data_type and chain:
+            target_path = f"{target_name}.{'.'.join(chain)}"
+            self.print_error(
+                f"Syntax Error: Cannot use type annotation '{data_type}' on member access '{target_path}'.\n"
+                f"  --> Fields already have a type defined in their class."
+            )
 
         if self.peek_kind() == "COLON":
-            self.advance()
-            type_token = self.consume("NAME")
-            data_type = type_token[1]
+            self.print_error("Syntax Error: Unexpected ':'")
 
-        self.consume("ASSIGN")
+        value_ast = None
 
-        value_ast = self.parse_expression()
+        if self.peek_kind() == "ASSIGN":
+            self.consume("ASSIGN")
+            value_ast = self.parse_expression()
 
         return AssignAST(
             target=target_name, 
@@ -288,6 +316,9 @@ class Parser:
             return self.parse_assignment()
         elif self.check_function_call():
             return self.parse_function_call()
+        elif token[1] == "self":
+            self.advance()
+            return SelfAST()
         else:
             self.advance()
             return VariableAST(name=token[1])
@@ -385,8 +416,7 @@ class Parser:
             if self.check_assignment():
                 raise self.print_error("Syntax Error: Unexpected assignment")
 
-            field_token = self.advance()
-            args.append(VariableAST(name=field_token[1]))
+            args.append(self.parse_name())
             if self.peek_kind() == "COMMA":
                 self.advance()
 
@@ -411,6 +441,25 @@ class Parser:
         self.consume("RETURN")
         value = self.parse_expression()
         return ReturnAST(value)
+
+
+    def parse_class(self):
+        self.consume("CLASS")
+        name = self.consume("NAME")
+        self.consume("COLON")
+        self.consume("NEWLINE")
+        self.consume("INDENT")
+
+        body = []
+        while self.current is not None and self.peek_kind() != "DEDENT":
+            kind = self.parse_kind(self.peek_kind())
+            if kind is not None:
+                body.append(kind)
+            else:
+                self.advance()
+
+        self.consume("DEDENT")
+        return ClassAST(name=name[1], body=body)
 
 
     def parse_while(self):

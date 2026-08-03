@@ -1,2 +1,4 @@
-if a == b and (c == d or (e == f and g == h)) or (x == y):
-    pass
+class a:
+    int d
+    def __init__(self, a, b, c):
+        self.a = a + b + c
