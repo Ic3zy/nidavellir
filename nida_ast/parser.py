@@ -105,19 +105,29 @@ class Parser:
     def parse_factor(self):
         left = self.parse_primary()
 
-        while self.peek_kind() in ("STAR", "SLASH"):
+        while self.peek_kind() in ("STAR", "DIV"):
             op_token = self.advance()
-            right = self.parse_primary()
+            right = self.parse_unary()
             left = BinaryOpAST(left=left, op=op_token[1], right=right)
 
         return left
 
-    def parse_term(self):
-        left = self.parse_factor()
+    def parse_unary(self):
+        kind = self.peek_kind()
 
-        while self.peek_kind() in ("PLUS", "MINUS"):
+        if kind in ("MINUS", "PLUS"):
             op_token = self.advance()
-            right = self.parse_factor()
+            right = self.parse_unary()
+            return UnaryOpAST(op=op_token[1], right=right)
+
+        return self.parse_primary()
+
+    def parse_factor(self):
+        left = self.parse_unary()
+
+        while self.peek_kind() in ("STAR", "DIV"):
+            op_token = self.advance()
+            right = self.parse_unary()
             left = BinaryOpAST(left=left, op=op_token[1], right=right)
 
         return left
@@ -125,7 +135,7 @@ class Parser:
     def parse_or(self):
         left = self.parse_and()
 
-        while self.peek_kind() in ("OR", "KW_OR"):
+        while self.peek_kind() in ("OR"):
             op_token = self.advance()
             right = self.parse_and()
             left = BinaryOpAST(left=left, op=op_token[1], right=right)
@@ -138,6 +148,16 @@ class Parser:
         while self.peek_kind() in ("AND"):
             op_token = self.advance()
             right = self.parse_equality()
+            left = BinaryOpAST(left=left, op=op_token[1], right=right)
+
+        return left
+
+    def parse_term(self):
+        left = self.parse_factor()
+
+        while self.peek_kind() in ("PLUS", "MINUS"):
+            op_token = self.advance()
+            right = self.parse_factor()
             left = BinaryOpAST(left=left, op=op_token[1], right=right)
 
         return left
@@ -237,7 +257,7 @@ class Parser:
             elif kind == "RBRACE":
                 brace_depth -= 1
 
-            if kind in ("NEWLINE", "DEDENT", "SEMI"):
+            if kind in ("NEWLINE", "DEDENT"):
                 break
 
             if paren_depth == 0 and bracket_depth == 0 and brace_depth == 0:
@@ -266,7 +286,7 @@ class Parser:
 
             self.advance()
 
-        if self.peek_kind() in ASSIGN_TOKENS:
+        if self.peek_kind() in ASSIGN_TOKENS and self.peek_kind() != "ASSIGN":
             r = COMPOUND_MAP[self.peek_kind()]
             self.index = start_index
             return r
@@ -291,6 +311,7 @@ class Parser:
             self.advance()
 
         comp = self.get_compound_assignment()
+        print(comp)
 
         target_name, chain = self.parse_chain_target()
 
@@ -311,6 +332,7 @@ class Parser:
         if self.peek_kind() in ASSIGN_TOKENS:
             self.consume(self.peek_kind())
             value_ast = self.parse_expression()
+            print(value_ast)
             if comp:
                 value_ast = BinaryOpAST(
                     left=VariableAST(name=target_name), op=comp, right=value_ast
@@ -327,7 +349,7 @@ class Parser:
 
         args = []
         while self.current is not None and self.peek_kind() != "RPAREN":
-            arg_ast = self.parse_kind(self.peek_kind())
+            arg_ast = self.parse_expression()
             if arg_ast is not None:
                 args.append(arg_ast)
 
@@ -434,7 +456,7 @@ class Parser:
         type = None
 
         if self.peek_kind() == "NAME":
-            type = start
+            type = start[1]
             name = self.advance()
         elif self.peek_kind() == "LPAREN":
             name = start
