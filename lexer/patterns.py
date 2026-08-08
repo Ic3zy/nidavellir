@@ -26,6 +26,7 @@ TOKEN_PATTERNS = [
     ("MOD_ASSIGN",   r'%='),
     ("ASSIGN",    r'='),
 
+    ("AT",        r'\@'),
     ("PLUS",      r'\+'),
     ("MINUS",     r'\-'),
     ("STAR",      r'\*'),

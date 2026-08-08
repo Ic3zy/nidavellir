@@ -1,6 +1,7 @@
 from .base import *
 from .keys import create_keywords, ASSIGN_TOKENS, COMPOUND_MAP
 import sys
+import inspect
 
 
 class Parser:
@@ -9,6 +10,7 @@ class Parser:
         self.lines = lexer.sp
         self.index = 0
         self.asts = []
+        self.last_decorators = []
         self.keywords = create_keywords(self)
         print(self.tokens)
 
@@ -276,6 +278,39 @@ class Parser:
         while self.current is not None and self.peek_kind() == "NEWLINE":
             self.advance()
 
+    def parse_decorator(self):
+        if self.peek_kind() != "AT":
+            return False
+
+        self.advance()
+        decorators = []
+        while self.current is not None and self.peek_kind() == "NAME":
+            decorator_name = self.advance()[1]
+
+            args = []
+
+            if self.peek_kind() == "LPAREN":
+                self.advance()
+                self.skip_newlines()
+                while self.current is not None and self.peek_kind() != "RPAREN":
+                    arg = self.parse_expression()
+                    if arg is not None:
+                        args.append(arg)
+                    else:
+                        self.print_error("Syntax Error: Expected argument")
+
+                    self.skip_newlines()
+
+                self.consume("RPAREN")
+
+            if self.peek_kind() == "COMMA":
+                print("COMMA")
+                self.advance()
+
+            decorators.append(DecoratorAST(decorator_name, args))
+
+        return decorators
+
     def get_compound_assignment(self):
         start_index = self.index
 
@@ -423,7 +458,6 @@ class Parser:
         self.consume("COLON")
         self.consume("NEWLINE")
         self.consume("INDENT")
-
         body = []
         while self.current is not None and self.peek_kind() != "DEDENT":
             kind = self.parse_kind(self.peek_kind())
@@ -447,8 +481,10 @@ class Parser:
 
         return IfAST(cond, body, elifs, else_body)
 
-    def parse_def(self):
+    def parse_def(self, decorators=None):
         self.consume("DEF")
+        if decorators:
+            self.last_decorators = []
 
         start = self.consume("NAME")
 
@@ -486,14 +522,19 @@ class Parser:
 
         self.consume("DEDENT")
 
-        return FunctionAST(name=name[1], args=args, body=body, type=type)
+        return FunctionAST(
+            decorators=decorators, name=name[1], args=args, body=body, type=type
+        )
 
     def parse_return(self):
         self.consume("RETURN")
         value = self.parse_expression()
         return ReturnAST(value)
 
-    def parse_class(self):
+    def parse_class(self, decorators=None):
+        if decorators:
+            self.last_decorators = []
+
         self.consume("CLASS")
         name = self.consume("NAME")
         self.consume("COLON")
@@ -509,7 +550,7 @@ class Parser:
                 self.advance()
 
         self.consume("DEDENT")
-        return ClassAST(name=name[1], body=body)
+        return ClassAST(decorators=decorators, name=name[1], body=body)
 
     def parse_while(self):
         self.consume("WHILE")
@@ -553,6 +594,12 @@ class Parser:
 
         return ForAST(target, source, body)
 
+    def accepts_decorators(self, func):
+        sig = inspect.signature(func)
+        return "decorators" in sig.parameters or any(
+            p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+        )
+
     def parse_kind(self, kind):
         print("PARSE KIND", kind)
         if kind is None:
@@ -563,10 +610,25 @@ class Parser:
 
         func = self.keywords.get(kind)
         if func is not None:
-            return func()
+            accept_decorators = self.accepts_decorators(func)
+            if accept_decorators:
+                return func(decorators=self.last_decorators)
+            elif not accept_decorators and self.last_decorators:
+                raise self.print_error("Syntax Error: Unexpected decorator")
+            else:
+                return func()
+
+        if kind == "AT":
+            decorators = self.parse_decorator()
+            if decorators:
+                self.last_decorators.append(decorators)
+            return None
 
         if kind == "NEWLINE":
             return None
+
+        if self.last_decorators:
+            raise self.print_error("Syntax Error: Unexpected decorator")
 
         if kind == "RETURN":
             return self.parse_return()

@@ -23,7 +23,15 @@ class AST:
                     lines.append(field_prefix)
                     for item in value:
                         if isinstance(item, AST):
-                            lines.append(item._format(indent + 2))
+                            lines.append(f"{prefix}    -")
+                            lines.append(item._format(indent + 3))
+                        elif isinstance(item, list):
+                            for sub_item in item:
+                                if isinstance(sub_item, AST):
+                                    lines.append(f"{prefix}    -")
+                                    lines.append(sub_item._format(indent + 3))
+                                else:
+                                    lines.append(f"{prefix}    - {repr(sub_item)}")
                         else:
                             lines.append(f"{prefix}    - {repr(item)}")
             elif value is None:
@@ -38,7 +46,8 @@ class AST:
 
 
 class FunctionAST(AST):
-    def __init__(self, name, args, body, type):
+    def __init__(self, decorators, name, args, body, type):
+        self.decorators = decorators
         self.name = name
         self.args = args
         self.body = body
@@ -185,7 +194,8 @@ class BooleanAST(AST):
 
 
 class ClassAST(AST):
-    def __init__(self, name, body):
+    def __init__(self, decorators, name, body):
+        self.decorators = decorators
         self.name = name
         self.body = body
 
@@ -199,3 +209,9 @@ class UnaryOpAST(AST):
     def __init__(self, op, right):
         self.op = op
         self.right = right
+
+
+class DecoratorAST(AST):
+    def __init__(self, name, args):
+        self.name = name
+        self.args = args
