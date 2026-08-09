@@ -215,3 +215,14 @@ class DecoratorAST(AST):
     def __init__(self, name, args):
         self.name = name
         self.args = args
+
+
+class FieldAccessAST(AST):
+    def __init__(self, target, member):
+        self.target = target
+        self.member = member
+
+
+class ListLiteralAST(AST):
+    def __init__(self, elements):
+        self.elements = elements

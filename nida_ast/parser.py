@@ -76,6 +76,66 @@ class Parser:
 
         return NumberAST(value=token_value[1], data_type=data_type)
 
+    def check_index_access(self):
+        start_index = self.index
+        find_name = False
+        find_bracket = False
+
+        if self.peek_kind() != "LBRACKET":
+            self.index = start_index
+            return False
+
+        self.index -= 1
+        if self.peek_kind() == "NAME":
+            self.index = start_index
+            find_name = True
+
+        if find_name:
+            find_bracket = 0
+            while self.current is not None:
+                if self.peek_kind() == "LBRACKET":
+                    find_bracket += 1
+                elif self.peek_kind() == "RBRACKET":
+                    find_bracket -= 1
+
+                if find_bracket == 0:
+                    break
+
+                self.advance()
+
+            if self.peek_kind() == "RBRACKET":
+                self.index = start_index
+                find_bracket = True
+
+            if find_bracket and find_name:
+                self.index = start_index
+                return True
+
+        self.index = start_index
+
+        return False
+
+    def parse_list_literal(self):
+        index_access = self.check_index_access()
+
+        self.consume("LBRACKET")
+        elements = []
+
+        if self.peek_kind() != "RBRACKET":
+            while self.current is not None:
+                elements.append(self.parse_expression())
+
+                if self.peek_kind() == "COMMA":
+                    self.advance()
+                else:
+                    break
+
+        self.consume("RBRACKET")
+        if index_access:
+            return IndexAccessAST(target=None, index=elements[0])
+        else:
+            return ListLiteralAST(elements=elements)
+
     def parse_primary(self):
         kind = self.peek_kind()
 
@@ -87,6 +147,9 @@ class Parser:
 
         if kind == "NAME":
             return self.parse_name()
+
+        if kind == "LBRACKET":
+            return self.parse_list_literal()
 
         if kind == "LPAREN":
             self.advance()
@@ -114,6 +177,32 @@ class Parser:
 
         return left
 
+    def parse_postfix(self):
+        left = self.parse_primary()
+
+        while True:
+            kind = self.peek_kind()
+
+            if kind == "DOT":
+                self.advance()
+                member_token = self.consume("NAME")
+                left = FieldAccessAST(target=left, member=member_token[1])
+
+            elif kind == "LBRACKET":
+                self.advance()
+                index_expr = self.parse_expression()
+                self.consume("RBRACKET")
+                left = IndexAccessAST(target=left, index=index_expr)
+
+            elif kind == "LPAREN":
+                args = self.parse_args()
+                left = CallAST(target=left, args=args)
+
+            else:
+                break
+
+        return left
+
     def parse_unary(self):
         kind = self.peek_kind()
 
@@ -122,7 +211,7 @@ class Parser:
             right = self.parse_unary()
             return UnaryOpAST(op=op_token[1], right=right)
 
-        return self.parse_primary()
+        return self.parse_postfix()
 
     def parse_factor(self):
         left = self.parse_unary()
@@ -189,6 +278,10 @@ class Parser:
                 chain.append(field_token[1])
             else:
                 raise self.print_error("Syntax Error: Expected field name after '.'")
+
+        if self.peek_kind() == "LBRACKET":
+            c = self.parse_list_literal()
+            chain.append(c)
 
         return start_token[1], chain
 
@@ -329,28 +422,32 @@ class Parser:
         self.index = start_index
         return False
 
-    def get_assign_type(self):
+    def parse_type(self):
         start_index = self.index
-        if self.peek_kind() == "NAME":
-            type = self.advance()
-            if self.peek_kind() == "NAME":
-                self.index = start_index
-                return type
+        if self.peek_kind() != "NAME":
+            return None
 
-        self.index = start_index
-        return False
+        type_name = self.advance()[1]
+
+        while self.peek_kind() == "STAR":
+            self.advance()
+            type_name += "*"  # example "char*", "int**"
+
+        if self.peek_kind() != "NAME":
+            self.index = start_index
+            return None
+
+        return type_name
 
     def parse_assignment(self):
-        type = self.get_assign_type()
-        if type:
-            self.advance()
+        type = self.parse_type()
 
         comp = self.get_compound_assignment()
         print(comp)
 
         target_name, chain = self.parse_chain_target()
 
-        data_type = type[1] if isinstance(type, tuple) else None
+        data_type = type
 
         if data_type and chain:
             target_path = f"{target_name}.{'.'.join(chain)}"
@@ -377,19 +474,25 @@ class Parser:
             target=target_name, chain=chain, type_annotation=data_type, value=value_ast
         )
 
-    def parse_function_call(self):
-        target_name, chain = self.parse_chain_target()
-
-        self.consume("LPAREN")
-
+    def parse_args(self):
         args = []
         while self.current is not None and self.peek_kind() != "RPAREN":
             arg_ast = self.parse_expression()
             if arg_ast is not None:
                 args.append(arg_ast)
+                print(arg_ast)
 
             if self.peek_kind() == "COMMA":
                 self.advance()
+
+        return args
+
+    def parse_function_call(self):
+        target_name, chain = self.parse_chain_target()
+
+        self.consume("LPAREN")
+
+        args = self.parse_args()
 
         self.consume("RPAREN")
 
@@ -452,8 +555,9 @@ class Parser:
 
     def parse_if(self):
         self.consume("IF")
-
+        print("IF")
         cond = self.parse_expression()
+        print("COND", self.current)
 
         self.consume("COLON")
         self.consume("NEWLINE")
