@@ -202,7 +202,8 @@ class ClassAST(AST):
 
 class SelfAST(AST):
     def __init__(self):
-        pass
+        self.target = "self"
+        self.type_annotation = None
 
 
 class UnaryOpAST(AST):
@@ -226,3 +227,12 @@ class FieldAccessAST(AST):
 class ListLiteralAST(AST):
     def __init__(self, elements):
         self.elements = elements
+
+
+class IntrinsicAST(AST):
+    def __init__(self, name, return_type, params, handler, is_variadic=False):
+        self.name = name
+        self.type = return_type
+        self.args = params
+        self.handler = handler
+        self.is_variadic = is_variadic

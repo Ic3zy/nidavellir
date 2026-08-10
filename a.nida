@@ -1,1 +1,5 @@
-test([5,1,3,4,1])
+class too:
+    a = 1
+    def __init__(self, a):
+        self.a = a
+        
