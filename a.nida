@@ -1,5 +1,11 @@
-class too:
-    a = 1
+class b:
     def __init__(self, a):
-        self.a = a
-        
+        pass
+
+class too:
+    a = b(2)
+    def __init__(self):
+        self.a.v = 5
+
+    def test(self):
+        pass

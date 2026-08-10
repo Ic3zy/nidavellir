@@ -19,6 +19,7 @@ class SimpleASTVisitor:
     def __init__(self, stm):
         self.stm = stm
         self.body_parse_waiter_funcs = []
+        self.current_class_name = None
 
     def error(self, node, message):
         line = getattr(node, "line", None)
@@ -29,9 +30,13 @@ class SimpleASTVisitor:
     def generic_visit(self, node):
         self.error(node, f"Unexpected node: {type(node).__name__}")
 
-    def _parse_body(self, scope, body, args):
+    def _parse_body(self, scope, body, args, class_name=None):
         saved_scope = self.stm.current_scope
+        saved_class = self.current_class_name
+
         self.stm.current_scope = scope
+        self.current_class_name = class_name
+
         for arg in args:
             self.stm.define_var(arg.target, arg.type_annotation)
 
@@ -39,11 +44,13 @@ class SimpleASTVisitor:
             self.visit_statement(node)
 
         self.stm.current_scope = saved_scope
+        self.current_class_name = saved_class
 
     def get_target_in_bpwf(self, target):
-        for func in self.body_parse_waiter_funcs:
-            if func[0].name == f"func_{target}":
-                return func
+        for func_data in self.body_parse_waiter_funcs:
+            # func_data: (scope, body, args, class_name)
+            if func_data[0].name == f"func_{target}":
+                return func_data
         return None
 
     def eval_VariableAST(self, node):
@@ -73,31 +80,73 @@ class SimpleASTVisitor:
         bpwf = self.get_target_in_bpwf(target)
         if bpwf is not None:
             self.body_parse_waiter_funcs.remove(bpwf)
-            self._parse_body(bpwf[0], bpwf[1], bpwf[2])
+            self._parse_body(bpwf[0], bpwf[1], bpwf[2], bpwf[3])
 
+        is_class = False
         func = self.stm.lookup_func(target)
+        if func is None:
+            func = self.stm.lookup_class(target)
+            is_class = True
+
         if func is None:
             self.error(node, f"Function '{target}' not defined")
 
         args = node.args
         if not func.get("is_variadic", False) and len(args) != len(func["params"]):
             self.error(
-                node, f"Function '{target}' takes {len(func['params'])} arguments"
+                node,
+                f"{'Function' if not is_class else 'Class'} '{target}' takes {len(func['params'])} arguments",
             )
 
         for arg in args:
             self.visit_expression(arg)
 
     def stmt_ClassAST(self, node):
-        for node in node.body:
-            self.visit_statement(node)
+        self.stm.define_class(node.name, node)
+        self.current_class_name = node.name
+        self.stm.enter_scope(scope_name=node.name, is_func=False)
+
+        try:
+            for n in node.body:
+                self.visit_statement(n)
+        finally:
+            self.stm.exit_scope()
+            self.current_class_name = None
 
     def stmt_PassAST(self, node):
         pass
 
     def stmt_AssignAST(self, node):
-        self.visit_expression(node.value)
-        self.stm.define_var(node.target, node.type_annotation)
+        chain = getattr(node, "chain", [])
+
+        if self.current_class_name is not None:
+            if (node.target == "self" and len(chain) == 1) or node.target != "self":
+                field_name = chain[0] if node.target == "self" else node.target
+
+                self.stm.define_field(
+                    class_name=self.current_class_name,
+                    field_name=field_name,
+                    field_type=node.type_annotation,
+                    ast_node=node,
+                )
+
+            elif node.target == "self" and len(chain) > 1:
+                root_field = chain[0]
+                existing_field = self.stm.lookup_field(
+                    self.current_class_name, root_field
+                )
+
+                if not existing_field:
+                    self.error(
+                        node,
+                        f"Member '{root_field}' is not defined in class '{self.current_class_name}'",
+                    )
+
+        else:
+            self.stm.define_var(node.target, node.type_annotation)
+
+        if node.value is not None:
+            self.visit_expression(node.value)
 
     def stmt_ReturnAST(self, node):
         if not self.stm.current_scope.is_func:
@@ -123,10 +172,39 @@ class SimpleASTVisitor:
 
         self.stm.enter_scope(scope_name=f"func_{node.name}", is_func=True)
         self.stm.define_func(node.name, node.type, node.args, node)
+        args = node.args
+        in_self = False
 
-        self.body_parse_waiter_funcs.append(
-            (self.stm.current_scope, node.body, node.args)
-        )
+        if self.current_class_name is not None:
+            in_self = None
+
+            if args and isinstance(args[0], SelfAST):
+                in_self = args.pop(0)
+
+            if in_self is None:
+                self.error(
+                    node,
+                    f"Method '{node.name}' in class '{self.current_class_name}' must take 'self' as its first parameter",
+                )
+
+        if node.name == "__init__":
+            self._parse_body(
+                self.stm.current_scope,
+                node.body,
+                node.args,
+                self.current_class_name,
+            )
+
+            self.stm.define_class_required_params(self.current_class_name, node.args)
+        else:
+            self.body_parse_waiter_funcs.append(
+                (
+                    self.stm.current_scope,
+                    node.body,
+                    node.args,
+                    self.current_class_name,
+                )
+            )
 
         self.stm.exit_scope()
 
@@ -163,4 +241,4 @@ class SimpleAnalyzer:
 
         while self.sav.body_parse_waiter_funcs:
             func = self.sav.body_parse_waiter_funcs.pop(0)
-            self.sav._parse_body(func[0], func[1], func[2])
+            self.sav._parse_body(func[0], func[1], func[2], func[3])

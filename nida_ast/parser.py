@@ -12,7 +12,6 @@ class Parser:
         self.asts = []
         self.last_decorators = []
         self.keywords = create_keywords(self)
-        print(self.tokens)
 
     def get_token(self, index):
         if 0 <= index < len(self.tokens):
@@ -772,4 +771,4 @@ class Parser:
             else:
                 self.advance()
 
-        print("TREE", self.asts)
+        # print("TREE", self.asts)
