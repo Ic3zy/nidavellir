@@ -12,6 +12,7 @@ VALID_RETURN_EXPRESSIONS = (
     IndexAccessAST,
     BinaryOpAST,
     UnaryOpAST,
+    FieldAccessAST,
 )
 
 
@@ -48,8 +49,8 @@ class SimpleASTVisitor:
 
     def get_target_in_bpwf(self, target):
         for func_data in self.body_parse_waiter_funcs:
-            # func_data: (scope, body, args, class_name)
-            if func_data[0].name == f"func_{target}":
+            scope, _, _, class_name = func_data
+            if class_name == self.current_class_name and scope.name == f"func_{target}":
                 return func_data
         return None
 
@@ -72,7 +73,33 @@ class SimpleASTVisitor:
         self.visit_expression(node.right)
 
     def eval_FieldAccessAST(self, node):
-        pass
+        if isinstance(node.target, SelfAST):
+            root_name = "self"
+        elif isinstance(node.target, VariableAST):
+            root_name = node.target.name
+            self.eval_VariableAST(node.target)
+        else:
+            self.visit_expression(node.target)
+            root_name = None
+
+        if self.current_class_name is not None and root_name == "self":
+            chain = getattr(node, "chain", [])
+
+            if not chain:
+                return None
+
+            root_field = chain[0]
+            existing_field = self.stm.lookup_field(self.current_class_name, root_field)
+
+            if not existing_field:
+                self.error(
+                    node,
+                    f"Member '{root_field}' is not defined in class '{self.current_class_name}'",
+                )
+
+            return existing_field
+
+        return None
 
     def eval_CallAST(self, node):
         target = node.target
@@ -81,22 +108,27 @@ class SimpleASTVisitor:
         if bpwf is not None:
             self.body_parse_waiter_funcs.remove(bpwf)
             self._parse_body(bpwf[0], bpwf[1], bpwf[2], bpwf[3])
+        is_chain = node.chain
+        if is_chain:
+            if not self.stm.lookup_var(target):
+                self.error(node, f"Variable '{target}' is not defined")
+        else:
+            is_class = False
+            func = self.stm.lookup_func(target)
+            if func is None:
+                func = self.stm.lookup_class(target)
+                is_class = True
 
-        is_class = False
-        func = self.stm.lookup_func(target)
-        if func is None:
-            func = self.stm.lookup_class(target)
-            is_class = True
-
-        if func is None:
-            self.error(node, f"Function '{target}' not defined")
+            if func is None:
+                self.error(node, f"Function '{target}' not defined")
 
         args = node.args
-        if not func.get("is_variadic", False) and len(args) != len(func["params"]):
-            self.error(
-                node,
-                f"{'Function' if not is_class else 'Class'} '{target}' takes {len(func['params'])} arguments",
-            )
+        if not is_chain:
+            if not func.get("is_variadic", False) and len(args) != len(func["params"]):
+                self.error(
+                    node,
+                    f"{'Function' if not is_class else 'Class'} '{target}' takes {len(func['params'])} arguments",
+                )
 
         for arg in args:
             self.visit_expression(arg)
@@ -120,12 +152,18 @@ class SimpleASTVisitor:
         chain = getattr(node, "chain", [])
 
         if self.current_class_name is not None:
-            if (node.target == "self" and len(chain) == 1) or node.target != "self":
-                field_name = chain[0] if node.target == "self" else node.target
-
+            if node.target == "self" and len(chain) == 1:
                 self.stm.define_field(
                     class_name=self.current_class_name,
-                    field_name=field_name,
+                    field_name=chain[0],
+                    field_type=node.type_annotation,
+                    ast_node=node,
+                )
+
+            elif node.target != "self" and not self.stm.current_scope.is_func:
+                self.stm.define_field(
+                    class_name=self.current_class_name,
+                    field_name=node.target,
                     field_type=node.type_annotation,
                     ast_node=node,
                 )
@@ -141,6 +179,9 @@ class SimpleASTVisitor:
                         node,
                         f"Member '{root_field}' is not defined in class '{self.current_class_name}'",
                     )
+
+            else:
+                self.stm.define_var(node.target, node.type_annotation)
 
         else:
             self.stm.define_var(node.target, node.type_annotation)
@@ -179,7 +220,7 @@ class SimpleASTVisitor:
             in_self = None
 
             if args and isinstance(args[0], SelfAST):
-                in_self = args.pop(0)
+                in_self = args[0]
 
             if in_self is None:
                 self.error(

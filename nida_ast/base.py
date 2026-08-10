@@ -219,9 +219,9 @@ class DecoratorAST(AST):
 
 
 class FieldAccessAST(AST):
-    def __init__(self, target, member):
+    def __init__(self, target, chain):
         self.target = target
-        self.member = member
+        self.chain = chain
 
 
 class ListLiteralAST(AST):

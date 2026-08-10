@@ -93,7 +93,6 @@ class SymbolTableManager:
             "ast": ast_node,
             "is_variadic": False,
         }
-        print(func_symbol)
         self.global_scope.functions[name] = func_symbol
 
     def lookup_func(self, name):

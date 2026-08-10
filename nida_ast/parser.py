@@ -183,9 +183,13 @@ class Parser:
             kind = self.peek_kind()
 
             if kind == "DOT":
-                self.advance()
-                member_token = self.consume("NAME")
-                left = FieldAccessAST(target=left, member=member_token[1])
+                chain = []
+                while self.peek_kind() == "DOT":
+                    self.advance()
+                    member_token = self.consume("NAME")
+                    chain.append(member_token[1])
+
+                left = FieldAccessAST(target=left, chain=chain)
 
             elif kind == "LBRACKET":
                 self.advance()
@@ -355,6 +359,9 @@ class Parser:
                 break
 
             if paren_depth == 0 and bracket_depth == 0 and brace_depth == 0:
+                if kind == "COMMA":
+                    return False
+
                 if kind in ASSIGN_TOKENS:
                     return True
 
@@ -396,7 +403,6 @@ class Parser:
                 self.consume("RPAREN")
 
             if self.peek_kind() == "COMMA":
-                print("COMMA")
                 self.advance()
 
             decorators.append(DecoratorAST(decorator_name, args))
@@ -442,8 +448,6 @@ class Parser:
         type = self.parse_type()
 
         comp = self.get_compound_assignment()
-        print(comp)
-
         target_name, chain = self.parse_chain_target()
 
         data_type = type
@@ -463,7 +467,6 @@ class Parser:
         if self.peek_kind() in ASSIGN_TOKENS:
             self.consume(self.peek_kind())
             value_ast = self.parse_expression()
-            print(value_ast)
             if comp:
                 value_ast = BinaryOpAST(
                     left=VariableAST(name=target_name), op=comp, right=value_ast
@@ -479,7 +482,6 @@ class Parser:
             arg_ast = self.parse_expression()
             if arg_ast is not None:
                 args.append(arg_ast)
-                print(arg_ast)
 
             if self.peek_kind() == "COMMA":
                 self.advance()
@@ -554,9 +556,7 @@ class Parser:
 
     def parse_if(self):
         self.consume("IF")
-        print("IF")
         cond = self.parse_expression()
-        print("COND", self.current)
 
         self.consume("COLON")
         self.consume("NEWLINE")
@@ -704,7 +704,6 @@ class Parser:
         )
 
     def parse_kind(self, kind):
-        print("PARSE KIND", kind)
         if kind is None:
             return None
 
@@ -770,5 +769,3 @@ class Parser:
                 self.asts.append(res)
             else:
                 self.advance()
-
-        # print("TREE", self.asts)

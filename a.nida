@@ -1,11 +1,8 @@
-class b:
-    def __init__(self, a):
-        pass
+def void main():
+    val = calculate(10)
 
-class too:
-    a = b(2)
-    def __init__(self):
-        self.a.v = 5
+def int calculate(int num):
+    return num * 2
 
-    def test(self):
-        pass
+
+main()

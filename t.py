@@ -1,14 +1,10 @@
-from lexer import Lexer
-from nida_ast import Parser
-from semantic import SimpleAnalyzer
+from nidac import Nidac
 
 a = None
 with open("./a.nida", "r") as f:
     a = f.read()
 
 
-l = Lexer(a)
-parser = Parser(l)
-ast = parser.parse_all()
-SimpleAnalyzer(parser.asts).analyze_all()
-# print(l.tokens)
+# nida = Nidac(source=a)
+nida = Nidac(file_path="./a.nida")
+nida.compile()
