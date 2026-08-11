@@ -56,7 +56,7 @@ class SymbolTableManager:
         self.current_scope.define_var(name, var_symbol)
 
     def define_class(self, name, ast_node):
-        class_symbol = {"name": name, "params": [], "ast": ast_node, "fields": {}}
+        class_symbol = {"name": name, "params": [], "fields": {}, "ast": ast_node}
         self.global_scope.classes[name] = class_symbol
 
     def lookup_field(self, class_name, field_name):

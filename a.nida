@@ -1,8 +1,14 @@
-def void main():
-    val = calculate(10)
+class f:
+    int a
 
-def int calculate(int num):
-    return num * 2
+class g:
+    c = f()
+
+class te:
+    v = g()
+    # v = 1
+    def __init__(self):
+        self.v.c.a = self.test()
 
 
-main()
+a = te()

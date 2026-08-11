@@ -110,7 +110,11 @@ class SimpleASTVisitor:
             self._parse_body(bpwf[0], bpwf[1], bpwf[2], bpwf[3])
         is_chain = node.chain
         if is_chain:
-            if not self.stm.lookup_var(target):
+            if (
+                self.current_class_name is None
+                and target != "self"
+                and not self.stm.lookup_var(target)
+            ):
                 self.error(node, f"Variable '{target}' is not defined")
         else:
             is_class = False
@@ -169,16 +173,42 @@ class SimpleASTVisitor:
                 )
 
             elif node.target == "self" and len(chain) > 1:
-                root_field = chain[0]
-                existing_field = self.stm.lookup_field(
-                    self.current_class_name, root_field
-                )
+                last_class = self.stm.lookup_class(self.current_class_name)
 
-                if not existing_field:
-                    self.error(
-                        node,
-                        f"Member '{root_field}' is not defined in class '{self.current_class_name}'",
-                    )
+                for idx, ch in enumerate(chain):
+                    if ch in last_class["fields"]:
+                        ast = last_class["fields"][ch]["ast"]
+                        value = ast.value
+
+                        is_last_in_chain = idx == len(chain) - 1
+
+                        if not is_last_in_chain:
+                            if not isinstance(value, CallAST):
+                                type_str = getattr(ast, "type_annotation", "primitive")
+                                self.error(
+                                    node,
+                                    f"Cannot perform member chain access '{'.'.join(chain)}': "
+                                    f"'{ch}' is of type '{type_str}', not a class instance.",
+                                )
+                                break
+
+                            tr = value.target
+                            last_class = self.stm.lookup_class(tr)
+                            if not last_class:
+                                self.error(
+                                    node,
+                                    f"Class '{tr}' referenced by '{ch}' is not defined.",
+                                )
+                                break
+                    else:
+                        curr_class_name = last_class.get(
+                            "name", self.current_class_name
+                        )
+                        self.error(
+                            node,
+                            f"Member '{ch}' is not defined in class '{curr_class_name}'",
+                        )
+                        break
 
             else:
                 self.stm.define_var(node.target, node.type_annotation)
@@ -220,7 +250,8 @@ class SimpleASTVisitor:
             in_self = None
 
             if args and isinstance(args[0], SelfAST):
-                in_self = args[0]
+                # in_self = args[0]
+                in_self = args.pop(0)
 
             if in_self is None:
                 self.error(
