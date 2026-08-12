@@ -1,9 +1,5 @@
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from nidac import Nidac
+import time
+from nidac_importer import Nidac
 
 PASS_TESTS = [
     """
@@ -52,6 +48,16 @@ class Calculator:
         temp = self.double_val(a)
         return temp
 """,
+    """
+class ChainAccess1:
+    def __init__(self):
+        self.a = 10
+
+class ChainAccess2:
+    c = ChainAccess1()
+    def __init__(self):
+        self.c.a = 20
+""",
 ]
 
 
@@ -81,8 +87,34 @@ class ScopeError:
 def void run():
     a = undefined_var + 5
 """,
-]
+    """
+class Test:
+    a = 5
+    def __init__(self):
+        self.a.b = 10
+""",
+    """
+class ChainAccess1:
+    def __init__(self):
+        self.a = 10 
 
+class ChainAccess2:
+    c = ChainAccess1()
+    def __init__(self):
+        self.c.b = 20
+""",
+    """
+class ChainAccess1:
+    def __init__(self):
+        self.a = 10
+
+class ChainAccess2:
+    c = undefined_func()
+    def __init__(self):
+        self.c.a = 20
+""",
+]
+t1 = time.perf_counter()
 error = False
 c = 0
 for test in PASS_TESTS:
@@ -113,3 +145,6 @@ for test in FAIL_TESTS:
 
 
 print("ALL TESTS PASSED" if not error else "TEST SUITE FAILED")
+
+t2 = time.perf_counter()
+print(f"Time taken: {t2 - t1} seconds")

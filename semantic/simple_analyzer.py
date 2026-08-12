@@ -283,6 +283,42 @@ class SimpleASTVisitor:
     def stmt_CallAST(self, node):
         self.eval_CallAST(node)
 
+    def stmt_IfAST(self, node: IfAST):
+        self.stm.enter_scope(scope_name="if", is_func=False)
+        self.visit_expression(node.cond)
+
+        for n in node.body:
+            self.visit_statement(n)
+
+        self.stm.exit_scope()
+
+        for elif_node in node.elifs:
+            self.stm.enter_scope(scope_name="elif", is_func=False)
+            self.visit_expression(elif_node.cond)
+
+            for n in elif_node.body:
+                self.visit_statement(n)
+
+            self.stm.exit_scope()
+
+        if isinstance(node.else_body, BlockAST):
+            self.stm.enter_scope(scope_name="else", is_func=False)
+
+            for n in node.else_body.body:
+                self.visit_statement(n)
+
+            self.stm.exit_scope()
+
+    def stmt_WhileAST(self, node):
+        self.stm.enter_scope(scope_name="while", is_func=False)
+
+        self.visit_expression(node.cond)
+
+        for n in node.body:
+            self.visit_statement(n)
+
+        self.stm.exit_scope()
+
     def visit_statement(self, node):
         method_name = f"stmt_{type(node).__name__}"
         visitor = getattr(self, method_name, None)

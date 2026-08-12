@@ -154,8 +154,8 @@ class UnaryExprAST(AST):
 
 
 class WhileAST(AST):
-    def __init__(self, conditions, body):
-        self.conditions = conditions
+    def __init__(self, cond, body):
+        self.cond = cond
         self.body = body
 
 

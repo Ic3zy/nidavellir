@@ -1,14 +1,13 @@
-class f:
-    int a
-
-class g:
-    c = f()
-
-class te:
-    v = g()
-    # v = 1
-    def __init__(self):
-        self.v.c.a = self.test()
-
-
-a = te()
+a = 1
+c = 10
+while a < 10:
+    if a < 3:
+        print(a)
+    elif c < 5:
+        print(c)
+    elif c < 6:
+        print(c)
+    elif c < 7:
+        print(c)
+    else:
+        print(c)
