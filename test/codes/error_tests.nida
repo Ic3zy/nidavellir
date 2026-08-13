@@ -1,0 +1,122 @@
+class Test:
+    def int get_val():
+        return 100
+
+#nida_test
+
+class Vehicle:
+    def void __init__(self):
+        self.fuel = 100
+
+    def void drive(self):
+        print(self.speed)
+
+#nida_test
+
+def void print(String text):
+    pass
+
+#nida_test
+
+class ScopeError:
+    return 42
+
+#nida_test
+
+def void run():
+    a = undefined_var + 5
+
+#nida_test
+
+class Test:
+    a = 5
+    def __init__(self):
+        self.a.b = 10
+
+#nida_test
+
+class ChainAccess1:
+    def __init__(self):
+        self.a = 10 
+
+class ChainAccess2:
+    c = ChainAccess1()
+    def __init__(self):
+        self.c.b = 20
+
+#nida_test
+
+class ChainAccess1:
+    def __init__(self):
+        self.a = 10
+
+class ChainAccess2:
+    c = undefined_func()
+    def __init__(self):
+        self.c.a = 20
+
+#nida_test
+
+def void test_if_scope():
+    if True:
+        temp_val = 100
+    print(temp_val)
+
+#nida_test
+
+def void test_for_scope():
+    for i in range(10):
+        loop_var = i * 2
+    return loop_var
+
+#nida_test
+
+def void test_undefined_cond():
+    if undefined_flag:
+        a = 10
+
+#nida_test
+
+def void test_while_undefined():
+    while limit > 0:
+        pass
+
+#nida_test
+
+def void variable_not_defined():
+    for i in range(10):
+        pass
+
+    print(i)
+
+#nida_test
+    
+def void variable_not_defined():
+    a = 5
+    if a == 5:
+        pass
+    else:
+        c = 10
+
+    print(c)
+
+#nida_test
+
+def void variable_not_defined():
+    a = 5
+    b = 10
+    if a == 5:
+        c = 10
+    elif b == 10:
+        c = 20
+    
+    print(c)
+
+#nida_test
+
+def void variable_not_defined():
+    while True:
+        a = 5
+        break
+    
+    print(a)

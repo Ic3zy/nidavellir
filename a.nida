@@ -1,13 +1,2 @@
-a = 1
-c = 10
-while a < 10:
-    if a < 3:
-        print(a)
-    elif c < 5:
-        print(c)
-    elif c < 6:
-        print(c)
-    elif c < 7:
-        print(c)
-    else:
-        print(c)
+for i in range(10):
+    pass

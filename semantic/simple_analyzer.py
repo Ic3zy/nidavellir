@@ -59,6 +59,9 @@ class SimpleASTVisitor:
             self.error(node, f"Variable '{node.name}' is not defined")
         return self.stm.lookup_var(node.name)
 
+    def eval_UnaryOpAST(self, node):
+        pass
+
     def eval_NumberAST(self, node):
         pass
 
@@ -313,6 +316,32 @@ class SimpleASTVisitor:
         self.stm.enter_scope(scope_name="while", is_func=False)
 
         self.visit_expression(node.cond)
+
+        for n in node.body:
+            self.visit_statement(n)
+
+        self.stm.exit_scope()
+
+    def stmt_ForAST(self, node):
+        self.stm.enter_scope(scope_name="for", is_func=False)
+
+        if not isinstance(node.target, AssignAST):
+            self.error(
+                f"Invalid 'for' loop target '{type(node.target).__name__}'. "
+                f"Expected a variable declaration (e.g., 'for i in sequence').",
+                node=node.target,
+            )
+
+        if node.target.value is not None:
+            self.error(
+                f"For loop iterator variable cannot have an initial value assignment. "
+                f"Use 'for {node.target.name} in ...' instead of 'for {node.target.name} = {node.target.value} ...'.",
+                node=node.target,
+            )
+
+        self.stm.define_var(node.target.target, node.target.type_annotation)
+
+        self.visit_expression(node.source)
 
         for n in node.body:
             self.visit_statement(n)

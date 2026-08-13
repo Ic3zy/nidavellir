@@ -1,0 +1,86 @@
+class Point:
+    def void __init__(self, float x, float y):
+        self.x = x
+        self.y = y
+
+    def float get_x(self):
+        return self.x
+
+#nida_test
+
+def void main():
+    val = calculate(10)
+
+def int calculate(int num):
+    return num * 2
+
+#nida_test
+
+class Engine:
+    def void __init__(self, int hp):
+        self.hp = hp
+
+class Car:
+    def void __init__(self, Engine engine):
+        self.engine = engine
+
+    def void check(self):
+        print(self.engine.hp)
+
+#nida_test
+
+class Counter:
+    def void __init__(self):
+        self.count = 0
+
+    def void increment(self):
+        step = 1
+        self.count = self.count + step
+
+#nida_test
+
+class Calculator:
+    def int double_val(self, int x):
+        return x * 2
+
+    def int compute(self, int a):
+        temp = self.double_val(a)
+        return temp
+
+#nida_test
+
+class ChainAccess1:
+    def __init__(self):
+        self.a = 10
+
+class ChainAccess2:
+    c = ChainAccess1()
+    def __init__(self):
+        self.c.a = 20
+
+#nida_test
+
+def int test_control_flow(int val):
+    if val > 10:
+        res = 1
+    elif val == 10:
+        res = 0
+    else:
+        res = -1
+    return val
+
+#nida_test
+
+def void test_while():
+    i = 0
+    while i < 10:
+        step = 1
+        i = i + step
+
+#nida_test
+
+def void test_for():
+    total = 0
+    for i in range(10):
+        for j in range(5):
+            total = total + i + j

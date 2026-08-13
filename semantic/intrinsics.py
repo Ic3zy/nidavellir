@@ -20,4 +20,11 @@ INTRINSIC_HANDLERS = {
         "handler": not_implemented,
         "is_variadic": True,
     },
+    "range": {
+        "name": "range",
+        "return_type": "List",
+        "params": [("size", "int")],
+        "handler": not_implemented,
+        "is_variadic": False,
+    },
 }

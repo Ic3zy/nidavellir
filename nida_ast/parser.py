@@ -677,7 +677,8 @@ class Parser:
     def parse_for(self):
         self.consume("FOR")
 
-        target = self.consume("NAME")
+        target = self.parse_assignment()
+
         self.consume("IN")
         source = self.parse_expression()
 
