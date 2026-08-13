@@ -1,2 +1,5 @@
-for i in range(10):
-    pass
+a = 10
+
+def test():
+    a = 40
+    return

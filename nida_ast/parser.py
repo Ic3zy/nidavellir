@@ -631,7 +631,9 @@ class Parser:
 
     def parse_return(self):
         self.consume("RETURN")
-        value = self.parse_expression()
+        value = None
+        if self.peek_kind() != "NEWLINE":
+            value = self.parse_expression()
         return ReturnAST(value)
 
     def parse_class(self, decorators=None):

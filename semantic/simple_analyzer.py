@@ -140,6 +140,9 @@ class SimpleASTVisitor:
         for arg in args:
             self.visit_expression(arg)
 
+    def stmt_PassAST(self, node):
+        pass
+
     def stmt_ClassAST(self, node):
         self.stm.define_class(node.name, node)
         self.current_class_name = node.name
@@ -151,9 +154,6 @@ class SimpleASTVisitor:
         finally:
             self.stm.exit_scope()
             self.current_class_name = None
-
-    def stmt_PassAST(self, node):
-        pass
 
     def stmt_AssignAST(self, node):
         chain = getattr(node, "chain", [])

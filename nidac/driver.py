@@ -31,6 +31,7 @@ class Nidac:
 
         lexer = Lexer(self.source)
         self.tokens = getattr(lexer, "tokens", [])
+        # print(lexer.tokenize())
         return self.tokens
 
     def parse(self):
