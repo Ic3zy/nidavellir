@@ -1,3 +1,6 @@
+# NOTE: Technical debt has accumulated on this analyzer layer.
+# The current priority is to build a working prototype (MVP), not perfect architecture.
+
 from .intrinsics import INTRINSIC_HANDLERS
 from .symbol_table import SymbolTableManager
 from nida_ast.base import *
@@ -145,8 +148,7 @@ class SimpleASTVisitor:
 
     def stmt_ClassAST(self, node):
         self.stm.define_class(node.name, node)
-        self.current_class_name = node.name
-        self.stm.enter_scope(scope_name=node.name, is_func=False)
+        self.stm.enter_scope(scope_name=node.name, is_func=False, class_name=node.name)
 
         try:
             for n in node.body:
@@ -157,11 +159,22 @@ class SimpleASTVisitor:
 
     def stmt_AssignAST(self, node):
         chain = getattr(node, "chain", [])
+        class_name = None
+        if (
+            self.stm.current_scope.class_name is not None
+            or self.stm.current_scope.parent.class_name is not None
+            and self.stm.current_scope.is_func
+        ):
+            class_name = (
+                self.stm.current_scope.class_name
+                if self.stm.current_scope.class_name is not None
+                else self.stm.current_scope.parent.class_name
+            )
 
-        if self.current_class_name is not None:
+        if class_name is not None:
             if node.target == "self" and len(chain) == 1:
                 self.stm.define_field(
-                    class_name=self.current_class_name,
+                    class_name=class_name,
                     field_name=chain[0],
                     field_type=node.type_annotation,
                     ast_node=node,
@@ -169,14 +182,14 @@ class SimpleASTVisitor:
 
             elif node.target != "self" and not self.stm.current_scope.is_func:
                 self.stm.define_field(
-                    class_name=self.current_class_name,
+                    class_name=class_name,
                     field_name=node.target,
                     field_type=node.type_annotation,
                     ast_node=node,
                 )
 
             elif node.target == "self" and len(chain) > 1:
-                last_class = self.stm.lookup_class(self.current_class_name)
+                last_class = self.stm.lookup_class(class_name)
 
                 for idx, ch in enumerate(chain):
                     if ch in last_class["fields"]:
@@ -204,9 +217,7 @@ class SimpleASTVisitor:
                                 )
                                 break
                     else:
-                        curr_class_name = last_class.get(
-                            "name", self.current_class_name
-                        )
+                        curr_class_name = last_class.get("name", class_name)
                         self.error(
                             node,
                             f"Member '{ch}' is not defined in class '{curr_class_name}'",
@@ -223,7 +234,12 @@ class SimpleASTVisitor:
             self.visit_expression(node.value)
 
     def stmt_ReturnAST(self, node):
-        if not self.stm.current_scope.is_func:
+        scope = self.stm.current_scope
+
+        while scope is not None and not scope.is_func:
+            scope = scope.parent
+
+        if scope is None:
             self.error(node, "Return statement outside of function")
 
         if node.value is None:
@@ -249,7 +265,19 @@ class SimpleASTVisitor:
         args = node.args
         in_self = False
 
-        if self.current_class_name is not None:
+        class_name = None
+        if (
+            self.stm.current_scope.class_name is not None
+            or self.stm.current_scope.parent.class_name is not None
+            and self.stm.current_scope.is_func
+        ):
+            class_name = (
+                self.stm.current_scope.class_name
+                if self.stm.current_scope.class_name is not None
+                else self.stm.current_scope.parent.class_name
+            )
+
+        if class_name is not None:
             in_self = None
 
             if args and isinstance(args[0], SelfAST):
@@ -259,7 +287,7 @@ class SimpleASTVisitor:
             if in_self is None:
                 self.error(
                     node,
-                    f"Method '{node.name}' in class '{self.current_class_name}' must take 'self' as its first parameter",
+                    f"Method '{node.name}' in class '{class_name}' must take 'self' as its first parameter",
                 )
 
         if node.name == "__init__":
@@ -267,17 +295,17 @@ class SimpleASTVisitor:
                 self.stm.current_scope,
                 node.body,
                 node.args,
-                self.current_class_name,
+                class_name,
             )
 
-            self.stm.define_class_required_params(self.current_class_name, node.args)
+            self.stm.define_class_required_params(class_name, node.args)
         else:
             self.body_parse_waiter_funcs.append(
                 (
                     self.stm.current_scope,
                     node.body,
                     node.args,
-                    self.current_class_name,
+                    class_name,
                 )
             )
 
@@ -287,7 +315,7 @@ class SimpleASTVisitor:
         self.eval_CallAST(node)
 
     def stmt_IfAST(self, node: IfAST):
-        self.stm.enter_scope(scope_name="if", is_func=False)
+        self.stm.enter_scope(scope_name="if", is_if=True)
         self.visit_expression(node.cond)
 
         for n in node.body:
@@ -296,7 +324,7 @@ class SimpleASTVisitor:
         self.stm.exit_scope()
 
         for elif_node in node.elifs:
-            self.stm.enter_scope(scope_name="elif", is_func=False)
+            self.stm.enter_scope(scope_name="elif", is_if=True)
             self.visit_expression(elif_node.cond)
 
             for n in elif_node.body:
@@ -305,7 +333,7 @@ class SimpleASTVisitor:
             self.stm.exit_scope()
 
         if isinstance(node.else_body, BlockAST):
-            self.stm.enter_scope(scope_name="else", is_func=False)
+            self.stm.enter_scope(scope_name="else", is_if=True)
 
             for n in node.else_body.body:
                 self.visit_statement(n)

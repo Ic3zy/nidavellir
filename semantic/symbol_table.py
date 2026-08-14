@@ -2,10 +2,15 @@ from .intrinsics import INTRINSIC_HANDLERS
 
 
 class Scope:
-    def __init__(self, name="block", parent=None, is_func=False):
+    def __init__(
+        self, name="block", parent=None, is_func=False, is_if=False, class_name=None
+    ):
         self.name = name
         self.parent = parent
         self.is_func = is_func
+        self.is_if = is_if
+
+        self.class_name = class_name
 
         self.variables = {}
         self.functions = {}
@@ -43,8 +48,16 @@ class SymbolTableManager:
         self.global_scope = Scope(name="global", parent=None)
         self.current_scope = self.global_scope
 
-    def enter_scope(self, scope_name="block", is_func=False):
-        new_scope = Scope(name=scope_name, parent=self.current_scope, is_func=is_func)
+    def enter_scope(
+        self, scope_name="block", is_func=False, is_if=False, class_name=None
+    ):
+        new_scope = Scope(
+            name=scope_name,
+            parent=self.current_scope,
+            is_func=is_func,
+            is_if=is_if,
+            class_name=class_name,
+        )
         self.current_scope = new_scope
 
     def exit_scope(self):

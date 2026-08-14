@@ -250,7 +250,7 @@ def void main():
 top_t1 = time.perf_counter()
 
 
-test_count = 250
+test_count = 1000
 latencys = []
 
 for _ in range(test_count):
@@ -265,8 +265,16 @@ for _ in range(test_count):
     latencys.append(latency)
 
 top_t2 = time.perf_counter()
-print(f"Average Latency: {(sum(latencys) / len(latencys) * 1000):.2f} ms")
-print(
-    f"Total Time: {top_t2 - top_t1}\nProcessed Lines of Code: {len(code.splitlines())*test_count}"
-)
-print(f"Lines per second: {len(code.splitlines())*test_count / (top_t2 - top_t1)}")
+
+average_latency = sum(latencys) / len(latencys)
+min_latency = min(latencys)
+max_latency = max(latencys)
+
+total_time = top_t2 - top_t1
+processed_lines = len(code.splitlines()) * test_count
+
+print(f"Average Latency: {average_latency * 1000:.2f} ms")
+print(f"Min Latency: {min_latency * 1000:.2f} ms")
+print(f"Max Latency: {max_latency * 1000:.2f} ms")
+print(f"Total Time: {total_time}\n" f"Processed Lines of Code: {processed_lines}")
+print(f"Lines per second: {processed_lines / total_time:.2f}")
