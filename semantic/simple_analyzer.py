@@ -157,19 +157,18 @@ class SimpleASTVisitor:
             self.stm.exit_scope()
             self.current_class_name = None
 
+    def get_current_class_name(self):
+        curr = self.stm.current_scope
+        while curr is not None:
+            if curr.class_name is not None:
+                return curr.class_name
+            curr = curr.parent
+
+        return None
+
     def stmt_AssignAST(self, node):
         chain = getattr(node, "chain", [])
-        class_name = None
-        if (
-            self.stm.current_scope.class_name is not None
-            or self.stm.current_scope.parent.class_name is not None
-            and self.stm.current_scope.is_func
-        ):
-            class_name = (
-                self.stm.current_scope.class_name
-                if self.stm.current_scope.class_name is not None
-                else self.stm.current_scope.parent.class_name
-            )
+        class_name = self.get_current_class_name()
 
         if class_name is not None:
             if node.target == "self" and len(chain) == 1:
@@ -265,17 +264,7 @@ class SimpleASTVisitor:
         args = node.args
         in_self = False
 
-        class_name = None
-        if (
-            self.stm.current_scope.class_name is not None
-            or self.stm.current_scope.parent.class_name is not None
-            and self.stm.current_scope.is_func
-        ):
-            class_name = (
-                self.stm.current_scope.class_name
-                if self.stm.current_scope.class_name is not None
-                else self.stm.current_scope.parent.class_name
-            )
+        class_name = self.get_current_class_name()
 
         if class_name is not None:
             in_self = None

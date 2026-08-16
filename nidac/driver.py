@@ -1,6 +1,7 @@
 from lexer import Lexer
 from nida_ast import Parser
 from semantic import SimpleAnalyzer
+from type_systems import TypeDefEngine
 
 
 class Nidac:
@@ -17,6 +18,7 @@ class Nidac:
         self.lex()
         self.parse()
         self.analyze()
+        self.type_def()
         # self.check_types()  # TODO: HardAnalyzer
         # return self.emit_c11() # TODO: CodeGen
         return self
@@ -53,3 +55,10 @@ class Nidac:
         analyzer.analyze_all()
         self.symbol_table = analyzer.stm
         return self.symbol_table
+
+    def type_def(self):
+        if not self.symbol_table:
+            self.analyze()
+
+        type_def_engine = TypeDefEngine(self.asts)
+        type_def_engine.run()
