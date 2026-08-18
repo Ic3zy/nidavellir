@@ -1,7 +1,5 @@
-def t(int64 a):
+class a:
     pass
 
 
-v = 100
-
-t(v)
+a test = a()
