@@ -1,3 +1,4 @@
+from semantic import INTRINSIC_HANDLERS
 from .symbol_table import ScopeManager
 from .symbol_types import *
 
@@ -14,7 +15,11 @@ class TypeDefEngine:
         raise SyntaxError(f"Nidavellir Error{loc}: {message}")
 
     def eval_VariableAST(self, ast):
-        pass
+        var = self.sm.lookup(ast.name)
+        if var is None:
+            self.error(ast, f"Variable '{ast.name}' is not defined")
+
+        return var
 
     def eval_NumberAST(self, ast):
         pass
@@ -26,20 +31,43 @@ class TypeDefEngine:
         self.sm.add_symbol(FunctionSymbol(ast.name, None, ast.args))
         self.sm.enter_scope()
         for param in ast.args:
-            self.sm.add_symbol(VariableSymbol(param.name, param.type))
+            self.sm.add_symbol(VariableSymbol(param.target, param.type_annotation))
 
         for stmt in ast.body:
             self.visit_statement(stmt)
 
         self.sm.exit_scope()
 
+    def transform_Intrinsic_to_Symbol(self, node):
+        return FunctionSymbol(
+            node["name"],
+            node["return_type"],
+            node["params"],
+            is_variadic=node["is_variadic"],
+        )
+
     def stmt_CallAST(self, ast):
-        func = self.sm.get_symbol(ast.target)
+        func_name = ast.target
+        if func_name in INTRINSIC_HANDLERS:
+            temp = INTRINSIC_HANDLERS[func_name]
+            func = self.transform_Intrinsic_to_Symbol(temp)
+        else:
+            func = self.sm.get_symbol(ast.target)
+
         if not isinstance(func, FunctionSymbol):
             self.error(ast, f"Cannot call non-function symbol {ast.target}")
 
-        if len(ast.args) != len(func.params):
+        if len(ast.args) != len(func.params) and not func.is_variadic:
             self.error(ast, f"Function {ast.target} takes {len(func.params)} arguments")
+
+        for arg in ast.args:
+            var = self.visit_expression(arg)
+            if not isinstance(var, VariableSymbol):
+                self.error(arg, f"Cannot pass non-variable symbol {arg.name}")
+
+            var.used_stack.append(ast)
+
+        func.call_stack.append(ast)
 
     def stmt_AssignAST(self, ast):
         self.sm.add_symbol(VariableSymbol(ast.target, ast.type_annotation))

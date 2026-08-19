@@ -1,5 +1,6 @@
-class a:
-    pass
+def test(a):
+    a *= 3
+    a += 1
 
-
-a test = a()
+a = 100
+test(a)

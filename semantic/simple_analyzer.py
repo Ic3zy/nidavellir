@@ -170,6 +170,9 @@ class SimpleASTVisitor:
         chain = getattr(node, "chain", [])
         class_name = self.get_current_class_name()
 
+        if node.target == "damage":
+            pass
+
         if class_name is not None:
             if node.target == "self" and len(chain) == 1:
                 self.stm.define_field(
@@ -180,12 +183,13 @@ class SimpleASTVisitor:
                 )
 
             elif node.target != "self" and not self.stm.current_scope.is_func:
-                self.stm.define_field(
-                    class_name=class_name,
-                    field_name=node.target,
-                    field_type=node.type_annotation,
-                    ast_node=node,
-                )
+                self.stm.define_var(node.target, node.type_annotation)
+                # self.stm.define_field(
+                #     class_name=class_name,
+                #     field_name=node.target,
+                #     field_type=node.type_annotation,
+                #     ast_node=node,
+                # )
 
             elif node.target == "self" and len(chain) > 1:
                 last_class = self.stm.lookup_class(class_name)
