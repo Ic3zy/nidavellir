@@ -92,7 +92,7 @@ class TypeDefEngine:
 
                 var.used_stack.append(ast)
         elif isinstance(func, ClassSymbol):
-            if len(ast.args) != 1:
+            if len(ast.args) != len(func.params):
                 self.error(ast, f"Class {ast.target} takes 1 argument")
 
         func.call_stack.append(ast)
