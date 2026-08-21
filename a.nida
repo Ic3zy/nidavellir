@@ -1,6 +1,9 @@
-def test(a):
-    a *= 3
-    a += 1
+class a:
+    def __init__(self, a):
+        pass
 
-a = 100
-test(a)
+    def test(self):
+        pass
+
+
+b = a(1)

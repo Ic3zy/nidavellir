@@ -1,4 +1,5 @@
 from semantic import INTRINSIC_HANDLERS
+from nida_ast.base import *
 from .symbol_table import ScopeManager
 from .symbol_types import *
 
@@ -23,6 +24,30 @@ class TypeDefEngine:
 
     def eval_NumberAST(self, ast):
         pass
+
+    def eval_CallAST(self, ast):
+        self.stmt_CallAST(ast)
+
+    def inference_class_params(self, ast):
+        params = []
+        for node in ast.body:
+            if isinstance(node, FunctionAST):
+                for arg in node.args:
+                    type = arg.type_annotation
+                    target = arg.target
+                    params.append({"type": type, "name": target})
+
+        return params
+
+    def stmt_ClassAST(self, ast):
+        print(ast)
+        params = self.inference_class_params(ast)
+        self.sm.add_symbol(ClassSymbol(ast.name, params))
+        self.sm.enter_scope()
+        for node in ast.body:
+            self.visit_statement(node)
+
+        self.sm.exit_scope()
 
     def stmt_PassAST(self, ast):
         pass
@@ -54,23 +79,27 @@ class TypeDefEngine:
         else:
             func = self.sm.get_symbol(ast.target)
 
-        if not isinstance(func, FunctionSymbol):
-            self.error(ast, f"Cannot call non-function symbol {ast.target}")
+        if isinstance(func, FunctionSymbol):
+            if len(ast.args) != len(func.params) and not func.is_variadic:
+                self.error(
+                    ast, f"Function {ast.target} takes {len(func.params)} arguments"
+                )
 
-        if len(ast.args) != len(func.params) and not func.is_variadic:
-            self.error(ast, f"Function {ast.target} takes {len(func.params)} arguments")
+            for arg in ast.args:
+                var = self.visit_expression(arg)
+                if not isinstance(var, VariableSymbol):
+                    self.error(arg, f"Cannot pass non-variable symbol {arg.name}")
 
-        for arg in ast.args:
-            var = self.visit_expression(arg)
-            if not isinstance(var, VariableSymbol):
-                self.error(arg, f"Cannot pass non-variable symbol {arg.name}")
-
-            var.used_stack.append(ast)
+                var.used_stack.append(ast)
+        elif isinstance(func, ClassSymbol):
+            if len(ast.args) != 1:
+                self.error(ast, f"Class {ast.target} takes 1 argument")
 
         func.call_stack.append(ast)
 
     def stmt_AssignAST(self, ast):
         self.sm.add_symbol(VariableSymbol(ast.target, ast.type_annotation))
+        self.visit_expression(ast.value)
 
     def visit_statement(self, node):
         method_name = f"stmt_{type(node).__name__}"

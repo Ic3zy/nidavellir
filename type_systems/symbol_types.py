@@ -24,3 +24,10 @@ class FunctionSymbol(Symbol):
         self.params = params
         self.call_stack = []
         self.is_variadic = is_variadic
+
+
+class ClassSymbol(Symbol):
+    def __init__(self, name: str, params: list):
+        self.name = name
+        self.params = params
+        self.call_stack = []
