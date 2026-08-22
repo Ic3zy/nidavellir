@@ -40,10 +40,13 @@ class TypeDefEngine:
         return params
 
     def stmt_ClassAST(self, ast):
-        print(ast)
         params = self.inference_class_params(ast)
-        self.sm.add_symbol(ClassSymbol(ast.name, params))
-        self.sm.enter_scope()
+        self.sm.add_symbol(ClassSymbol(ast.name, params, None))
+        self.sm.enter_scope(attach_to_parent=False)
+
+        sym = self.sm.lookup(ast.name)
+        sym.scope = self.sm.current_scope
+
         for node in ast.body:
             self.visit_statement(node)
 

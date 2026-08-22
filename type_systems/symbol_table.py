@@ -46,9 +46,11 @@ class ScopeManager:
         self.global_scope = Scope(scope_type=GlobalScope)
         self.current_scope = self.global_scope
 
-    def enter_scope(self, scope_type=None):
+    def enter_scope(self, scope_type=None, attach_to_parent=True):
         new_scope = Scope(parent=self.current_scope, scope_type=scope_type)
-        self.current_scope.children.append(new_scope)
+        if attach_to_parent:
+            self.current_scope.children.append(new_scope)
+
         self.current_scope = new_scope
 
     def exit_scope(self):

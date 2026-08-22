@@ -27,7 +27,8 @@ class FunctionSymbol(Symbol):
 
 
 class ClassSymbol(Symbol):
-    def __init__(self, name: str, params: list):
+    def __init__(self, name: str, params: list, scope):
         self.name = name
         self.params = params
+        self.scope = scope
         self.call_stack = []
