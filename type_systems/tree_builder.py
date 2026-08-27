@@ -26,7 +26,7 @@ class SymbolTreeBuilder:
         pass
 
     def eval_CallAST(self, ast):
-        self.stmt_CallAST(ast)
+        return self.stmt_CallAST(ast)
 
     def inference_class_params(self, ast):
         params = []
@@ -124,11 +124,22 @@ class SymbolTreeBuilder:
                 self.error(ast, f"Class {ast.target} takes 1 argument")
         else:
             self.error(ast, f"Cannot call {ast.target}")
+
         func.call_stack.append(sym or ast)
+        return sym or ast
 
     def stmt_AssignAST(self, ast):
-        self.sm.add_symbol(VariableSymbol(ast.target, ast.type_annotation, ast))
-        self.visit_expression(ast.value)
+        var_sym = VariableSymbol(ast.target, ast.type_annotation, ast)
+        self.sm.add_symbol(var_sym)
+
+        value = ast.value
+        sym = None
+        if isinstance(value, CallAST):
+            sym = self.stmt_CallAST(value)
+        else:
+            self.visit_expression(ast.value)
+
+        var_sym.call_symbol = sym
 
     def visit_statement(self, node):
         method_name = f"stmt_{type(node).__name__}"

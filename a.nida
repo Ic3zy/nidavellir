@@ -4,4 +4,6 @@ def f(b):
     rt = 10000
     return rt
 
-f(a)
+v = f(a)
+
+a = 100000

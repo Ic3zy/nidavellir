@@ -17,6 +17,8 @@ class VariableSymbol(Symbol):
         self.ast_node = ast_node
         self.used_stack = []
 
+        self.call_symbol = None
+
 
 class FunctionSymbol(Symbol):
     def __init__(

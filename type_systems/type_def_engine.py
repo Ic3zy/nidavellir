@@ -105,8 +105,27 @@ class SymbolProcessor:
                 if type is not None:
                     ast.type_annotation = type
                     symbol.type = type
+            elif isinstance(value, CallAST):
+                call_sym = symbol.call_symbol
+                if call_sym is None:
+                    raise Exception("Cannot infer type of call")
+
+                type = self.process_call(call_sym)
+                if type is not None:
+                    ast.type_annotation = type
+                    symbol.type = type
+
             else:
                 print(f"Cannot infer type of {value} \n {symbol}")
+
+    def process_call(self, symbol):
+        if symbol.func.return_type is None:
+            self.process(symbol.func)
+
+        if symbol.func.return_type is None:
+            raise SyntaxError(f"Cannot infer type of {symbol.func.name}")
+
+        return symbol.func.return_type
 
     def process_FunctionSymbol(self, symbol):
         returns = symbol.returns
@@ -172,3 +191,5 @@ class TypeDefEngine:
     def run(self):
         current_scope = self.stb.sm.current_scope
         self.process_node(current_scope)
+
+        self.stb.print_scopes()
