@@ -56,15 +56,25 @@ class SymbolTreeBuilder:
         pass
 
     def stmt_FunctionAST(self, ast):
-        self.sm.add_symbol(FunctionSymbol(ast.name, None, ast.args, ast))
+        fn_sym = FunctionSymbol(ast.name, None, ast.args, ast)
+        self.sm.add_symbol(fn_sym)
         self.sm.enter_scope()
         for param in ast.args:
             self.sm.add_symbol(VariableSymbol(param.target, param.type_annotation, ast))
 
+        ret = None
         for stmt in ast.body:
+            if isinstance(stmt, ReturnAST):
+                ret = self.visit_statement(stmt)
+                continue
+
             self.visit_statement(stmt)
 
+        fn_sym.returns = ret
         self.sm.exit_scope()
+
+    def stmt_ReturnAST(self, ast):
+        return ast.value
 
     def transform_Intrinsic_to_Symbol(self, node):
         return FunctionSymbol(

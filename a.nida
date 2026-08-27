@@ -1,1 +1,2 @@
-a = 1200
+def foo(int a, int b): 
+    return a + b

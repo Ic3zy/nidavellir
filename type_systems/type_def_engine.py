@@ -54,7 +54,12 @@ class TypeInference:
 
         stack = getattr(symbol, "used_stack", [])
         for node in stack:
-            target_node = node.value if isinstance(node, AssignAST) else node
+            ast_node = node.ast_node
+            if isinstance(ast_node, AssignAST):
+                target_node = ast_node.value
+            else:
+                target_node = ast_node
+
             val = self.extract_number_value(target_node)
             if val is not None:
                 values.append(val)
@@ -93,6 +98,9 @@ class SymbolProcessor:
                 print(f"Cannot infer type of {value}")
 
         print(symbol.ast_node)
+
+    def process_FunctionSymbol(self, symbol):
+        pass
 
     def process_VariableSymbol(self, symbol):
         if isinstance(symbol.ast_node, AssignAST):
