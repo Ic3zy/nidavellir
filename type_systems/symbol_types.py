@@ -28,6 +28,7 @@ class FunctionSymbol(Symbol):
         self.ast_node = ast_node
         self.call_stack = []
         self.is_variadic = is_variadic
+        self.returns = None
 
 
 class ClassSymbol(Symbol):
@@ -37,3 +38,11 @@ class ClassSymbol(Symbol):
         self.scope = scope
         self.ast_node = ast_node
         self.call_stack = []
+
+
+class CallSymbol(Symbol):
+    def __init__(self, name: str, params: list, func, ast_node):
+        self.name = name
+        self.params = params
+        self.func = func
+        self.ast_node = ast_node

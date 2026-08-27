@@ -59,18 +59,30 @@ class SymbolTreeBuilder:
         fn_sym = FunctionSymbol(ast.name, None, ast.args, ast)
         self.sm.add_symbol(fn_sym)
         self.sm.enter_scope()
+
+        params = []
         for param in ast.args:
-            self.sm.add_symbol(VariableSymbol(param.target, param.type_annotation, ast))
+            sym = VariableSymbol(param.target, param.type_annotation, param)
+            params.append({"name": param.target, "symbol": sym})
+
+            self.sm.add_symbol(sym)
 
         ret = None
+        var = None
         for stmt in ast.body:
             if isinstance(stmt, ReturnAST):
                 ret = self.visit_statement(stmt)
+                if isinstance(ret, VariableAST):
+                    var = self.sm.lookup(ret.name)
+                    if var is None:
+                        self.error(ret, f"Variable '{ret.name}' is not defined")
+
                 continue
 
             self.visit_statement(stmt)
 
-        fn_sym.returns = ret
+        fn_sym.returns = {"symbol": var, "ast_node": ret}
+        fn_sym.params = params
         self.sm.exit_scope()
 
     def stmt_ReturnAST(self, ast):
@@ -94,6 +106,7 @@ class SymbolTreeBuilder:
             func = self.sm.get_symbol(ast.target)
 
         if isinstance(func, FunctionSymbol):
+            sym = CallSymbol(ast.target, ast.args, func, ast)
             if len(ast.args) != len(func.params) and not func.is_variadic:
                 self.error(
                     ast, f"Function {ast.target} takes {len(func.params)} arguments"
@@ -104,13 +117,14 @@ class SymbolTreeBuilder:
                 if not isinstance(var, VariableSymbol):
                     self.error(arg, f"Cannot pass non-variable symbol {arg.name}")
 
-                var.used_stack.append(ast)
+                var.used_stack.append(sym)
 
         elif isinstance(func, ClassSymbol):
             if len(ast.args) != len(func.params):
                 self.error(ast, f"Class {ast.target} takes 1 argument")
-
-        func.call_stack.append(ast)
+        else:
+            self.error(ast, f"Cannot call {ast.target}")
+        func.call_stack.append(sym or ast)
 
     def stmt_AssignAST(self, ast):
         self.sm.add_symbol(VariableSymbol(ast.target, ast.type_annotation, ast))
@@ -138,4 +152,5 @@ class SymbolTreeBuilder:
         for node in self.ast_tree:
             self.visit_statement(node)
 
+    def print_scopes(self):
         self.sm.print_scopes()

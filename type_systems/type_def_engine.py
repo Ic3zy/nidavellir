@@ -1,5 +1,6 @@
 from nida_ast.base import *
 from .tree_builder import SymbolTreeBuilder
+from .symbol_types import CallSymbol
 
 
 def number_to_type(min_val: int, max_val: int) -> str:
@@ -54,6 +55,10 @@ class TypeInference:
 
         stack = getattr(symbol, "used_stack", [])
         for node in stack:
+            if isinstance(node, CallSymbol):
+
+                continue
+
             ast_node = node.ast_node
             if isinstance(ast_node, AssignAST):
                 target_node = ast_node.value
@@ -77,15 +82,20 @@ class TypeInference:
         if type is not None:
             symbol.type = type
 
-        symbol.ast_node.type_annotation = type
+            symbol.ast_node.type_annotation = type
+
+    def process_function(self, symbol):
+        if symbol.return_type is not None:
+            return
+
+        if symbol.returns is None:
+            return  # not return statement
 
 
 class SymbolProcessor:
     tyinf = TypeInference()
 
     def process_assign(self, symbol):
-        print(f"Assign {symbol.name} to {symbol.type}")
-        print(symbol.ast_node)
         ast = symbol.ast_node
 
         if ast.type_annotation is None:
@@ -94,20 +104,29 @@ class SymbolProcessor:
                 type = self.tyinf.process_number(symbol)
                 if type is not None:
                     ast.type_annotation = type
+                    symbol.type = type
             else:
-                print(f"Cannot infer type of {value}")
-
-        print(symbol.ast_node)
+                print(f"Cannot infer type of {value} \n {symbol}")
 
     def process_FunctionSymbol(self, symbol):
-        pass
+        returns = symbol.returns
+        if returns is None:
+            return
+
+        sym = returns["symbol"]
+        if sym.type is None:
+            self.process(sym)
+
+        if sym.type is None:
+            raise SyntaxError(f"Cannot infer type of {sym.name}")
+
+        symbol.return_type = sym.type
 
     def process_VariableSymbol(self, symbol):
         if isinstance(symbol.ast_node, AssignAST):
             self.process_assign(symbol)
         else:
             print(f"Variable {symbol.name} is not assigned")
-            print(symbol.ast_node)
 
     def process(self, symbol):
         method_name = f"process_{type(symbol).__name__}"
@@ -138,7 +157,6 @@ class TypeDefEngine:
             return
 
         method_name = f"process_{type(node).__name__}"
-        print(method_name)
 
         symbols = node.symbols
         if symbols is not None:

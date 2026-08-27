@@ -1,2 +1,7 @@
-def foo(int a, int b): 
-    return a + b
+a = 10
+
+def f(b):
+    rt = 10000
+    return rt
+
+f(a)
