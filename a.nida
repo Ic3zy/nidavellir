@@ -1,9 +1,1 @@
-class a:
-    def __init__(self, a):
-        pass
-
-    def test(self):
-        pass
-
-
-b = a(1)
+a = 1200
