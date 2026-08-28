@@ -49,3 +49,12 @@ class CallSymbol(Symbol):
         self.sym_params = []
         self.func = func
         self.ast_node = ast_node
+
+
+class BinaryOpSymbol(Symbol):
+    def __init__(self, op, left_sym, right_sym, ast_node=None):
+        self.op = op
+        self.left_sym = left_sym
+        self.right_sym = right_sym
+        self.ast_node = ast_node
+        self.inferred_type = None

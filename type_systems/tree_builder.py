@@ -22,6 +22,22 @@ class SymbolTreeBuilder:
 
         return var
 
+    def eval_BinaryOpAST(self, ast):
+        left_sym = self.visit_expression(ast.left)
+        right_sym = self.visit_expression(ast.right)
+
+        binaryop_sym = BinaryOpSymbol(
+            op=ast.op, left_sym=left_sym, right_sym=right_sym, ast_node=ast
+        )
+
+        if isinstance(left_sym, VariableSymbol):
+            left_sym.used_stack.append(binaryop_sym)
+
+        if isinstance(right_sym, VariableSymbol):
+            right_sym.used_stack.append(binaryop_sym)
+
+        return binaryop_sym
+
     def eval_NumberAST(self, ast):
         pass
 
@@ -64,25 +80,24 @@ class SymbolTreeBuilder:
         for param in ast.args:
             sym = VariableSymbol(param.target, param.type_annotation, param)
             params.append({"name": param.target, "symbol": sym})
-
             self.sm.add_symbol(sym)
 
-        ret = None
-        var = None
+        ret_ast = None
+        ret_sym = None
+
         for stmt in ast.body:
             if isinstance(stmt, ReturnAST):
-                ret = self.visit_statement(stmt)
-                if isinstance(ret, VariableAST):
-                    var = self.sm.lookup(ret.name)
-                    if var is None:
-                        self.error(ret, f"Variable '{ret.name}' is not defined")
-
+                ret_ast = stmt
+                ret_expr = self.stmt_ReturnAST(stmt)
+                if ret_expr is not None:
+                    ret_sym = self.visit_expression(ret_expr)
                 continue
 
             self.visit_statement(stmt)
 
-        fn_sym.returns = {"symbol": var, "ast_node": ret}
+        fn_sym.returns = {"symbol": ret_sym, "ast_node": ret_ast}
         fn_sym.params = params
+
         self.sm.exit_scope()
 
     def stmt_ReturnAST(self, ast):

@@ -9,8 +9,8 @@ def number_to_type(min_val: int, max_val: int) -> str:
     I64_MIN, I64_MAX = -9_223_372_036_854_775_808, 9_223_372_036_854_775_807
     U64_MAX = 18_446_744_073_709_551_615
 
-    if min_val < I64_MIN or max_val > U64_MAX:
-        return "dynamic_int"
+    # if min_val < I64_MIN or max_val > U64_MAX:
+    #     return "dynamic_int"
 
     if min_val >= 0:
         if max_val <= 255:
@@ -97,6 +97,34 @@ class TypeInference:
 class SymbolProcessor:
     tyinf = TypeInference()
 
+    TYPE_RANK = {
+        "bool": 0,
+        "i8": 1,
+        "u8": 1,
+        "i16": 2,
+        "u16": 2,
+        "i32": 3,
+        "u32": 3,
+        "i64": 4,
+        "u64": 4,
+        "f32": 5,
+        "f64": 6,
+    }
+
+    def promote_types(self, t1: str, t2: str) -> str:
+        if t1 == t2:
+            return t1
+
+        r1 = self.TYPE_RANK.get(t1, 0)
+        r2 = self.TYPE_RANK.get(t2, 0)
+
+        return t1 if r1 >= r2 else t2
+
+    def are_types_compatible(self, t1: str, t2: str) -> bool:
+        if t1 == t2:
+            return True
+        return t1 in self.TYPE_RANK and t2 in self.TYPE_RANK
+
     def process_assign(self, symbol):
         ast = symbol.ast_node
 
@@ -125,7 +153,7 @@ class SymbolProcessor:
             self.process(symbol.func)
 
         if symbol.func.return_type is None:
-            raise SyntaxError(f"Cannot infer type of {symbol.func.name}")
+            raise SyntaxError(f"Cannot infer type of {symbol.func.name} \n {symbol}")
 
         return symbol.func.return_type
 
@@ -134,7 +162,20 @@ class SymbolProcessor:
         if not call_stack:
             return []
 
-        detected_types = [i.type for i in call_stack[0].sym_params]
+        # detected_types = [i.type for i in call_stack[0].sym_params]
+        detected_types = []
+
+        for call in call_stack[0].sym_params:
+            type = call.type
+            if type is None:
+                self.process(call)
+
+            type = call.type
+
+            if type is None:
+                raise SyntaxError(f"Cannot infer type of {call.name}, \n {call}")
+
+            detected_types.append(type)
 
         for call_idx, call in enumerate(call_stack[1:], start=1):
             current_types = [i.type for i in call.sym_params]
@@ -156,6 +197,62 @@ class SymbolProcessor:
 
         return detected_types
 
+    def process_BinaryOpSymbol(self, symbol):
+        left_sym = symbol.left_sym
+        right_sym = symbol.right_sym
+
+        if left_sym is None or right_sym is None:
+            raise SyntaxError(f"Invalid operands for binary operator '{symbol.op}'")
+
+        left_type = getattr(left_sym, "type", None) or getattr(
+            left_sym, "inferred_type", None
+        )
+        if left_type is None:
+            self.process(left_sym)
+            left_type = getattr(left_sym, "type", None) or getattr(
+                left_sym, "inferred_type", None
+            )
+
+        right_type = getattr(right_sym, "type", None) or getattr(
+            right_sym, "inferred_type", None
+        )
+        if right_type is None:
+            self.process(right_sym)
+            right_type = getattr(right_sym, "type", None) or getattr(
+                right_sym, "inferred_type", None
+            )
+
+        if left_type is None and right_type is None:
+            raise SyntaxError(
+                f"Cannot infer type for binary operation '{symbol.op}' - "
+                f"neither left ({getattr(left_sym, 'name', left_sym)}) nor right ({getattr(right_sym, 'name', right_sym)}) is typed."
+            )
+
+        if symbol.op in ("==", "!=", "<", ">", "<=", ">=", "&&", "||"):
+            if (
+                left_type
+                and right_type
+                and not self.are_types_compatible(left_type, right_type)
+            ):
+                raise SyntaxError(
+                    f"Type mismatch in comparison '{symbol.op}': {left_type} vs {right_type}"
+                )
+
+            symbol.inferred_type = "bool"
+            symbol.type = "bool"
+            return
+
+        if left_type is not None and right_type is not None:
+            inferred = self.promote_types(left_type, right_type)
+            symbol.inferred_type = inferred
+            symbol.type = inferred
+            return
+
+        known_type = left_type if left_type is not None else right_type
+
+        symbol.inferred_type = known_type
+        symbol.type = known_type
+
     def process_FunctionSymbol(self, symbol):
         types = self.call_stack_analysis(symbol)
         returns = symbol.returns
@@ -169,17 +266,26 @@ class SymbolProcessor:
                 )
 
             type = types[i]
-
             symbol.params[i]["symbol"].type = type
 
         sym = returns["symbol"]
-        if sym.type is None:
+        if sym is None:
+            print(symbol)
+            raise SyntaxError(f"Cannot infer type of {symbol.name}")
+
+        if isinstance(sym, VariableSymbol):
+            if sym.type is None:
+                self.process(sym)
+
+            if sym.type is None:
+                raise SyntaxError(f"Cannot infer type of {sym.name}")
+
+        elif isinstance(sym, BinaryOpSymbol):
             self.process(sym)
 
-        if sym.type is None:
-            raise SyntaxError(f"Cannot infer type of {sym.name}")
-
-        symbol.return_type = sym.type
+        symbol.return_type = (
+            sym.type if isinstance(sym, VariableSymbol) else sym.inferred_type
+        )
 
     def process_VariableSymbol(self, symbol):
         if isinstance(symbol.ast_node, AssignAST):

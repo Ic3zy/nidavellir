@@ -1,9 +1,6 @@
-a = 10
+def add(a, b):
+    return a + b
 
-def f(b):
-    rt = 10000
-    return rt
 
-v = f(a)
-
-print(v)
+c = 200
+v = 400
