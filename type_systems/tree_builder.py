@@ -117,6 +117,8 @@ class SymbolTreeBuilder:
                 if not isinstance(var, VariableSymbol):
                     self.error(arg, f"Cannot pass non-variable symbol {arg.name}")
 
+                sym.sym_params.append(var)
+
                 var.used_stack.append(sym)
 
         elif isinstance(func, ClassSymbol):

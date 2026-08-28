@@ -46,5 +46,6 @@ class CallSymbol(Symbol):
     def __init__(self, name: str, params: list, func, ast_node):
         self.name = name
         self.params = params
+        self.sym_params = []
         self.func = func
         self.ast_node = ast_node

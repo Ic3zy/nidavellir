@@ -1,4 +1,6 @@
 from nida_ast.base import *
+from .symbol_types import *
+
 from .tree_builder import SymbolTreeBuilder
 from .symbol_types import CallSymbol
 
@@ -127,10 +129,48 @@ class SymbolProcessor:
 
         return symbol.func.return_type
 
+    def call_stack_analysis(self, symbol: FunctionSymbol):
+        call_stack = symbol.call_stack
+        if not call_stack:
+            return []
+
+        detected_types = [i.type for i in call_stack[0].sym_params]
+
+        for call_idx, call in enumerate(call_stack[1:], start=1):
+            current_types = [i.type for i in call.sym_params]
+
+            if len(current_types) != len(detected_types):
+                raise TypeError(
+                    f"Call stack mismatch in '{symbol.name}' at call #{call_idx}: "
+                    f"Expected {len(detected_types)} args, got {len(current_types)}."
+                )
+
+            for arg_idx, (expected, current) in enumerate(
+                zip(detected_types, current_types)
+            ):
+                if expected != current:
+                    raise TypeError(
+                        f"Type mismatch in '{symbol.name}' at call #{call_idx}, arg #{arg_idx}: "
+                        f"Expected '{expected}', got '{current}'."
+                    )
+
+        return detected_types
+
     def process_FunctionSymbol(self, symbol):
+        types = self.call_stack_analysis(symbol)
         returns = symbol.returns
         if returns is None:
             return
+
+        for i in range(len(symbol.params)):
+            if i >= len(types):
+                raise TypeError(
+                    f"Return type mismatch in '{symbol.name}': Expected {len(types)} args, got {len(symbol.params)}."
+                )
+
+            type = types[i]
+
+            symbol.params[i]["symbol"].type = type
 
         sym = returns["symbol"]
         if sym.type is None:

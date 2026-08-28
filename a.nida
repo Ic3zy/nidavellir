@@ -6,4 +6,4 @@ def f(b):
 
 v = f(a)
 
-a = 100000
+print(v)
