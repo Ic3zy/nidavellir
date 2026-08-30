@@ -58,3 +58,11 @@ class BinaryOpSymbol(Symbol):
         self.right_sym = right_sym
         self.ast_node = ast_node
         self.inferred_type = None
+
+
+class NumberSymbol(Symbol):
+    def __init__(self, value, ast_node):
+        self.value = value
+        self.ast_node = ast_node
+        self.type = None
+        self.name = "Number"

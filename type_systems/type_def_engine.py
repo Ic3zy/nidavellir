@@ -58,7 +58,6 @@ class TypeInference:
         stack = getattr(symbol, "used_stack", [])
         for node in stack:
             if isinstance(node, CallSymbol):
-
                 continue
 
             ast_node = node.ast_node
@@ -300,6 +299,17 @@ class SymbolProcessor:
             self.process_assign(symbol)
         else:
             print(f"Variable {symbol.name} is not assigned")
+
+    def process_NumberSymbol(self, symbol):
+        val = symbol.value
+        if isinstance(val, str):
+            val = int(val, 0)
+
+        type = number_to_type(val, val)
+        if type is None:
+            raise SyntaxError(f"Cannot infer type of number {val}")
+
+        symbol.type = type
 
     def process(self, symbol):
         method_name = f"process_{type(symbol).__name__}"

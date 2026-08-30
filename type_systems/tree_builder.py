@@ -39,7 +39,7 @@ class SymbolTreeBuilder:
         return binaryop_sym
 
     def eval_NumberAST(self, ast):
-        pass
+        return NumberSymbol(ast.value, ast)
 
     def eval_CallAST(self, ast):
         return self.stmt_CallAST(ast)
@@ -129,12 +129,14 @@ class SymbolTreeBuilder:
 
             for arg in ast.args:
                 var = self.visit_expression(arg)
-                if not isinstance(var, VariableSymbol):
-                    self.error(arg, f"Cannot pass non-variable symbol {arg.name}")
+                if not isinstance(var, (VariableSymbol, NumberSymbol)):
+                    print(type(var))
+                    self.error(arg, f"Cannot pass non-variable symbol {arg}")
 
                 sym.sym_params.append(var)
 
-                var.used_stack.append(sym)
+                if isinstance(var, VariableSymbol):
+                    var.used_stack.append(sym)
 
         elif isinstance(func, ClassSymbol):
             if len(ast.args) != len(func.params):
