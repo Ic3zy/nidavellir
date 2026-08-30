@@ -253,39 +253,47 @@ class SymbolProcessor:
         symbol.inferred_type = known_type
         symbol.type = known_type
 
+    def is_called(self, symbol):
+        if isinstance(symbol, FunctionSymbol) and len(symbol.call_stack) > 0:
+            return True
+
+        return False
+
     def process_FunctionSymbol(self, symbol):
         types = self.call_stack_analysis(symbol)
+
         returns = symbol.returns
         if returns is None:
             return
 
-        for i in range(len(symbol.params)):
-            if i >= len(types):
-                raise TypeError(
-                    f"Return type mismatch in '{symbol.name}': Expected {len(types)} args, got {len(symbol.params)}."
-                )
+        if self.is_called(symbol):
+            for i in range(len(symbol.params)):
+                if i >= len(types):
+                    raise TypeError(
+                        f"Return type mismatch in '{symbol.name}': Expected {len(types)} args, got {len(symbol.params)}."
+                    )
 
-            type = types[i]
-            symbol.params[i]["symbol"].type = type
+                type = types[i]
+                symbol.params[i]["symbol"].type = type
 
-        sym = returns["symbol"]
-        if sym is None:
-            print(symbol)
-            raise SyntaxError(f"Cannot infer type of {symbol.name}")
+            sym = returns["symbol"]
+            if sym is None:
+                print(symbol)
+                raise SyntaxError(f"Cannot infer type of {symbol.name}")
 
-        if isinstance(sym, VariableSymbol):
-            if sym.type is None:
+            if isinstance(sym, VariableSymbol):
+                if sym.type is None:
+                    self.process(sym)
+
+                if sym.type is None:
+                    raise SyntaxError(f"Cannot infer type of {sym.name}")
+
+            elif isinstance(sym, BinaryOpSymbol):
                 self.process(sym)
 
-            if sym.type is None:
-                raise SyntaxError(f"Cannot infer type of {sym.name}")
-
-        elif isinstance(sym, BinaryOpSymbol):
-            self.process(sym)
-
-        symbol.return_type = (
-            sym.type if isinstance(sym, VariableSymbol) else sym.inferred_type
-        )
+            symbol.return_type = (
+                sym.type if isinstance(sym, VariableSymbol) else sym.inferred_type
+            )
 
     def process_VariableSymbol(self, symbol):
         if isinstance(symbol.ast_node, AssignAST):
