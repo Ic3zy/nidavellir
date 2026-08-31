@@ -66,3 +66,23 @@ class NumberSymbol(Symbol):
         self.ast_node = ast_node
         self.type = None
         self.name = "Number"
+
+
+class ForSymbol(Symbol):
+    def __init__(
+        self,
+        target_var_symbol: VariableSymbol,
+        range_symbol: Symbol,
+        scope,
+        ast_node=None,
+    ):
+        self.name = f"for_{target_var_symbol.name}"
+        self.target_var_symbol = target_var_symbol
+        self.range_symbol = range_symbol
+        self.scope = scope
+        self.ast_node = ast_node
+
+        self.type = None
+
+        self.range_var_max = None
+        self.range_var_min = None

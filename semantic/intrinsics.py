@@ -9,7 +9,7 @@ INTRINSIC_HANDLERS = {
     "list": {
         "name": "list",
         "return_type": "List",
-        "params": [("size", "int"), ("type", "type")],
+        "params": [("size", "Any_int"), ("type", "type")],
         "handler": not_implemented,
         "is_variadic": False,
     },
@@ -23,7 +23,7 @@ INTRINSIC_HANDLERS = {
     "range": {
         "name": "range",
         "return_type": "List",
-        "params": [("size", "int")],
+        "params": [("size", "Any_int")],
         "handler": not_implemented,
         "is_variadic": False,
     },

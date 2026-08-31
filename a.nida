@@ -1,8 +1,4 @@
-def add(a, b):
-    return a + b
+i = 10
 
-
-c = 200
-v = 400000
-
-d = add(200, 20)
+for i in range(100):
+    pass

@@ -68,6 +68,28 @@ class SymbolTreeBuilder:
 
         self.sm.exit_scope()
 
+    def stmt_ForAST(self, ast):
+        self.sm.enter_scope(attach_to_parent=False)
+
+        target = ast.target
+        source = ast.source
+
+        var_sym = VariableSymbol(target.target, target.type_annotation, target)
+        source_sym = self.visit_expression(source)
+        for_sym = ForSymbol(var_sym, source_sym, self.sm.current_scope, ast)
+
+        lookup = self.sm.lookup(target.target)
+        if lookup is not None:
+            lookup.used_stack.append(for_sym)
+
+        self.sm.add_symbol(var_sym)
+
+        for node in ast.body:
+            self.visit_statement(node)
+
+        self.sm.exit_scope()
+        self.sm.add_symbol(for_sym)
+
     def stmt_PassAST(self, ast):
         pass
 

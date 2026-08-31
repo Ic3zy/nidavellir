@@ -44,7 +44,7 @@ class Nidac:
         parser = Parser(lexer_obj)
         parser.parse_all()
         self.asts = parser.asts
-        # print(self.asts)
+        print(self.asts)
         return self.asts
 
     def analyze(self):

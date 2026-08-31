@@ -311,6 +311,41 @@ class SymbolProcessor:
 
         symbol.type = type
 
+    def process_range(self, symbol):
+        val1 = symbol.params[0]
+
+        if isinstance(val1, NumberAST):
+            return val1.value
+
+        print(f"Cannot infer range {symbol.params}")
+
+        return None
+
+    def process_ForSymbol(self, symbol):
+        range_sym = symbol.range_symbol
+        if range_sym is None:
+            raise SyntaxError(f"Cannot infer type of for loop {symbol.name}")
+
+        max_val_range = None
+        min_val_range = None
+
+        if isinstance(range_sym, CallSymbol):
+            func_name = range_sym.func.name
+            if func_name == "range":
+                rng = self.process_range(range_sym)
+                max_val_range = int(rng)
+                min_val_range = 0
+            else:
+                raise SyntaxError(f"Not implemented.")
+
+        else:
+            raise SyntaxError(f"Not implemented.")
+
+        symbol.range_var_max = max_val_range
+        symbol.range_var_min = min_val_range
+
+        symbol.type = number_to_type(min_val_range, max_val_range)
+
     def process(self, symbol):
         method_name = f"process_{type(symbol).__name__}"
         visitor = getattr(self, method_name, None)
