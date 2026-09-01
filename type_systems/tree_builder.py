@@ -38,6 +38,9 @@ class SymbolTreeBuilder:
 
         return binaryop_sym
 
+    def eval_StringAST(self, ast):
+        return StringSymbol(ast.value, ast)
+
     def eval_NumberAST(self, ast):
         return NumberSymbol(ast.value, ast)
 
@@ -173,14 +176,9 @@ class SymbolTreeBuilder:
         var_sym = VariableSymbol(ast.target, ast.type_annotation, ast)
         self.sm.add_symbol(var_sym)
 
-        value = ast.value
-        sym = None
-        if isinstance(value, CallAST):
-            sym = self.stmt_CallAST(value)
-        else:
-            self.visit_expression(ast.value)
+        val = self.visit_expression(ast.value)
 
-        var_sym.call_symbol = sym
+        var_sym.value = val
 
     def visit_statement(self, node):
         method_name = f"stmt_{type(node).__name__}"

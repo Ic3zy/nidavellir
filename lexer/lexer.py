@@ -48,9 +48,13 @@ class Lexer:
 
     def tokenize_line(self, line, line_number):
         line_tokens = []
+
         for match in re.finditer(MASTER_REGEX, line):
             kind = match.lastgroup
             value = match.group(kind)
+
+            if kind == "STRING":
+                value = value[1:-1]
 
             if kind in ("LPAREN", "LBRACKET", "LBRACE"):
                 self.paren_level += 1

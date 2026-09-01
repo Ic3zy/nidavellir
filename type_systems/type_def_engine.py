@@ -124,6 +124,61 @@ class SymbolProcessor:
             return True
         return t1 in self.TYPE_RANK and t2 in self.TYPE_RANK
 
+    def string_extender(self, list):
+        vals = []
+
+        for i in list:
+            if i is not None and i > 0:
+                vals.append(i)
+
+        return vals
+
+    def string_used_stack_analysis(self, symbol):
+        val = symbol.value
+        if not isinstance(val, StringSymbol):
+            raise SyntaxError(f"Cannot infer type of string {symbol.name}")
+
+        stack = getattr(symbol, "used_stack", [])
+        values = []
+
+        max_val = val.length["max"]
+        min_val = val.length["min"]
+        current_val = val.length["current"]
+
+        values.extend(self.string_extender([max_val, min_val, current_val]))
+
+        for node in stack:
+            val = getattr(node, "value", None)
+            if isinstance(node, VariableSymbol) and isinstance(val, StringSymbol):
+                self.process(node)
+                length = val.length
+                max_val = length["max"]
+                min_val = length["min"]
+
+                current_val = length["current"]
+
+                values.extend(self.string_extender([max_val, min_val, current_val]))
+
+                if len(node.used_stack) > 0:
+                    res = self.string_used_stack_analysis(node)
+                    if res is not None:
+                        values.extend(res)
+
+        return values
+
+    def process_string(self, symbol):
+        res = self.string_used_stack_analysis(symbol)
+        if len(res) == 0:
+            return
+
+        mins = min(res)
+        maxs = max(res)
+
+        val = symbol.value
+        if isinstance(val, StringSymbol):
+            val.length["min"] = mins
+            val.length["max"] = maxs
+
     def process_assign(self, symbol):
         ast = symbol.ast_node
 
@@ -135,7 +190,7 @@ class SymbolProcessor:
                     ast.type_annotation = type
                     symbol.type = type
             elif isinstance(value, CallAST):
-                call_sym = symbol.call_symbol
+                call_sym = symbol.value
                 if call_sym is None:
                     raise Exception("Cannot infer type of call")
 
@@ -145,6 +200,9 @@ class SymbolProcessor:
                     symbol.type = type
             elif isinstance(value, VariableAST):
                 pass
+
+            elif isinstance(value, StringAST):
+                self.process_string(symbol)
 
             else:
                 print(f"Cannot infer type of {value} \n {symbol}")

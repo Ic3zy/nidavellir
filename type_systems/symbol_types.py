@@ -18,6 +18,7 @@ class VariableSymbol(Symbol):
         self.used_stack = []
 
         self.call_symbol = None
+        self.value = None
 
 
 class FunctionSymbol(Symbol):
@@ -66,6 +67,14 @@ class NumberSymbol(Symbol):
         self.ast_node = ast_node
         self.type = None
         self.name = "Number"
+
+
+class StringSymbol(Symbol):
+    def __init__(self, value, ast_node):
+        self.value = value
+        self.ast_node = ast_node
+
+        self.length = {"max": 0, "min": 0, "current": len(value)}
 
 
 class ForSymbol(Symbol):
