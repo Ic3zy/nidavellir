@@ -143,6 +143,8 @@ class SymbolProcessor:
                 if type is not None:
                     ast.type_annotation = type
                     symbol.type = type
+            elif isinstance(value, VariableAST):
+                pass
 
             else:
                 print(f"Cannot infer type of {value} \n {symbol}")
@@ -326,6 +328,8 @@ class SymbolProcessor:
         if range_sym is None:
             raise SyntaxError(f"Cannot infer type of for loop {symbol.name}")
 
+        for_scope = symbol.scope
+
         max_val_range = None
         min_val_range = None
 
@@ -343,6 +347,10 @@ class SymbolProcessor:
 
         symbol.range_var_max = max_val_range
         symbol.range_var_min = min_val_range
+
+        symbols = for_scope.symbols
+        for sym in symbols.values():
+            self.process(sym)
 
         symbol.type = number_to_type(min_val_range, max_val_range)
 
