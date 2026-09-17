@@ -1,3 +1,4 @@
-a = "Hello, my dearest."
+def a(c, b):
+    return c + b
 
-a = "Hello, my dearest. My name is Nidavellir."
+print(a(1, 2))

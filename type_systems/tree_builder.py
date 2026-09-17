@@ -154,9 +154,9 @@ class SymbolTreeBuilder:
 
             for arg in ast.args:
                 var = self.visit_expression(arg)
-                if not isinstance(var, (VariableSymbol, NumberSymbol)):
-                    print(type(var))
-                    self.error(arg, f"Cannot pass non-variable symbol {arg}")
+                # if not isinstance(var, (VariableSymbol, NumberSymbol)):
+                #     print(type(var))
+                #     self.error(arg, f"Cannot pass non-variable symbol {arg}")
 
                 sym.sym_params.append(var)
 
