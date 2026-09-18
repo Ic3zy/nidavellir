@@ -1,4 +1,7 @@
 def a(c, b):
     return c + b
 
-print(a(1, 2))
+def t(g,h):
+    return a(g,h)
+
+print(t(2,3))
