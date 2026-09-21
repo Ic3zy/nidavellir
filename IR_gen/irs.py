@@ -1,5 +1,57 @@
 class IR:
-    pass
+    def tree_repr(self, indent="", is_last=True):
+        if self.__class__.__name__ == "VariableIR":
+            return f"{indent}{'└── ' if is_last else '├── '}VariableIR({repr(getattr(self, 'name', ''))})"
+        if self.__class__.__name__ == "NumberIR":
+            return f"{indent}{'└── ' if is_last else '├── '}NumberIR({repr(getattr(self, 'value', ''))})"
+
+        marker = "└── " if is_last else "├── "
+        lines = [f"{indent}{marker}{self.__class__.__name__}"]
+
+        children = []
+        for k, v in self.__dict__.items():
+            if k in ("decs", "val_type", "body") and not v:
+                continue
+            if k == "body":
+                continue
+            children.append((k, v))
+
+        child_indent = indent + ("    " if is_last else "│   ")
+
+        for i, (key, val) in enumerate(children):
+            is_last_child = i == len(children) - 1
+            c_marker = "└── " if is_last_child else "├── "
+
+            if isinstance(val, IR):
+                lines.append(f"{child_indent}{c_marker}{key}:")
+                lines.append(
+                    val.tree_repr(
+                        indent=child_indent + ("    " if is_last_child else "│   "),
+                        is_last=True,
+                    )
+                )
+            elif isinstance(val, list):
+                if not val:
+                    lines.append(f"{child_indent}{c_marker}{key}: []")
+                    continue
+                lines.append(f"{child_indent}{c_marker}{key}:")
+                list_indent = child_indent + ("    " if is_last_child else "│   ")
+                for j, item in enumerate(val):
+                    is_last_item = j == len(val) - 1
+                    if isinstance(item, IR):
+                        lines.append(
+                            item.tree_repr(indent=list_indent, is_last=is_last_item)
+                        )
+                    else:
+                        item_marker = "└── " if is_last_item else "├── "
+                        lines.append(f"{list_indent}{item_marker}{repr(item)}")
+            else:
+                lines.append(f"{child_indent}{c_marker}{key}: {repr(val)}")
+
+        return "\n".join(lines)
+
+    def __repr__(self):
+        return self.tree_repr()
 
 
 class AssignIR(IR):
@@ -42,4 +94,10 @@ class CallIR(IR):
     def __init__(self, target, args):
         self.target = target
         self.args = args
+        self.val_type = None
+
+
+class NumberIR(IR):
+    def __init__(self, value):
+        self.value = value
         self.val_type = None

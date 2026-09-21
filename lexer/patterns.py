@@ -8,6 +8,7 @@ TOKEN_PATTERNS = [
     
     ("AND",       r'\band\b'),
     ("OR",        r'\bor\b'),
+    ("IMPORT",    r'\bimport\b'),
     ("IF",        r'\bif\b'),
     ("ELIF",      r'\belif\b'),
     ("ELSE",      r'\belse\b'),

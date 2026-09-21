@@ -13,8 +13,10 @@ class IRGen:
     def gen_AssignAST(self, ast):
         target = ast.target
         value = ast.value
+        val_res = self.gen(value)
+
         type_annotation = ast.type_annotation
-        return AssignIR(target, value, type_annotation)
+        return AssignIR(target, val_res, type_annotation)
 
     def gen_ReturnAST(self, ast):
         value = ast.value
@@ -27,7 +29,7 @@ class IRGen:
         return CallIR(target, args)
 
     def gen_NumberAST(self, ast):
-        return IR()
+        return NumberIR(ast.value)
 
     def gen_VariableAST(self, ast):
         name = ast.name
@@ -56,6 +58,9 @@ class IRGen:
             ir.body_irs.append(res)
 
         return ir
+
+    def gen_ImportAST(self, ast):
+        pass  # TODO: impl
 
     def gen(self, ast):
         name = ast.__class__.__name__

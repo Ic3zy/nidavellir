@@ -236,3 +236,9 @@ class IntrinsicAST(AST):
         self.args = params
         self.handler = handler
         self.is_variadic = is_variadic
+
+
+class ImportAST(AST):
+    def __init__(self, name, alias):
+        self.name = name
+        self.alias = alias

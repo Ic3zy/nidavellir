@@ -13,6 +13,8 @@ class Parser:
         self.last_decorators = []
         self.keywords = create_keywords(self)
 
+        print(self.tokens)
+
     def get_token(self, index):
         if 0 <= index < len(self.tokens):
             return self.tokens[index]
@@ -705,6 +707,16 @@ class Parser:
             p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
         )
 
+    def parse_import(self):
+        self.consume("IMPORT")
+        name = self.consume("NAME")
+        modules = []
+        while self.peek_kind() != "NEWLINE":
+            modules.append(self.current[1])
+            self.advance()
+
+        return ImportAST(name, modules)
+
     def parse_kind(self, kind):
         if kind is None:
             return None
@@ -742,6 +754,9 @@ class Parser:
 
         if kind == "NUMBER":
             return self.parse_number()
+
+        if kind == "IMPORT":
+            return self.parse_import()
 
         if kind == "STRING":
             token = self.advance()

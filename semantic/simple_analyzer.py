@@ -369,6 +369,9 @@ class SimpleASTVisitor:
 
         self.stm.exit_scope()
 
+    def stmt_ImportAST(self, node):
+        pass  # TODO: impl
+
     def visit_statement(self, node):
         method_name = f"stmt_{type(node).__name__}"
         visitor = getattr(self, method_name, None)
