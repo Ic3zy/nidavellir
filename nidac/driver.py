@@ -2,6 +2,7 @@ from lexer import Lexer
 from nida_ast import Parser
 from semantic import SimpleAnalyzer
 from type_systems import TypeDefEngine
+from IR_gen import IRGen
 
 
 class Nidac:
@@ -21,7 +22,13 @@ class Nidac:
         # self.type_def() # TODO: impl
         # self.check_types()  # TODO: HardAnalyzer
         # return self.emit_c11() # TODO: CodeGen
+        self.IRGen()
         return self
+
+    def IRGen(self):
+        ir = IRGen(self.asts)
+        ir.gen_from_list(self.asts)
+        self.ir = ir.IRs
 
     def read_file(self):
         with open(self.file_path, "r") as f:

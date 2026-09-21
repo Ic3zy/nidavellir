@@ -471,7 +471,6 @@ class Parser:
                 value_ast = BinaryOpAST(
                     left=VariableAST(name=target_name), op=comp, right=value_ast
                 )
-
         return AssignAST(
             target=target_name, chain=chain, type_annotation=data_type, value=value_ast
         )
