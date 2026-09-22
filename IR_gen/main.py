@@ -23,10 +23,28 @@ class IRGen:
         res = self.gen(value)
         return ReturnIR(res)
 
+    def gen_ClassAST(self, ast):
+        name = ast.name
+        body = ast.body
+
+        body_irs = []
+        for n in body:
+            body_irs.append(self.gen(n))
+
+        return ClassIR(name, body_irs)
+
     def gen_CallAST(self, ast):
         target = ast.target
         args = ast.args
-        return CallIR(target, args)
+
+        args_irs = []
+        for arg in args:
+            args_irs.append(self.gen(arg))
+
+        return CallIR(target, args_irs)
+
+    def gen_StringAST(self, ast):
+        return StringLiteralIR(ast.value)
 
     def gen_NumberAST(self, ast):
         return NumberIR(ast.value)
@@ -50,7 +68,11 @@ class IRGen:
         body = ast.body
         type = ast.type
 
-        ir = FunctionIR(decs, name, args, body, type)
+        args_irs = []
+        for arg in args:
+            args_irs.append(self.gen(arg))
+
+        ir = FunctionIR(decs, name, args_irs, body, type)
 
         for arg in body:
             res = self.gen(arg)

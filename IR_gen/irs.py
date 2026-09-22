@@ -101,3 +101,14 @@ class NumberIR(IR):
     def __init__(self, value):
         self.value = value
         self.val_type = None
+
+
+class ClassIR(IR):
+    def __init__(self, name, body):
+        self.name = name
+        self.body = body
+
+
+class StringLiteralIR(IR):
+    def __init__(self, value):
+        self.value = value

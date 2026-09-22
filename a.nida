@@ -1,1 +1,3 @@
-import math
+def void main():
+    print("Hello World!")
+    
