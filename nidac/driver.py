@@ -38,8 +38,7 @@ class Nidac:
 
     def IRGen(self):
         ir = IRGen(self.asts)
-        ir.gen_from_list(self.asts)
-        self.ir = ir.IRs
+        self.ir = ir.gen_from_list(self.asts)
 
     def read_file(self):
         with open(self.file_path, "r") as f:

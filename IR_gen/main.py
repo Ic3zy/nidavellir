@@ -1,4 +1,5 @@
 from .irs import *
+from .ir_passer import IRPasser
 from nida_ast import *
 
 
@@ -99,3 +100,8 @@ class IRGen:
             self.IRs.append(res)
 
         print(self.IRs)
+
+        ir_passer = IRPasser(self.IRs)
+        self.IRs = ir_passer.run()
+
+        return self.IRs
