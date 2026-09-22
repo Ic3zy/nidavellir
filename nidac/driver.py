@@ -3,6 +3,7 @@ from nida_ast import Parser
 from semantic import SimpleAnalyzer
 from type_systems import TypeDefEngine
 from IR_gen import IRGen
+from C_gen import C_Gen
 
 
 class Nidac:
@@ -15,6 +16,8 @@ class Nidac:
         self.asts = []
         self.symbol_table = None
 
+        self.ir = None
+
     def compile(self):
         self.lex()
         self.parse()
@@ -23,7 +26,15 @@ class Nidac:
         # self.check_types()  # TODO: HardAnalyzer
         # return self.emit_c11() # TODO: CodeGen
         self.IRGen()
+        self.emit_c11()
         return self
+
+    def emit_c11(self):
+        if self.ir is None:
+            self.IRGen()
+
+        c_gen = C_Gen(self.ir)
+        c_gen.gen_from_list(self.ir)
 
     def IRGen(self):
         ir = IRGen(self.asts)
