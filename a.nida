@@ -1,7 +1,5 @@
 from stdio import printf
 
-int a = 1
-for i in range(10000000):
-    a = a + i
-    a *= i
-printf("a: %d\n", a)
+
+while True:
+    printf("nidavellir \n")

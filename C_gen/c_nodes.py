@@ -179,3 +179,25 @@ class CFor(CNode):
         body_str = "".join(b.str() + ";\n" for b in self.body)
         fr = f"for (int {self.target} = 0; {self.target} < {self.range}; {self.target}++) {{\n{body_str}}}"
         return fr
+
+
+class CWhile(CNode):
+    def __init__(self, cond, body):
+        self.cond = cond
+        self.body = body
+
+    def str(self):
+        body_str = "".join(b.str() + ";\n" for b in self.body)
+        fr = f"while ({self.cond.str()}) {{\n{body_str}}}"
+        return fr
+
+
+class CBoolean(CNode):
+    def __init__(self, value):
+        self.value = value
+
+    def str(self):
+        if self.value is True:
+            return "true"
+        else:
+            return "false"

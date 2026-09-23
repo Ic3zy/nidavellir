@@ -152,6 +152,21 @@ class IRGen:
 
         return ForIR(target_ir, source_ir, body_irs)
 
+    def gen_WhileAST(self, ast):
+        cond = ast.cond
+        body = ast.body
+
+        body_irs = []
+        for n in body:
+            body_irs.append(self.gen(n))
+
+        cond_ir = self.gen(cond)
+        return WhileIR(cond_ir, body_irs)
+
+    def gen_BooleanAST(self, ast):
+        value = ast.value
+        return BooleanIR(value)
+
     def _gen_unary_op(self, target, ast):
         op = ast.op
         right = ast.right

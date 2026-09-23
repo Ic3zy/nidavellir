@@ -159,3 +159,14 @@ class ForIR(IR):
         self.target = target
         self.source = source
         self.body = body
+
+
+class WhileIR(IR):
+    def __init__(self, cond, body):
+        self.cond = cond
+        self.body = body
+
+
+class BooleanIR(IR):
+    def __init__(self, value):
+        self.value = value

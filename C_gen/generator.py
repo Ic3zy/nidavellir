@@ -166,6 +166,20 @@ class C_Gen:
 
         return CFor(target.name, range, body_nodes)
 
+    def gen_WhileIR(self, ir):
+        cond = ir.cond
+        body = ir.body
+        cond_node = self.gen(cond)
+        body_nodes = []
+        for b in body:
+            body_nodes.append(self.gen(b))
+
+        return CWhile(cond_node, body_nodes)
+
+    def gen_BooleanIR(self, ir):
+        value = ir.value
+        return CBoolean(value)
+
     def gen(self, ir):
         name = ir.__class__.__name__
         func = getattr(self, f"gen_{name}")
