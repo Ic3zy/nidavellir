@@ -167,3 +167,15 @@ class CGroup(CNode):
 
     def str(self):
         return f"({self.expr.str()})"
+
+
+class CFor(CNode):
+    def __init__(self, target, range, body):
+        self.target = target
+        self.range = range
+        self.body = body
+
+    def str(self):
+        body_str = "".join(b.str() + ";\n" for b in self.body)
+        fr = f"for (int {self.target} = 0; {self.target} < {self.range}; {self.target}++) {{\n{body_str}}}"
+        return fr

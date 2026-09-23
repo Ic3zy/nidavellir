@@ -1,8 +1,7 @@
 from stdio import printf
 
-int x = 15
-int y = 30
-int result = x * y
-
-if result > 500 and (x == 15 or y < 20):
-    printf("Yuksek Skor: %d\n", result)
+int a = 1
+for i in range(10000000):
+    a = a + i
+    a *= i
+printf("a: %d\n", a)

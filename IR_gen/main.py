@@ -1,6 +1,6 @@
 from .irs import *
 from .ir_passer import IRPasser
-from nida_ast import *
+from nida_ast.base import *
 
 
 class IRGen:
@@ -14,7 +14,10 @@ class IRGen:
     def gen_AssignAST(self, ast):
         target = ast.target
         value = ast.value
-        val_res = self.gen(value)
+        if isinstance(value, UnaryOpAST):
+            val_res = self._gen_unary_op(target, value)
+        else:
+            val_res = self.gen(value)
 
         type_annotation = ast.type_annotation
         return AssignIR(target, val_res, type_annotation)
@@ -135,6 +138,26 @@ class IRGen:
         expr = ast.expr
         expr_ir = self.gen(expr)
         return GroupIR(expr_ir)
+
+    def gen_ForAST(self, ast):
+        target = ast.target
+        source = ast.source
+        body = ast.body
+
+        target_ir = VariableIR(target.target)
+        source_ir = self.gen(source)
+        body_irs = []
+        for n in body:
+            body_irs.append(self.gen(n))
+
+        return ForIR(target_ir, source_ir, body_irs)
+
+    def _gen_unary_op(self, target, ast):
+        op = ast.op
+        right = ast.right
+
+        right_ir = self.gen(right)
+        return BinaryOpIR(left=VariableIR(target), op=op, right=right_ir)
 
     def gen(self, ast):
         name = ast.__class__.__name__

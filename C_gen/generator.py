@@ -18,9 +18,13 @@ class C_Gen:
             raise Exception("No value node")
 
         val_type = ir.val_type
+        lk = self.stm.lookup_var(target)
         self.stm.define_var(target, val_type)
-
-        return CAssign(target, value_node, val_type)
+        if lk is not None:
+            ir.re_assign = True
+        else:
+            ir.re_assign = False
+        return CAssign(target, value_node, val_type, re_assign=ir.re_assign)
 
     def gen_NumberIR(self, ir):
         value = ir.value
@@ -134,6 +138,33 @@ class C_Gen:
         expr = ir.expr
         expr_node = self.gen(expr)
         return CGroup(expr_node)
+
+    def gen_ForIR(self, ir):
+        target = ir.target
+        source = ir.source
+        body = ir.body
+
+        body_nodes = []
+        for b in body:
+            body_nodes.append(self.gen(b))
+
+        range = None
+
+        if isinstance(source, CallIR):
+            target_fn = source.target
+            if target_fn == "range" and isinstance(source.args[0], NumberIR):
+                range = source.args[0].value
+                range = int(range)
+            else:
+                raise NotImplementedError(
+                    f"For loop source '{target_fn}' is not implemented"
+                )
+        else:
+            raise NotImplementedError(
+                f"For loop source '{type(source).__name__}' is not implemented"
+            )
+
+        return CFor(target.name, range, body_nodes)
 
     def gen(self, ir):
         name = ir.__class__.__name__

@@ -55,10 +55,12 @@ class IR:
 
 
 class AssignIR(IR):
-    def __init__(self, target, value, type=None):
+    def __init__(self, target, value, type=None, re_assign=False):
         self.target = target
         self.value = value
         self.val_type = type
+
+        self.re_assign = re_assign
 
 
 class FunctionIR(IR):
@@ -150,3 +152,10 @@ class BlockIR(IR):
 class GroupIR(IR):
     def __init__(self, expr):
         self.expr = expr
+
+
+class ForIR(IR):
+    def __init__(self, target, source, body):
+        self.target = target
+        self.source = source
+        self.body = body
