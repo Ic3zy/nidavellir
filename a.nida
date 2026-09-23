@@ -1,17 +1,7 @@
-from stdlib import malloc, free
 from stdio import printf
 
-def void test():
-    printf("void test\n")
+int a = 10*20
+printf("a: %d\n", a)
 
-def int test2():
-    return 100
-
-void* ptr = malloc(20)
-
-printf("Bellek ayrildi, adres: %p\n", ptr)
-free(ptr)
-printf("Bellek serbest birakildi!\n")
-test()
-
-printf("tested %d\n", test2())
+if a > 100:
+    printf("a > 100\n")

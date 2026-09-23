@@ -126,3 +126,17 @@ class IRImport:
         self.module = module
         self.symbols = symbols or []
         self.alias = alias
+
+
+class IfIR(IR):
+    def __init__(self, cond, body, elifs, else_body):
+        self.cond = cond
+        self.body = body
+        self.elifs = elifs
+        self.else_body = else_body
+
+
+class ElifIR(IR):
+    def __init__(self, cond, body):
+        self.cond = cond
+        self.body = body

@@ -85,6 +85,40 @@ class C_Gen:
     def gen_VariableIR(self, ir):
         return CVariable(ir.name)
 
+    def gen_BinaryOpIR(self, ir):
+        left = ir.left
+        right = ir.right
+
+        left_node = self.gen(left)
+        right_node = self.gen(right)
+
+        op = ir.op
+
+        return CBinaryOp(left_node, right_node, op)
+
+    def gen_IfIR(self, ir):
+        cond = ir.cond
+        body = ir.body
+        elifs = ir.elifs
+        else_body = ir.else_body
+
+        cond_node = self.gen(cond)
+        elifs_nodes = []
+        body_nodes = []
+        else_body_nodes = []
+
+        for b in body:
+            body_nodes.append(self.gen(b))
+
+        for e in elifs:
+            elifs_nodes.append(self.gen(e))
+
+        if else_body is not None:
+            for b in else_body:
+                else_body_nodes.append(self.gen(b))
+
+        return CIf(cond_node, body_nodes, elifs_nodes, else_body_nodes)
+
     def gen(self, ir):
         name = ir.__class__.__name__
         func = getattr(self, f"gen_{name}")

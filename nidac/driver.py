@@ -48,8 +48,8 @@ class Nidac:
         with open("output.c", "w") as f:
             f.write(self.final_c_code)
 
-        compile_c_file("output.c", "output_bin")
-        self.run_binary("output_bin")
+        compile_c_file("output.c", "output_bin.o")
+        self.run_binary("output_bin.o")
 
     def emit_c11(self):
         if self.ir is None:

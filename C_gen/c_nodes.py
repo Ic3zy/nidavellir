@@ -95,3 +95,68 @@ class CVariable(CNode):
 
     def str(self):
         return self.name
+
+
+class CBinaryOp(CNode):
+    def __init__(self, left, right, op):
+        self.left = left
+        self.right = right
+        self.op = op
+
+    def str(self):
+        return f"{self.left.str()} {self.op} {self.right.str()}"
+
+
+class CElif(CNode):
+    def __init__(self, cond, body):
+        self.cond = cond
+        self.body = body
+
+    def str(self):
+        body = []
+        for b in self.body:
+            body.append(b.str())
+            body.append(";\n")
+
+        body_str = "".join(body)
+        return f"else if ({self.cond.str()}) {{\n{body_str}}}"
+
+
+class CIf(CNode):
+    def __init__(self, cond, body, elifs, else_body):
+        self.cond = cond
+        self.body = body
+        self.elifs = elifs
+        self.else_body = else_body
+
+    def str(self):
+        body = []
+        for b in self.body:
+            body.append(b.str())
+            body.append(";\n")
+
+        body_str = "".join(body)
+
+        elifs = []
+        for e in self.elifs:
+            elifs.append(e.str())
+            elifs.append(";\n")
+
+        elifs_str = "".join(elifs)
+
+        else_body = []
+        for b in self.else_body:
+            else_body.append(b.str())
+            else_body.append(";\n")
+
+        else_body_str = "".join(else_body)
+
+        parts = [f"if ({self.cond.str()}) {{\n{body_str}\n}}"]
+
+        if elifs:
+            parts.append(elifs_str)
+
+        if self.else_body:
+            parts.append(f"else {{\n{else_body_str}\n}}")
+
+        return "\n".join(parts)
