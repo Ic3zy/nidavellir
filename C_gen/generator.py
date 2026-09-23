@@ -130,6 +130,11 @@ class C_Gen:
 
         return CIf(cond_node, body_nodes, elifs_nodes, else_body_nodes)
 
+    def gen_GroupIR(self, ir):
+        expr = ir.expr
+        expr_node = self.gen(expr)
+        return CGroup(expr_node)
+
     def gen(self, ir):
         name = ir.__class__.__name__
         func = getattr(self, f"gen_{name}")

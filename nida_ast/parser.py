@@ -156,7 +156,7 @@ class Parser:
             self.advance()
             expr = self.parse_expression()
             self.consume("RPAREN")
-            return expr
+            return GroupAST(expr)
 
         if kind == "TRUE":
             self.advance()

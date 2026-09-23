@@ -127,12 +127,20 @@ class IRGen:
             elif_ir = self.gen(elif_ast)
             elifs_irs.append(elif_ir)
 
-        else_body_irs = self.gen(else_body)
+        else_body_irs = self.gen(else_body) if else_body is not None else None
 
         return IfIR(cond_ir, body_irs, elifs_irs, else_body_irs)
 
+    def gen_GroupAST(self, ast):
+        expr = ast.expr
+        expr_ir = self.gen(expr)
+        return GroupIR(expr_ir)
+
     def gen(self, ast):
         name = ast.__class__.__name__
+        if name == "NoneType":
+            raise Exception(f"No function named {ast}")
+
         func = getattr(self, f"gen_{name}")
         if func is None:
             raise Exception(f"No function named {name}")

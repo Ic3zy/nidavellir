@@ -144,6 +144,10 @@ class SimpleASTVisitor:
         for arg in args:
             self.visit_expression(arg)
 
+    def eval_GroupAST(self, node):
+        expr = node.expr
+        self.visit_expression(expr)
+
     def stmt_PassAST(self, node):
         pass
 

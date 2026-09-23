@@ -1,12 +1,8 @@
 from stdio import printf
 
-int a = 10*20
-printf("a: %d\n", a)
+int x = 15
+int y = 30
+int result = x * y
 
-if a > 300 and a > 10:
-    printf("a > 100\n")
-elif a > 1000:
-    printf("a > 10\n")
-
-else:
-    printf("a > 100\n")
+if result > 500 and (x == 15 or y < 20):
+    printf("Yuksek Skor: %d\n", result)

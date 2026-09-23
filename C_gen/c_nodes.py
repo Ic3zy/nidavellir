@@ -159,3 +159,11 @@ class CIf(CNode):
             parts.append(f"else {{\n{else_body_str}}}")
 
         return "\n".join(parts)
+
+
+class CGroup(CNode):
+    def __init__(self, expr):
+        self.expr = expr
+
+    def str(self):
+        return f"({self.expr.str()})"

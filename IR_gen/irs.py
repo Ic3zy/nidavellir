@@ -145,3 +145,8 @@ class ElifIR(IR):
 class BlockIR(IR):
     def __init__(self, body):
         self.body = body
+
+
+class GroupIR(IR):
+    def __init__(self, expr):
+        self.expr = expr

@@ -246,3 +246,8 @@ class ImportAST(AST):
         self.symbols = symbols or []
         self.alias = alias
         self.line = line
+
+
+class GroupAST:
+    def __init__(self, expr):
+        self.expr = expr
