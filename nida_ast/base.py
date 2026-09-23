@@ -239,6 +239,10 @@ class IntrinsicAST(AST):
 
 
 class ImportAST(AST):
-    def __init__(self, name, alias):
-        self.name = name
+    def __init__(
+        self, module: str, symbols: list = None, alias: str = None, line: int = 1
+    ):
+        self.module = module
+        self.symbols = symbols or []
         self.alias = alias
+        self.line = line

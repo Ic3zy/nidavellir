@@ -5,10 +5,12 @@ TOKEN_PATTERNS = [
     ("NEQ",       r'!='),
     ("LTE",       r'<='),
     ("GTE",       r'>='),
-    
+
+    ("AS",        r'\bas\b'),
     ("AND",       r'\band\b'),
     ("OR",        r'\bor\b'),
     ("IMPORT",    r'\bimport\b'),
+    ("FROM",      r'\bfrom\b'),
     ("IF",        r'\bif\b'),
     ("ELIF",      r'\belif\b'),
     ("ELSE",      r'\belse\b'),
@@ -25,7 +27,7 @@ TOKEN_PATTERNS = [
     ("STAR_ASSIGN",  r'\*='),
     ("DIV_ASSIGN",   r'/='),
     ("MOD_ASSIGN",   r'%='),
-    ("ASSIGN",    r'='),
+    ("ASSIGN",       r'='),
 
     ("AT",        r'\@'),
     ("PLUS",      r'\+'),

@@ -28,7 +28,15 @@ class CCall(CNode):
         self.args = args
 
     def str(self):
-        return f"{self.target}({self.args})"
+        args_str = ""
+
+        args_count = len(self.args)
+        for c_a in range(args_count):
+            a = self.args[c_a]
+            is_last = c_a == args_count - 1
+            args_str += f"{a.str()}, " if not is_last else f"{a.str()}"
+
+        return f"{self.target}({args_str})"
 
 
 class CFunction(CNode):
@@ -62,3 +70,19 @@ class CReturn(CNode):
 
     def str(self):
         return f"return {self.value.str()}"
+
+
+class CImport(CNode):
+    def __init__(self, module):
+        self.module = module
+
+    def str(self):
+        return f"#include <{self.module}.h>"
+
+
+class CString(CNode):
+    def __init__(self, value):
+        self.value = value
+
+    def str(self):
+        return f'"{self.value}"'

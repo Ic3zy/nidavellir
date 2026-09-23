@@ -10,7 +10,7 @@ class IRPasser:
         top_level_stmts = []
 
         for ir in self.irs:
-            if isinstance(ir, FunctionIR):
+            if isinstance(ir, (FunctionIR, IRImport)):
                 final_irs.append(self.run_stmt(ir))
             else:
                 top_level_stmts.append(self.run_stmt(ir))
@@ -53,6 +53,8 @@ class IRPasser:
         return ir
 
     def stmt_FunctionIR(self, ir):
+        name = ir.name
+        ir.name = f"Nidavellir_{name}"
         new_body = []
         for body_ir in ir.body_irs:
             new_body.append(self.run_stmt(body_ir))

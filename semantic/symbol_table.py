@@ -16,6 +16,7 @@ class Scope:
         self.functions = {}
         self.classes = {}
         self.types = {}
+        self.modules = {}
 
     def define_var(self, name, symbol_obj):
         self.variables[name] = symbol_obj
@@ -31,6 +32,12 @@ class Scope:
             return self.functions[name]
         if self.parent:
             return self.parent.lookup_func(name)
+
+    def lookup_module(self, name):  # EKLENDİ
+        if name in self.modules:
+            return self.modules[name]
+        if self.parent:
+            return self.parent.lookup_module(name)
 
     def lookup_var_local(self, name):
         if name in self.variables:
@@ -105,11 +112,29 @@ class SymbolTableManager:
             "params": params,
             "ast": ast_node,
             "is_variadic": False,
+            "module": None,  # EKLENDİ
         }
         self.global_scope.functions[name] = func_symbol
+
+    def define_imported_func(
+        self, name, return_type, params, module_name, is_variadic=False
+    ):
+        func_symbol = {
+            "name": name,
+            "return_type": return_type,
+            "params": params,
+            "ast": None,
+            "is_variadic": is_variadic,
+            "is_external": True,
+            "module": module_name,
+        }
+        self.global_scope.functions[name] = func_symbol
+
+    def define_module(self, alias_or_name, real_module_name):
+        self.current_scope.modules[alias_or_name] = real_module_name
 
     def lookup_func(self, name):
         if name in INTRINSIC_HANDLERS:
             return INTRINSIC_HANDLERS[name]
 
-        return self.global_scope.functions.get(name, None)
+        return self.global_scope.lookup_func(name)

@@ -47,6 +47,22 @@ class C_Gen:
 
         return CReturn(value_node)
 
+    def gen_IRImport(self, ir):
+        # TODO: impl
+        return CImport(ir.module)
+
+    def gen_CallIR(self, ir):
+        target = ir.target
+        args = ir.args
+        args_nodes = []
+        for arg in args:
+            args_nodes.append(self.gen(arg))
+
+        return CCall(target, args_nodes)
+
+    def gen_StringLiteralIR(self, ir):
+        return CString(ir.value)
+
     def gen(self, ir):
         name = ir.__class__.__name__
         func = getattr(self, f"gen_{name}")
@@ -60,11 +76,13 @@ class C_Gen:
             res = self.gen(ir)
             self.C_code.append(res)
 
-        print("\n\n\n C code final: ", self.get_final_c_code())
+        print("\n\n\n C code final: ", c_code := self.get_final_c_code())
+
+        return c_code
 
     def get_final_c_code(self):
         c_code = ""
         for c_node in self.C_code:
-            c_code += c_node.str()
+            c_code += "\n" + c_node.str()
 
         return c_code

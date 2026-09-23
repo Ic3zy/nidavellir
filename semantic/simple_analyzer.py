@@ -4,6 +4,7 @@
 from .intrinsics import INTRINSIC_HANDLERS
 from .symbol_table import SymbolTableManager
 from nida_ast.base import *
+from .c_header_analyze import GCCHeaderScraper
 
 VALID_RETURN_EXPRESSIONS = (
     VariableAST,
@@ -370,7 +371,52 @@ class SimpleASTVisitor:
         self.stm.exit_scope()
 
     def stmt_ImportAST(self, node):
-        pass  # TODO: impl
+        module_name = node.module
+        header_file = f"{module_name}.h"
+
+        scraper = GCCHeaderScraper()
+        signatures = scraper.extract_signatures(header_file)
+
+        symbols = getattr(node, "symbols", None)
+        alias = getattr(node, "alias", None)
+
+        if symbols:
+            for sym_name in symbols:
+                if sym_name in signatures:
+                    sig = signatures[sym_name]
+                    is_variadic = "..." in sig["args"]
+                    clean_args = [a for a in sig["args"] if a != "..."]
+
+                    self.stm.define_imported_func(
+                        name=sym_name,
+                        return_type=sig["return"],
+                        params=clean_args,
+                        module_name=module_name,
+                        is_variadic=is_variadic,
+                    )
+                else:
+                    raise Exception(
+                        f"Semantic Error: '{sym_name}' sembolü '{header_file}' içinde bulunamadı."
+                    )
+
+        else:
+            mod_key = alias if alias else module_name
+            self.stm.define_module(mod_key, module_name)
+
+            prefix = f"{mod_key}." if alias else ""
+
+            for fn_name, sig in signatures.items():
+                target_name = f"{prefix}{fn_name}"
+                is_variadic = "..." in sig["args"]
+                clean_args = [a for a in sig["args"] if a != "..."]
+
+                self.stm.define_imported_func(
+                    name=target_name,
+                    return_type=sig["return"],
+                    params=clean_args,
+                    module_name=module_name,
+                    is_variadic=is_variadic,
+                )
 
     def visit_statement(self, node):
         method_name = f"stmt_{type(node).__name__}"

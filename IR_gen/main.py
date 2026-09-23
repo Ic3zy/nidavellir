@@ -83,7 +83,15 @@ class IRGen:
         return ir
 
     def gen_ImportAST(self, ast):
-        pass  # TODO: impl
+        module_name = ast.module
+        symbols = ast.symbols
+        alias = ast.alias
+
+        return IRImport(
+            module=module_name,
+            symbols=symbols,
+            alias=alias,
+        )
 
     def gen(self, ast):
         name = ast.__class__.__name__

@@ -709,13 +709,35 @@ class Parser:
 
     def parse_import(self):
         self.consume("IMPORT")
-        name = self.consume("NAME")
-        modules = []
-        while self.peek_kind() != "NEWLINE":
-            modules.append(self.current[1])
-            self.advance()
+        module_token = self.consume("NAME")
+        module_name = module_token[1]
 
-        return ImportAST(name, modules)
+        alias = None
+        if self.peek_kind() == "AS":
+            self.advance()
+            alias_token = self.consume("NAME")
+            alias = alias_token[1]
+
+        return ImportAST(module=module_name, symbols=[], alias=alias)
+
+    def parse_from(self):
+        self.consume("FROM")
+        module_token = self.consume("NAME")
+        module_name = module_token[1]
+
+        self.consume("IMPORT")
+
+        symbols = []
+        while self.current is not None and self.peek_kind() != "NEWLINE":
+            sym_token = self.consume("NAME")
+            symbols.append(sym_token[1])
+
+            if self.peek_kind() == "COMMA":
+                self.advance()
+            else:
+                break
+
+        return ImportAST(module=module_name, symbols=symbols, alias=None)
 
     def parse_kind(self, kind):
         if kind is None:
@@ -757,6 +779,9 @@ class Parser:
 
         if kind == "IMPORT":
             return self.parse_import()
+
+        if kind == "FROM":
+            return self.parse_from()
 
         if kind == "STRING":
             token = self.advance()

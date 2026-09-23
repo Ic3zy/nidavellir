@@ -4,6 +4,7 @@ from semantic import SimpleAnalyzer
 from type_systems import TypeDefEngine
 from IR_gen import IRGen
 from C_gen import C_Gen
+from .gcc import compile_c_file, run_compiled_file
 
 
 class Nidac:
@@ -17,6 +18,9 @@ class Nidac:
         self.symbol_table = None
 
         self.ir = None
+        self.final_c_code = None
+
+        # compile_c_file("output.c", "output_bin")
 
     def compile(self):
         self.lex()
@@ -27,14 +31,32 @@ class Nidac:
         # return self.emit_c11() # TODO: CodeGen
         self.IRGen()
         self.emit_c11()
+        self.compile_binary()
+
         return self
+
+    def run_binary(self, binary_path: str, args: list[str] = None):
+        if self.final_c_code is None:
+            self.emit_c11()
+
+        run_compiled_file(binary_path, args)
+
+    def compile_binary(self):
+        if self.final_c_code is None:
+            self.emit_c11()
+
+        with open("output.c", "w") as f:
+            f.write(self.final_c_code)
+
+        compile_c_file("output.c", "output_bin")
+        self.run_binary("output_bin")
 
     def emit_c11(self):
         if self.ir is None:
             self.IRGen()
 
         c_gen = C_Gen(self.ir)
-        c_gen.gen_from_list(self.ir)
+        self.final_c_code = c_gen.gen_from_list(self.ir)
 
     def IRGen(self):
         ir = IRGen(self.asts)

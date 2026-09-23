@@ -112,3 +112,15 @@ class ClassIR(IR):
 class StringLiteralIR(IR):
     def __init__(self, value):
         self.value = value
+
+
+class IRImport:
+    def __init__(
+        self,
+        module: str,
+        symbols: list[str] = None,
+        alias: str = None,
+    ):
+        self.module = module
+        self.symbols = symbols or []
+        self.alias = alias
