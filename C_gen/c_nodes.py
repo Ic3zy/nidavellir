@@ -103,8 +103,16 @@ class CBinaryOp(CNode):
         self.right = right
         self.op = op
 
+    def format_op(self, op):
+        if op == "and":
+            return "&&"
+        elif op == "or":
+            return "||"
+        else:
+            return op
+
     def str(self):
-        return f"{self.left.str()} {self.op} {self.right.str()}"
+        return f"{self.left.str()} {self.format_op(self.op)} {self.right.str()}"
 
 
 class CElif(CNode):
@@ -130,33 +138,24 @@ class CIf(CNode):
         self.else_body = else_body
 
     def str(self):
-        body = []
-        for b in self.body:
-            body.append(b.str())
-            body.append(";\n")
+        body_str = "".join(
+            f"{b.str()};\n" if not b.str().endswith(";") else f"{b.str()}\n"
+            for b in self.body
+        )
 
-        body_str = "".join(body)
+        else_body_str = "".join(
+            f"{b.str()};\n" if not b.str().endswith(";") else f"{b.str()}\n"
+            for b in self.else_body
+        )
 
-        elifs = []
-        for e in self.elifs:
-            elifs.append(e.str())
-            elifs.append(";\n")
+        elifs_str = "\n".join(e.str() for e in self.elifs)
 
-        elifs_str = "".join(elifs)
+        parts = [f"if ({self.cond.str()}) {{\n{body_str}}}"]
 
-        else_body = []
-        for b in self.else_body:
-            else_body.append(b.str())
-            else_body.append(";\n")
-
-        else_body_str = "".join(else_body)
-
-        parts = [f"if ({self.cond.str()}) {{\n{body_str}\n}}"]
-
-        if elifs:
+        if self.elifs:
             parts.append(elifs_str)
 
         if self.else_body:
-            parts.append(f"else {{\n{else_body_str}\n}}")
+            parts.append(f"else {{\n{else_body_str}}}")
 
         return "\n".join(parts)

@@ -140,3 +140,8 @@ class ElifIR(IR):
     def __init__(self, cond, body):
         self.cond = cond
         self.body = body
+
+
+class BlockIR(IR):
+    def __init__(self, body):
+        self.body = body

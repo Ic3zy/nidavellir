@@ -96,6 +96,17 @@ class C_Gen:
 
         return CBinaryOp(left_node, right_node, op)
 
+    def gen_ElifIR(self, ir):
+        cond = ir.cond
+        body = ir.body
+
+        cond_node = self.gen(cond)
+        body_nodes = []
+        for b in body:
+            body_nodes.append(self.gen(b))
+
+        return CElif(cond_node, body_nodes)
+
     def gen_IfIR(self, ir):
         cond = ir.cond
         body = ir.body
@@ -114,7 +125,7 @@ class C_Gen:
             elifs_nodes.append(self.gen(e))
 
         if else_body is not None:
-            for b in else_body:
+            for b in else_body.body:
                 else_body_nodes.append(self.gen(b))
 
         return CIf(cond_node, body_nodes, elifs_nodes, else_body_nodes)

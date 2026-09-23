@@ -92,6 +92,14 @@ class IRGen:
             alias=alias,
         )
 
+    def gen_BlockAST(self, ast):
+        body = ast.body
+        body_irs = []
+        for n in body:
+            body_irs.append(self.gen(n))
+
+        return BlockIR(body_irs)
+
     def gen_ElifAST(self, ast):
         cond = ast.cond
         body = ast.body
@@ -119,10 +127,7 @@ class IRGen:
             elif_ir = self.gen(elif_ast)
             elifs_irs.append(elif_ir)
 
-        else_body_irs = []
-        if else_body is not None:
-            for n in else_body:
-                else_body_irs.append(self.gen(n))
+        else_body_irs = self.gen(else_body)
 
         return IfIR(cond_ir, body_irs, elifs_irs, else_body_irs)
 
