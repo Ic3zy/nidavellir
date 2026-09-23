@@ -62,12 +62,14 @@ class AssignIR(IR):
 
 
 class FunctionIR(IR):
-    def __init__(self, decs, name, args, body, return_type=None):
+    def __init__(self, decs, name, args, body, return_type=None, is_main_func=False):
         self.decs = decs
         self.name = name
         self.args = args
         self.body = body
         self.return_type = return_type
+
+        self.is_main_func = is_main_func
 
         self.body_irs = []
 

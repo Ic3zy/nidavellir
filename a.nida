@@ -1,3 +1,17 @@
+from stdlib import malloc, free
 from stdio import printf
 
-printf("Hello, my most precious one.. — N \n")
+def void test():
+    printf("void test\n")
+
+def int test2():
+    return 100
+
+void* ptr = malloc(20)
+
+printf("Bellek ayrildi, adres: %p\n", ptr)
+free(ptr)
+printf("Bellek serbest birakildi!\n")
+test()
+
+printf("tested %d\n", test2())

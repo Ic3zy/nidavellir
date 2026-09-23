@@ -1,10 +1,12 @@
 from IR_gen.irs import *
 from .c_nodes import *
+from semantic.symbol_table import SymbolTableManager
 
 
 class C_Gen:
     def __init__(self, IRs):
         self.IRs = IRs
+        self.stm = SymbolTableManager()
         self.C_code = []
 
     def gen_AssignIR(self, ir):
@@ -16,6 +18,7 @@ class C_Gen:
             raise Exception("No value node")
 
         val_type = ir.val_type
+        self.stm.define_var(target, val_type)
 
         return CAssign(target, value_node, val_type)
 
@@ -25,6 +28,12 @@ class C_Gen:
 
     def gen_FunctionIR(self, ir):
         name = ir.name
+        is_main_func = ir.is_main_func
+        if is_main_func:
+            c_name = "main"
+        else:
+            c_name = f"Nidavellir_Func_{name}"
+
         args = ir.args
         body = ir.body_irs
         return_type = ir.return_type
@@ -37,7 +46,9 @@ class C_Gen:
         for a in args:
             args_nodes.append(self.gen(a))
 
-        return CFunction(name, args_nodes, body_nodes, return_type)
+        self.stm.define_func(name, 0, 0, 0, c_name)
+
+        return CFunction(name, c_name, args_nodes, body_nodes, return_type)
 
     def gen_ReturnIR(self, ir):
         value = ir.value
@@ -58,7 +69,15 @@ class C_Gen:
         for arg in args:
             args_nodes.append(self.gen(arg))
 
-        return CCall(target, args_nodes)
+        # TODO: impl
+
+        func = self.stm.lookup_func(target)
+        if func is None:
+            return CCall(target, args_nodes)
+
+        c_name = func["c_name"]
+
+        return CCall(c_name, args_nodes)
 
     def gen_StringLiteralIR(self, ir):
         return CString(ir.value)

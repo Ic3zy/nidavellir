@@ -40,8 +40,9 @@ class CCall(CNode):
 
 
 class CFunction(CNode):
-    def __init__(self, name, args, body, return_type):
+    def __init__(self, name, c_name, args, body, return_type):
         self.name = name
+        self.c_name = c_name
         self.args = args
         self.body = body
         self.return_type = return_type
@@ -61,7 +62,7 @@ class CFunction(CNode):
 
         args_str = "".join(args)
 
-        return f"{self.return_type} {self.name}({args_str}) {{\n{body_str}}}"
+        return f"{self.return_type} {self.c_name}({args_str}) {{\n{body_str}}}"
 
 
 class CReturn(CNode):

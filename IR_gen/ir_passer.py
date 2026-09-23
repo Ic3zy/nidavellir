@@ -17,13 +17,14 @@ class IRPasser:
 
         if top_level_stmts:
             top_level_stmts.append(ReturnIR(NumberIR("0"), val_type="int"))
-            # TODO: this is not safe
+
             main_fn = FunctionIR(
                 decs=[],
                 name="main",
                 args=[],
                 body=[],
                 return_type="int",
+                is_main_func=True,
             )
             main_fn.body_irs = top_level_stmts
             final_irs.append(main_fn)
@@ -53,8 +54,6 @@ class IRPasser:
         return ir
 
     def stmt_FunctionIR(self, ir):
-        name = ir.name
-        ir.name = f"Nidavellir_{name}"
         new_body = []
         for body_ir in ir.body_irs:
             new_body.append(self.run_stmt(body_ir))

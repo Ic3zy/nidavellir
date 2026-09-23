@@ -77,7 +77,6 @@ class IRGen:
 
         for arg in body:
             res = self.gen(arg)
-            self.IRs.append(res)
             ir.body_irs.append(res)
 
         return ir

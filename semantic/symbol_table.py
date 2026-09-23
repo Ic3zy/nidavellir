@@ -105,14 +105,15 @@ class SymbolTableManager:
     def lookup_var(self, name):
         return self.current_scope.lookup_var(name)
 
-    def define_func(self, name, return_type, params, ast_node):
+    def define_func(self, name, return_type, params, ast_node, c_name=None):
         func_symbol = {
             "name": name,
             "return_type": return_type,
             "params": params,
             "ast": ast_node,
             "is_variadic": False,
-            "module": None,  # EKLENDİ
+            "module": None,
+            "c_name": c_name,
         }
         self.global_scope.functions[name] = func_symbol
 
