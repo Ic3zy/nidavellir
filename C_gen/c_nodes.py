@@ -86,3 +86,11 @@ class CString(CNode):
 
     def str(self):
         return f'"{self.value}"'
+
+
+class CVariable(CNode):
+    def __init__(self, name):
+        self.name = name
+
+    def str(self):
+        return self.name

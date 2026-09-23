@@ -63,6 +63,9 @@ class C_Gen:
     def gen_StringLiteralIR(self, ir):
         return CString(ir.value)
 
+    def gen_VariableIR(self, ir):
+        return CVariable(ir.name)
+
     def gen(self, ir):
         name = ir.__class__.__name__
         func = getattr(self, f"gen_{name}")
