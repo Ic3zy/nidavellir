@@ -251,3 +251,7 @@ class ImportAST(AST):
 class GroupAST:
     def __init__(self, expr):
         self.expr = expr
+
+
+class NoneAST:
+    pass

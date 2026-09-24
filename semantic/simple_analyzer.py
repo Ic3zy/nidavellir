@@ -148,6 +148,9 @@ class SimpleASTVisitor:
         expr = node.expr
         self.visit_expression(expr)
 
+    def eval_NoneAST(self, node):
+        pass
+
     def stmt_PassAST(self, node):
         pass
 

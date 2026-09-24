@@ -112,7 +112,13 @@ class CBinaryOp(CNode):
             return op
 
     def str(self):
-        return f"{self.left.str()} {self.format_op(self.op)} {self.right.str()}"
+        formatted_op = self.format_op(self.op)
+        if formatted_op == "is":
+            return f"((void*)({self.left.str()}) == (void*)({self.right.str()}))"
+        elif formatted_op == "is not":
+            return f"((void*)({self.left.str()}) != (void*)({self.right.str()}))"
+        else:
+            return f"{self.left.str()} {self.format_op(self.op)} {self.right.str()}"
 
 
 class CElif(CNode):
@@ -217,3 +223,11 @@ class CBoolean(CNode):
             return "true"
         else:
             return "false"
+
+
+class CNone(CNode):
+    def __init__(self):
+        pass
+
+    def str(self):
+        return "Nida_None"

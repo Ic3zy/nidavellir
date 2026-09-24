@@ -167,6 +167,9 @@ class IRGen:
         value = ast.value
         return BooleanIR(value)
 
+    def gen_NoneAST(self, ast):
+        return NoneIR()
+
     def _gen_unary_op(self, target, ast):
         op = ast.op
         right = ast.right

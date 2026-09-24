@@ -66,6 +66,12 @@ class Parser:
             return None
         return curr[0] if isinstance(curr, tuple) else curr
 
+    def peek_kind_at(self, offset=0):
+        tok = self.get_token(self.index + offset)
+        if tok is None:
+            return None
+        return tok[0] if isinstance(tok, tuple) else tok
+
     def consume(self, kind):
         if self.peek_kind() == kind:
             return self.advance()
@@ -166,6 +172,10 @@ class Parser:
             self.advance()
             return BooleanAST(False)
 
+        if kind == "NONE":
+            self.advance()
+            return NoneAST()
+
         self.print_error(f"Unexpected token in expression")
 
     def parse_factor(self):
@@ -261,10 +271,49 @@ class Parser:
     def parse_equality(self):
         left = self.parse_term()
 
-        while self.peek_kind() in ("EQEQ", "NEQ", "GT", "LT", "GTE", "LTE"):
-            op_token = self.advance()
-            right = self.parse_term()
-            left = BinaryOpAST(left=left, op=op_token[1], right=right)
+        while True:
+            kind = self.peek_kind()
+
+            if kind in ("EQEQ", "NEQ", "GT", "LT", "GTE", "LTE"):
+                op_token = self.advance()
+                right = self.parse_term()
+                left = BinaryOpAST(left=left, op=op_token[1], right=right)
+
+            elif (
+                kind == "IS"
+                and self.peek_kind_at(1) == "NOT"
+                and self.peek_kind_at(2) == "IN"
+            ):
+                self.advance()  # is
+                self.advance()  # not
+                self.advance()  # in
+                right = self.parse_term()
+                left = BinaryOpAST(left=left, op="is not in", right=right)
+
+            elif kind == "IS" and self.peek_kind_at(1) == "NOT":
+                self.advance()  # is
+                self.advance()  # not
+                right = self.parse_term()
+                left = BinaryOpAST(left=left, op="is not", right=right)
+
+            elif kind == "IS":
+                self.advance()  # is
+                right = self.parse_term()
+                left = BinaryOpAST(left=left, op="is", right=right)
+
+            elif kind == "NOT" and self.peek_kind_at(1) == "IN":
+                self.advance()  # not
+                self.advance()  # in
+                right = self.parse_term()
+                left = BinaryOpAST(left=left, op="not in", right=right)
+
+            elif kind == "IN":
+                self.advance()  # in
+                right = self.parse_term()
+                left = BinaryOpAST(left=left, op="in", right=right)
+
+            else:
+                break
 
         return left
 

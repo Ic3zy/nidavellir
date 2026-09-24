@@ -195,6 +195,9 @@ class C_Gen:
         value = ir.value
         return CBoolean(value)
 
+    def gen_NoneIR(self, ir):
+        return CNone()
+
     def gen(self, ir):
         name = ir.__class__.__name__
         func = getattr(self, f"gen_{name}")
@@ -213,7 +216,7 @@ class C_Gen:
         return c_code
 
     def get_used_intrinsics_includes(self):
-        used_includes = []
+        used_includes = ["#include <Nida_core.h>"]
         for intrinsic in self.ih.used_intrinsics:
             used_includes.append(f"#include <{intrinsic}.h>")
 
