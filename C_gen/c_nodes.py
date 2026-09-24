@@ -169,6 +169,22 @@ class CGroup(CNode):
         return f"({self.expr.str()})"
 
 
+class CBlock(CNode):
+    def __init__(self, body):
+        self.body = body
+
+    def str(self):
+        result = []
+        total = len(self.body)
+        for i, stmt in enumerate(self.body):
+            stmt_str = stmt.str()
+            if i < total - 1:
+                result.append(f"{stmt_str};\n")
+            else:
+                result.append(stmt_str)
+        return "".join(result)
+
+
 class CFor(CNode):
     def __init__(self, target, range, body):
         self.target = target

@@ -19,6 +19,7 @@ INTRINSIC_HANDLERS = {
         "params": [],
         "handler": not_implemented,
         "is_variadic": True,
+        "is_default_function": True,
     },
     "range": {
         "name": "range",

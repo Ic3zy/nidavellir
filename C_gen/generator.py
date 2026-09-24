@@ -1,5 +1,6 @@
 from IR_gen.irs import *
 from .c_nodes import *
+from .intrinsics_c_handlers import IntrinsicHandler
 from semantic.symbol_table import SymbolTableManager
 
 
@@ -8,6 +9,7 @@ class C_Gen:
         self.IRs = IRs
         self.stm = SymbolTableManager()
         self.C_code = []
+        self.ih = IntrinsicHandler()
 
     def gen_AssignIR(self, ir):
         target = ir.target
@@ -79,7 +81,20 @@ class C_Gen:
         if func is None:
             return CCall(target, args_nodes)
 
-        c_name = func["c_name"]
+        c_name = func.get("c_name")
+        if c_name is None:
+            is_default_func = func.get("is_default_function")
+            if is_default_func:
+                irs = self.ih.run_intrinsic_handler(ir)
+                print(irs)
+                top_c_nodes = []
+                for ir in irs:
+                    res = self.gen(ir)
+                    top_c_nodes.append(res)
+
+                return CBlock(top_c_nodes)
+            else:
+                raise Exception("No c_name")
 
         return CCall(c_name, args_nodes)
 
@@ -197,8 +212,15 @@ class C_Gen:
 
         return c_code
 
+    def get_used_intrinsics_includes(self):
+        used_includes = []
+        for intrinsic in self.ih.used_intrinsics:
+            used_includes.append(f"#include <{intrinsic}.h>")
+
+        return "\n".join(used_includes)
+
     def get_final_c_code(self):
-        c_code = ""
+        c_code = self.get_used_intrinsics_includes()
         for c_node in self.C_code:
             c_code += "\n" + c_node.str()
 

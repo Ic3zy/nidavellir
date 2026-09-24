@@ -3,6 +3,7 @@ from pathlib import Path
 
 
 def compile_c_file(c_path: str | Path, output_path: str | Path) -> bool:
+    runtime_path = Path(__file__).parent.parent / "runtime"
     cmd = [
         "gcc",
         str(c_path),
@@ -10,7 +11,9 @@ def compile_c_file(c_path: str | Path, output_path: str | Path) -> bool:
         str(output_path),
         "-O2",
         "-Wall",
+        f"-I{runtime_path}",
     ]
+    print(f"Compiling cmd: {' '.join(cmd)}")
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
