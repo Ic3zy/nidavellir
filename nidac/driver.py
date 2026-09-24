@@ -4,6 +4,7 @@ from semantic import SimpleAnalyzer
 from type_systems import TypeDefEngine
 from IR_gen import IRGen
 from C_gen import C_Gen
+from utils import SysArgs
 from .gcc import compile_c_file, run_compiled_file
 
 
@@ -45,11 +46,13 @@ class Nidac:
         if self.final_c_code is None:
             self.emit_c11()
 
-        with open("output.c", "w") as f:
+        c_path = SysArgs.emit_c
+
+        with open(c_path, "w") as f:
             f.write(self.final_c_code)
 
-        compile_c_file("output.c", "output_bin.o")
-        self.run_binary("output_bin.o")
+        compile_c_file(c_path, SysArgs.output)
+        self.run_binary(SysArgs.output)
 
     def emit_c11(self):
         if self.ir is None:

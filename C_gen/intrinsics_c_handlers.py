@@ -1,5 +1,6 @@
 from IR_gen.irs import *
 from semantic.intrinsics import INTRINSIC_HANDLERS
+from utils import SysArgs
 
 
 class IntrinsicHandler:
@@ -7,6 +8,9 @@ class IntrinsicHandler:
         self.used_intrinsics = []
 
     def print_handler(self, ir):
+        if SysArgs.no_print:
+            return []
+
         self.used_intrinsics.append("print")
         args = ir.args
 

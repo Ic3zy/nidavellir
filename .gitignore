@@ -3,6 +3,7 @@ __pycache__/
 *copy.py
 *.c
 *.o
+*test_.py
 !runtime/
 !runtime/*.c
 !runtime/**/*.c
