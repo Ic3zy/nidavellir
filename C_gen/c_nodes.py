@@ -11,7 +11,12 @@ class CAssign(CNode):
         self.val_type = val_type
 
     def str(self):
-        return f"{self.val_type if not self.re_assign else ''} {self.target} = {self.value.str()}"
+        if isinstance(self.value, CNone) and not self.value.is_str:
+            val_str = ""
+        else:
+            val_str = self.value.str()
+
+        return f"{self.val_type if not self.re_assign else ''} {self.target} {"=" if val_str else ""} {val_str}"
 
 
 class CNumber(CNode):
@@ -56,9 +61,12 @@ class CFunction(CNode):
         body_str = "".join(body)
 
         args = []
+        c = 0
         for a in self.args:
             args.append(a.str())
-            args.append(", ")
+            if c < len(self.args) - 1:
+                args.append(", ")
+            c += 1
 
         args_str = "".join(args)
 
@@ -226,8 +234,11 @@ class CBoolean(CNode):
 
 
 class CNone(CNode):
-    def __init__(self):
-        pass
+    def __init__(self, is_str=True):
+        self.is_str = is_str
 
     def str(self):
-        return "Nida_None"
+        if self.is_str:
+            return "Nida_None"
+        else:
+            return ""

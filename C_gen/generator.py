@@ -15,9 +15,12 @@ class C_Gen:
         target = ir.target
 
         value = ir.value
-        value_node = self.gen(value)
-        if value_node is None:
-            raise Exception("No value node")
+        if isinstance(value, NoneIR) and value.air:
+            value_node = CNone(is_str=False)
+        else:
+            value_node = self.gen(value)
+            if value_node is None:
+                raise Exception("No value node")
 
         val_type = ir.val_type
         lk = self.stm.lookup_var(target)

@@ -1,5 +1,6 @@
-char* a = None
-if a is None:
-    print("a is None")
-else:
-    print("a is not None")
+def int test(int a, int b):
+    return a + b
+
+
+int v = test(1, 2)
+print(v)

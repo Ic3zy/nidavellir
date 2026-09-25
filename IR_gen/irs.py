@@ -173,4 +173,5 @@ class BooleanIR(IR):
 
 
 class NoneIR(IR):
-    pass
+    def __init__(self, air=True):
+        self.air = air

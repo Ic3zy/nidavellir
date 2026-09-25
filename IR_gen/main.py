@@ -16,6 +16,8 @@ class IRGen:
         value = ast.value
         if isinstance(value, UnaryOpAST):
             val_res = self._gen_unary_op(target, value)
+        elif value is None:
+            val_res = NoneIR(air=True)
         else:
             val_res = self.gen(value)
 
