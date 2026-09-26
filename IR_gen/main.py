@@ -22,7 +22,7 @@ class IRGen:
             val_res = self.gen(value)
 
         type_annotation = ast.type_annotation
-        return AssignIR(target, val_res, type_annotation)
+        return AssignIR(target, val_res, type_annotation, re_assign=ast.is_re_assign)
 
     def gen_ReturnAST(self, ast):
         value = ast.value

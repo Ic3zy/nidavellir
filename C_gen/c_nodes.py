@@ -13,6 +13,7 @@ class CAssign(CNode):
     def str(self):
         if isinstance(self.value, CNone) and not self.value.is_str:
             val_str = ""
+            print("not str, node", self)
         else:
             val_str = self.value.str()
 

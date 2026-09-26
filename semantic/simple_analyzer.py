@@ -239,6 +239,10 @@ class SimpleASTVisitor:
                 self.stm.define_var(node.target, node.type_annotation)
 
         else:
+            lookups = self.stm.lookup_var(node.target)
+            if lookups:
+                node.is_re_assign = True
+
             self.stm.define_var(node.target, node.type_annotation)
 
         if node.value is not None:

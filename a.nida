@@ -1,6 +1,9 @@
+def int tes2(int a, int b):
+    return a * b
+
 def int test(int a, int b):
-    return a + b
+    return a + b + tes2(a, b)
 
 
-int v = test(1, 2)
+int v = test(30, 408)
 print(v)

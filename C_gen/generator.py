@@ -23,12 +23,13 @@ class C_Gen:
                 raise Exception("No value node")
 
         val_type = ir.val_type
-        lk = self.stm.lookup_var(target)
+        # lk = self.stm.lookup_var(target)
         self.stm.define_var(target, val_type)
-        if lk is not None:
-            ir.re_assign = True
-        else:
-            ir.re_assign = False
+        # if lk is not None:
+        #     ir.re_assign = True
+        # else:
+        #     ir.re_assign = False
+
         return CAssign(target, value_node, val_type, re_assign=ir.re_assign)
 
     def gen_NumberIR(self, ir):

@@ -127,6 +127,8 @@ class AssignAST(AST):
         self.type_annotation = type_annotation
         self.value = value
 
+        self.is_re_assign = None
+
 
 class VarAssignAST(AST):
     def __init__(self, target, type, value):
