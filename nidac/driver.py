@@ -84,6 +84,7 @@ class Nidac:
             header_path = cache_dir / f"{self.module_name}.h"
             self.create_header(header_path)
             SysArgs.add_include_path(header_path.parent)
+            SysArgs.add_c_file(c_path)
 
         with open(c_path, "w") as f:
             f.write(self.final_c_code)

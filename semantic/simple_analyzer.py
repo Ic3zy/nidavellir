@@ -109,6 +109,13 @@ class SimpleASTVisitor:
 
         return None
 
+    def search_import(self, target):
+        for name, imp in self.imports.items():
+            if target in imp.importable_names:
+                return name
+
+        return False
+
     def eval_CallAST(self, node):
         target = node.target
 
@@ -126,21 +133,36 @@ class SimpleASTVisitor:
                 self.error(node, f"Variable '{target}' is not defined")
         else:
             is_class = False
+            is_import = False
             func = self.stm.lookup_func(target)
             if func is None:
                 func = self.stm.lookup_class(target)
                 is_class = True
 
             if func is None:
+                if fn_name := self.search_import(target):
+                    func = fn_name
+                    is_import = True
+
+            if func is None:
                 self.error(node, f"Function '{target}' not defined")
 
         args = node.args
         if not is_chain:
-            if not func.get("is_variadic", False) and len(args) != len(func["params"]):
+            if (
+                not is_import
+                and not func.get("is_variadic", False)
+                and len(args) != len(func["params"])
+            ):
                 self.error(
                     node,
                     f"{'Function' if not is_class else 'Class'} '{target}' takes {len(func['params'])} arguments",
                 )
+
+        if is_import:
+            new_target = f"Nida_Func_By_{func.split('.')[0]}_{target}"
+            node.target = new_target
+            node.imported_func_call = True
 
         for arg in args:
             self.visit_expression(arg)

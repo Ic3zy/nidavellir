@@ -87,7 +87,7 @@ class CImport(CNode):
         self.module = module
 
     def str(self):
-        return f"#include <{self.module}.h>"
+        return f'#include "{self.module}.h"'
 
 
 class CString(CNode):

@@ -1,3 +1,5 @@
 from test1 import a
 
-print("MAİN")
+print("MAİN:", a())
+
+print("MAİN 2:", topla(10, 20))

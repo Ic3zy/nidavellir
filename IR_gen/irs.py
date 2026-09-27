@@ -100,6 +100,8 @@ class CallIR(IR):
         self.args = args
         self.val_type = None
 
+        self.imported_func_call = False
+
 
 class NumberIR(IR):
     def __init__(self, value):

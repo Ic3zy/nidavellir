@@ -49,7 +49,9 @@ class IRGen:
         for arg in args:
             args_irs.append(self.gen(arg))
 
-        return CallIR(target, args_irs)
+        ir = CallIR(target, args_irs)
+        ir.imported_func_call = ast.imported_func_call
+        return ir
 
     def gen_StringAST(self, ast):
         return StringLiteralIR(ast.value)

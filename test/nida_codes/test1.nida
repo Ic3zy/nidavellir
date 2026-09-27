@@ -1,4 +1,7 @@
 def int a():
     return 10
 
+def int topla(int c, int b):
+    return c + b
+
 print(a())

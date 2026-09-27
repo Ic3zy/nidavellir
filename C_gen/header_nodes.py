@@ -39,7 +39,12 @@ class HFunction(HeaderNode):
 
     def str(self):
         args_str = ""
+        args_count = len(self.args) - 1
+        c = 0
         for a in self.args:
-            args_str += f"{a.str()}, "
+            args_str += f"{a.str()}"
+            if c < args_count:
+                args_str += ", "
+            c += 1
 
         return f"{self.return_type} {self.name}({args_str})"

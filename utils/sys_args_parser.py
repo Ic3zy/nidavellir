@@ -33,6 +33,17 @@ class SysArgs:
             help="Additional search paths for headers and modules (can be specified multiple times)",
         )
 
+        # Extra C Source Files to link (-cfile / --c-file)
+        parser.add_argument(
+            "-cfile",
+            "--c-file",
+            type=Path,
+            action="append",
+            dest="extra_c_files",
+            default=[],
+            help="Additional .c source files to compile and link into the final binary",
+        )
+
         # Optional Paths
         parser.add_argument(
             "-o",
@@ -85,3 +96,8 @@ class SysArgs:
         path_obj = Path(path).resolve()
         if path_obj not in self.include_paths:
             self.include_paths.append(path_obj)
+
+    def add_c_file(self, path: Path | str) -> None:
+        path_obj = Path(path).resolve()
+        if path_obj not in self.extra_c_files:
+            self.extra_c_files.append(path_obj)

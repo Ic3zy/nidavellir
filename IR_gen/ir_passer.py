@@ -1,10 +1,12 @@
 from .irs import *
+from semantic.intrinsics import INTRINSIC_HANDLERS
 
 
 class IRPasser:
     def __init__(self, irs, module_name=None):
         self.irs = irs
         self.module_name = module_name
+        print("İRSSSSSSSSSSSSSSSSSSSSSSSSs  ", self.irs)
 
     @property
     def is_module(self):
@@ -49,6 +51,9 @@ class IRPasser:
     def default_pass(self, ir):
         return ir
 
+    def stmt_CallIR(self, ir):
+        return self.run_expr(ir)
+
     def stmt_AssignIR(self, ir):
         ir.value = self.run_expr(ir.value)
         return ir
@@ -69,6 +74,9 @@ class IRPasser:
         elif not ir.is_main_func and not self.is_module:
             ir.name = f"Nida_Func_{ir.name}"
 
+        for arg in ir.args:
+            self.run_stmt(arg)
+
         return ir
 
     def expr_BinaryOpIR(self, ir):
@@ -83,5 +91,15 @@ class IRPasser:
         return ir
 
     def expr_CallIR(self, ir):
+        target = ir.target
+        if target not in INTRINSIC_HANDLERS and not ir.imported_func_call:
+            if self.is_module:
+                target = f"Nida_Func_By_{self.module_name}_{target}"
+            elif not self.is_module:
+                target = f"Nida_Func_{target}"
+
+        ir.target = target
+
         ir.args = [self.run_expr(arg) for arg in ir.args]
+
         return ir

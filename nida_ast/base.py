@@ -107,6 +107,8 @@ class CallAST(AST):
         self.chain = chain
         self.args = args
 
+        self.imported_func_call = False
+
 
 class ChainAccessAST(AST):
     def __init__(self, base, chain, args=None):

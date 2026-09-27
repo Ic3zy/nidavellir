@@ -6,9 +6,11 @@ from utils import SysArgs
 def compile_c_file(c_path: str | Path, output_path: str | Path) -> bool:
     runtime_path = Path(__file__).parent.parent / "runtime"
     gcc_include_flags = [f"-I{p}" for p in SysArgs.include_paths]
+    extra_c_sources = [str(f) for f in SysArgs.extra_c_files]
     cmd = [
         "gcc",
         str(c_path),
+        *extra_c_sources,
         "-o",
         str(output_path),
         "-O2",
