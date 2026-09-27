@@ -39,10 +39,6 @@ class C_Gen:
     def gen_FunctionIR(self, ir):
         name = ir.name
         is_main_func = ir.is_main_func
-        if is_main_func:
-            c_name = "main"
-        else:
-            c_name = f"Nidavellir_Func_{name}"
 
         args = ir.args
         body = ir.body_irs
@@ -56,9 +52,9 @@ class C_Gen:
         for a in args:
             args_nodes.append(self.gen(a))
 
-        self.stm.define_func(name, 0, 0, 0, c_name)
+        self.stm.define_func(name, 0, 0, 0, name)
 
-        return CFunction(name, c_name, args_nodes, body_nodes, return_type)
+        return CFunction(name, name, args_nodes, body_nodes, return_type)
 
     def gen_ReturnIR(self, ir):
         value = ir.value

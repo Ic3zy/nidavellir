@@ -1,6 +1,8 @@
+from pathlib import Path
 from lexer import Lexer
 from nida_ast import Parser
 from semantic import SimpleAnalyzer
+from import_systems import ImportSystem
 from type_systems import TypeDefEngine
 from IR_gen import IRGen
 from C_gen import C_Gen
@@ -9,7 +11,12 @@ from .gcc import compile_c_file, run_compiled_file
 
 
 class Nidac:
-    def __init__(self, source: str = None, file_path: str = None, debug: bool = False):
+    def __init__(
+        self,
+        source: str = None,
+        file_path: str = None,
+        debug: bool = False,
+    ):
         self.source = source
         self.file_path = file_path
         self.debug = debug
@@ -26,6 +33,7 @@ class Nidac:
     def compile(self):
         self.lex()
         self.parse()
+        self.import_systems()
         self.analyze()
         # self.type_def() # TODO: impl
         # self.check_types()  # TODO: HardAnalyzer
@@ -35,6 +43,12 @@ class Nidac:
         self.compile_binary()
 
         return self
+
+    def import_systems(self):
+        root_path = Path.cwd()
+        self.module_scanner = ImportSystem(root_path, self.asts)
+        modules = self.module_scanner.modules
+        self.imported_modules = modules
 
     def run_binary(self, binary_path: str, args: list[str] = None):
         if self.final_c_code is None:
@@ -93,7 +107,7 @@ class Nidac:
         if not self.asts:
             self.parse()
 
-        analyzer = SimpleAnalyzer(self.asts)
+        analyzer = SimpleAnalyzer(self.asts, self.imported_modules)
         analyzer.analyze_all()
         self.symbol_table = analyzer.stm
         return self.symbol_table
@@ -104,3 +118,6 @@ class Nidac:
 
         type_def_engine = TypeDefEngine(self.asts)
         type_def_engine.run()
+
+
+SysArgs.nidac_ptr = Nidac

@@ -1,2 +1,5 @@
 char* a = "hello"
 print(a)
+
+def a():
+    pass

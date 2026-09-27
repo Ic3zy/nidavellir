@@ -12,7 +12,8 @@ def compile_c_file(c_path: str | Path, output_path: str | Path) -> bool:
         "-O2",
         "-Wall",
         f"-I{runtime_path}",
-    ]
+    ]  # TODO: add custom gcc flags
+
     print(f"Compiling cmd: {' '.join(cmd)}")
 
     result = subprocess.run(cmd, capture_output=True, text=True)

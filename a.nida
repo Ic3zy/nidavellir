@@ -1,9 +1,1 @@
-def int tes2(int a, int b):
-    return a * b
-
-def int test(int a, int b):
-    return a + b + tes2(a, b)
-
-
-int v = test(30, 408)
-print(v)
+import t1 as test

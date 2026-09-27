@@ -21,8 +21,9 @@ VALID_RETURN_EXPRESSIONS = (
 
 
 class SimpleASTVisitor:
-    def __init__(self, stm):
+    def __init__(self, stm, imports):
         self.stm = stm
+        self.imports = imports
         self.body_parse_waiter_funcs = []
         self.current_class_name = None
 
@@ -382,6 +383,7 @@ class SimpleASTVisitor:
         self.stm.exit_scope()
 
     def stmt_ImportAST(self, node):
+        return  # TODO: impl
         module_name = node.module
         header_file = f"{module_name}.h"
 
@@ -448,10 +450,11 @@ class SimpleASTVisitor:
 
 
 class SimpleAnalyzer:
-    def __init__(self, ast_tree):
+    def __init__(self, ast_tree, imports=None):
         self.ast_tree = ast_tree
+        self.imports = imports
         self.stm = SymbolTableManager()
-        self.sav = SimpleASTVisitor(self.stm)
+        self.sav = SimpleASTVisitor(self.stm, imports)
 
     def analyze_all(self):
         for node in self.ast_tree:
