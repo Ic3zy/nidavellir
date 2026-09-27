@@ -17,6 +17,8 @@ class VariableSymbol(Symbol):
         self.ast_node = ast_node
         self.used_stack = []
 
+        self.setted_context = []
+
         self.call_symbol = None
         self.value = None
 

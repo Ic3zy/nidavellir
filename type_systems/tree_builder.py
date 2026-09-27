@@ -151,17 +151,34 @@ class SymbolTreeBuilder:
                 self.error(
                     ast, f"Function {ast.target} takes {len(func.params)} arguments"
                 )
-
+            arg_c = 0
             for arg in ast.args:
                 var = self.visit_expression(arg)
                 # if not isinstance(var, (VariableSymbol, NumberSymbol)):
                 #     print(type(var))
                 #     self.error(arg, f"Cannot pass non-variable symbol {arg}")
+                target_var = self.sm.lookup(arg.name)
+                if target_var is None:
+                    self.error(arg, f"Variable '{arg.name}' is not defined")
+                t_val = target_var.value
+                val = None
+                if isinstance(t_val, NumberSymbol):
+                    val = t_val
+
+                elif isinstance(t_val, VariableSymbol):
+                    vals = t_val.value
+                    if isinstance(val, NumberSymbol):
+                        val = vals
+
+                if val is not None:
+                    func.params[arg_c]["symbol"].setted_context.append(val)
 
                 sym.sym_params.append(var)
 
                 if isinstance(var, VariableSymbol):
                     var.used_stack.append(sym)
+
+                arg_c += 1
 
         elif isinstance(func, ClassSymbol):
             if len(ast.args) != len(func.params):

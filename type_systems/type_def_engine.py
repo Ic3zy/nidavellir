@@ -82,7 +82,6 @@ class TypeInference:
         type = self.infer_from_symbol_history(symbol)
         if type is not None:
             symbol.type = type
-
             symbol.ast_node.type_annotation = type
 
     def process_function(self, symbol):
@@ -98,16 +97,16 @@ class SymbolProcessor:
 
     TYPE_RANK = {
         "bool": 0,
-        "i8": 1,
         "u8": 1,
-        "i16": 2,
-        "u16": 2,
-        "i32": 3,
-        "u32": 3,
-        "i64": 4,
-        "u64": 4,
-        "f32": 5,
-        "f64": 6,
+        "i8": 2,
+        "u16": 3,
+        "i16": 4,
+        "u32": 5,
+        "i32": 6,
+        "u64": 7,
+        "i64": 8,
+        "f32": 9,
+        "f64": 10,
     }
 
     def promote_types(self, t1: str, t2: str) -> str:
@@ -258,7 +257,9 @@ class SymbolProcessor:
 
     def process_BinaryOpSymbol(self, symbol):
         left_sym = symbol.left_sym
+        left_setted = getattr(left_sym, "setted_context", [])
         right_sym = symbol.right_sym
+        right_setted = getattr(right_sym, "setted_context", [])
 
         if left_sym is None or right_sym is None:
             raise SyntaxError(f"Invalid operands for binary operator '{symbol.op}'")
@@ -302,13 +303,41 @@ class SymbolProcessor:
             return
 
         if left_type is not None and right_type is not None:
-            inferred = self.promote_types(left_type, right_type)
-            symbol.inferred_type = inferred
-            symbol.type = inferred
+            top_ops = []
+
+            for ls, rs in zip(left_setted, right_setted):
+                if isinstance(ls, NumberSymbol) and isinstance(rs, NumberSymbol):
+                    val1 = ls.value
+                    val2 = rs.value
+                    res = eval(f"{val1} {symbol.op} {val2}")
+                    top_ops.append(res)
+
+            if top_ops:
+                min_res = min(top_ops)
+                max_res = max(top_ops)
+
+                value_targetted_type = number_to_type(min_res, max_res)
+
+                inferred = self.promote_types(left_type, right_type)
+
+                if min_res < 0 and inferred.startswith("u"):
+                    inferred = "i" + inferred[1:]
+
+                vtt_rank = self.TYPE_RANK.get(value_targetted_type, 0)
+                inf_rank = self.TYPE_RANK.get(inferred, 0)
+
+                final_type = value_targetted_type if vtt_rank > inf_rank else inferred
+
+                symbol.inferred_type = final_type
+                symbol.type = final_type
+            else:
+                inferred = self.promote_types(left_type, right_type)
+                symbol.inferred_type = inferred
+                symbol.type = inferred
+
             return
 
         known_type = left_type if left_type is not None else right_type
-
         symbol.inferred_type = known_type
         symbol.type = known_type
 
@@ -317,6 +346,14 @@ class SymbolProcessor:
             return True
 
         return False
+
+    def process_return_type(self, symbol):
+        if symbol.returns is None:
+            return
+
+        returns = symbol.returns
+        if returns is None:
+            return
 
     def process_FunctionSymbol(self, symbol):
         types = self.call_stack_analysis(symbol)
@@ -334,6 +371,8 @@ class SymbolProcessor:
 
                 type = types[i]
                 symbol.params[i]["symbol"].type = type
+                ast = symbol.params[i]["symbol"].ast_node
+                ast.type_annotation = type
 
             sym = returns["symbol"]
             if sym is None:
@@ -353,6 +392,7 @@ class SymbolProcessor:
             symbol.return_type = (
                 sym.type if isinstance(sym, VariableSymbol) else sym.inferred_type
             )
+            symbol.ast_node.type = symbol.return_type
 
     def process_VariableSymbol(self, symbol):
         if isinstance(symbol.ast_node, AssignAST):
@@ -458,3 +498,5 @@ class TypeDefEngine:
         self.process_node(current_scope)
 
         self.stb.print_scopes()
+
+        print(self.ast_tree)
