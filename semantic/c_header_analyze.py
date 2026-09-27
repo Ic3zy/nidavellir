@@ -2,6 +2,8 @@ import os
 import re
 import subprocess
 import tempfile
+from utils import SysArgs
+from pathlib import Path
 
 
 class GCCHeaderScraper:
@@ -10,6 +12,9 @@ class GCCHeaderScraper:
 
     def extract_signatures(self, header_name: str) -> dict:
         signatures = {}
+        runtime_path = Path(__file__).parent.parent / "runtime"
+
+        gcc_include_flags = [f"-I{p}" for p in SysArgs.include_paths]
 
         with tempfile.NamedTemporaryFile(
             mode="w+", delete=False, suffix=".info"
@@ -24,6 +29,8 @@ class GCCHeaderScraper:
                 "-aux-info",
                 tmp_path,
                 "-fsyntax-only",
+                f"-I{runtime_path}",
+                *gcc_include_flags,
             ]
 
             process = subprocess.Popen(
@@ -34,11 +41,7 @@ class GCCHeaderScraper:
                 text=True,
             )
 
-            include_stmt = (
-                f"#include <{header_name}>\n"
-                if not header_name.endswith(".h")
-                else f'#include "{header_name}"\n'
-            )
+            include_stmt = f"#include <{header_name}>\n"
             process.communicate(input=include_stmt)
 
             if not os.path.exists(tmp_path):
@@ -47,7 +50,7 @@ class GCCHeaderScraper:
             with open(tmp_path, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
 
-            pattern = r"extern\s+([\w\s\*]+?)\s*(\w+)\s*\((.*?)\);"
+            pattern = r"(?:extern|static|inline|\s)*([\w\s\*]+?)\s*(\w+)\s*\((.*?)\)(?:\s*\{|;)"
 
             for match in re.finditer(pattern, content):
                 ret_type, fn_name, args_str = match.groups()

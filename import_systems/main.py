@@ -1,5 +1,6 @@
 from pathlib import Path
 from nida_ast.base import *
+from semantic.c_header_analyze import GCCHeaderScraper
 from .analyzer import check_header_exists
 from utils import SysArgs
 
@@ -20,6 +21,7 @@ class ModuleOBJ:
         self.alias = alias
         self.source_code = source_code
         self.is_c_import = is_c_import
+        self.is_core = False
 
         self.importable_names = []
 
@@ -47,6 +49,29 @@ class ImportSystem:
         self.scan_for_ast(root_asts)
         self.scan_for_imported_modules()
         self.compile_all()
+
+        self.init_core_imports()
+
+    def init_core_imports(self):
+        runtime_path = Path(__file__).parent.parent / "runtime"
+        SysArgs.add_include_path(runtime_path)
+
+        sc = GCCHeaderScraper()
+        signatures = sc.extract_signatures("Nida_core.h")
+
+        core_symbols = list(signatures.keys())
+
+        core_module = ModuleOBJ(
+            name="Nida_core",
+            path=runtime_path / "Nida_core.h",
+            alias=None,
+            is_c_import=True,
+        )
+        core_module.importable_names = core_symbols
+        core_module.is_compiled = True
+        core_module.is_core = True
+
+        self.modules["Nida_core"] = core_module
 
     def add_module(
         self, name, path, alias, symbols, source_code=None, is_c_import=False

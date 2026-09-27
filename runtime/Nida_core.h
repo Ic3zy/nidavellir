@@ -16,7 +16,7 @@ typedef struct
   size_t length;
 } Nida_Str;
 
-static inline Nida_Str nida_str_new(const char *cstr)
+static inline Nida_Str Nida_str_new(const char *cstr)
 {
   Nida_Str s;
   s.length = cstr ? strlen(cstr) : 0;
@@ -24,7 +24,7 @@ static inline Nida_Str nida_str_new(const char *cstr)
   return s;
 }
 
-static inline Nida_Str nida_str_from_literal(const char *cstr)
+static inline Nida_Str Nida_str_from_literal(const char *cstr)
 {
   Nida_Str s;
   s.length = cstr ? strlen(cstr) : 0;
@@ -32,7 +32,7 @@ static inline Nida_Str nida_str_from_literal(const char *cstr)
   return s;
 }
 
-static inline void nida_str_free(Nida_Str *s)
+static inline void Nida_str_free(Nida_Str *s)
 {
   if (s && s->data && (void *)s->data != NIDA_NONE_ADDR)
   {
@@ -42,7 +42,7 @@ static inline void nida_str_free(Nida_Str *s)
   }
 }
 
-static inline bool nida_str_eq(Nida_Str a, Nida_Str b)
+static inline bool Nida_str_eq(Nida_Str a, Nida_Str b)
 {
   if (a.length != b.length)
     return false;

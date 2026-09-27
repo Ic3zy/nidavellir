@@ -112,9 +112,9 @@ class SimpleASTVisitor:
     def search_import(self, target):
         for name, imp in self.imports.items():
             if target in imp.importable_names:
-                return name
+                return name, imp
 
-        return False
+        return False, False
 
     def eval_CallAST(self, node):
         target = node.target
@@ -134,13 +134,15 @@ class SimpleASTVisitor:
         else:
             is_class = False
             is_import = False
+            imp = None
             func = self.stm.lookup_func(target)
             if func is None:
                 func = self.stm.lookup_class(target)
                 is_class = True
 
             if func is None:
-                if fn_name := self.search_import(target):
+                fn_name, imp = self.search_import(target)
+                if fn_name:
                     func = fn_name
                     is_import = True
 
@@ -160,8 +162,10 @@ class SimpleASTVisitor:
                 )
 
         if is_import:
-            new_target = f"Nida_Func_By_{func.split('.')[0]}_{target}"
-            node.target = new_target
+            if not imp.is_core:
+                new_target = f"Nida_Func_By_{func.split('.')[0]}_{target}"
+                node.target = new_target
+
             node.imported_func_call = True
 
         for arg in args:
