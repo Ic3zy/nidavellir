@@ -22,6 +22,17 @@ class SysArgs:
             help="Path to the source .nida file",
         )
 
+        # Include Search Paths (-I / --include-path)
+        parser.add_argument(
+            "-I",
+            "--include-path",
+            type=Path,
+            action="append",
+            dest="include_paths",
+            default=[],
+            help="Additional search paths for headers and modules (can be specified multiple times)",
+        )
+
         # Optional Paths
         parser.add_argument(
             "-o",
@@ -69,3 +80,8 @@ class SysArgs:
             parsed.output = temp_dir / file_stem
 
         self.__dict__.update(vars(parsed))
+
+    def add_include_path(self, path: Path | str) -> None:
+        path_obj = Path(path).resolve()
+        if path_obj not in self.include_paths:
+            self.include_paths.append(path_obj)

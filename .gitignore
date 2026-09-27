@@ -1,4 +1,5 @@
 __pycache__/
+__nidacache__/
 *_test.py
 *copy.py
 *.c

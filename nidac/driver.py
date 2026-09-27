@@ -16,10 +16,14 @@ class Nidac:
         source: str = None,
         file_path: str = None,
         debug: bool = False,
+        module_name: str = None,
     ):
         self.source = source
         self.file_path = file_path
         self.debug = debug
+        self.module_name = module_name
+
+        self.current_path = Path.cwd()
 
         self.tokens = []
         self.asts = []
@@ -27,8 +31,12 @@ class Nidac:
 
         self.ir = None
         self.final_c_code = None
-
+        self.c_gen = None
         # compile_c_file("output.c", "output_bin")
+
+    @property
+    def is_module(self):
+        return self.module_name is not None
 
     def compile(self):
         self.lex()
@@ -56,27 +64,43 @@ class Nidac:
 
         run_compiled_file(binary_path, args)
 
+    def create_header(self, path):
+        if self.c_gen is None:
+            self.emit_c11()
+
+        header_str = self.c_gen.create_header()
+        with open(path, "w") as f:
+            f.write(header_str)
+
     def compile_binary(self):
         if self.final_c_code is None:
             self.emit_c11()
 
         c_path = SysArgs.emit_c
+        if self.is_module:
+            cache_dir = self.current_path / "__nidacache__"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            c_path = cache_dir / f"{self.module_name}.c"
+            header_path = cache_dir / f"{self.module_name}.h"
+            self.create_header(header_path)
+            SysArgs.add_include_path(header_path.parent)
 
         with open(c_path, "w") as f:
             f.write(self.final_c_code)
 
-        compile_c_file(c_path, SysArgs.output)
-        self.run_binary(SysArgs.output)
+        if not self.is_module:
+            compile_c_file(c_path, SysArgs.output)
+            self.run_binary(SysArgs.output)
 
     def emit_c11(self):
         if self.ir is None:
             self.IRGen()
 
-        c_gen = C_Gen(self.ir)
-        self.final_c_code = c_gen.gen_from_list(self.ir)
+        self.c_gen = C_Gen(self.ir, module_name=self.module_name)
+        self.final_c_code = self.c_gen.gen_from_list(self.ir)
 
     def IRGen(self):
-        ir = IRGen(self.asts)
+        ir = IRGen(self.asts, module_name=self.module_name)
         self.ir = ir.gen_from_list(self.asts)
 
     def read_file(self):

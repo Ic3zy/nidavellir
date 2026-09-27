@@ -24,6 +24,7 @@ class ModuleOBJ:
         self.importable_names = []
 
         self.nidac = None
+        self.is_compiled = False
 
     def __repr__(self):
         kind = "C Header" if self.is_c_import else "Nidavellir"
@@ -45,8 +46,11 @@ class ImportSystem:
 
         self.scan_for_ast(root_asts)
         self.scan_for_imported_modules()
+        self.compile_all()
 
-    def add_module(self, name, path, alias, source_code=None, is_c_import=False):
+    def add_module(
+        self, name, path, alias, symbols, source_code=None, is_c_import=False
+    ):
         self.modules[name] = ModuleOBJ(name, path, alias, source_code, is_c_import)
 
     def get_module(self, name):
@@ -54,6 +58,9 @@ class ImportSystem:
 
     def name_mapper(self, name):
         return f"{name}.nida"
+
+    def name_mapper_reverse(self, name):
+        return name.replace(".nida", "")
 
     def get_source_code(self, name):
         module_path = self.root_path / name
@@ -64,7 +71,6 @@ class ImportSystem:
         return None
 
     def scan_for_ast(self, ast):
-        temp_modules = []
         for node in ast:
             if isinstance(node, ImportAST):
                 name = node.module
@@ -79,7 +85,7 @@ class ImportSystem:
                 if source_code is None:
                     raise Exception(f"No source code for module '{name}'")
 
-                self.add_module(name, Path(name), alias, source_code)
+                self.add_module(name, Path(name), alias, symbols, source_code)
 
     def scan_importable_names(self, ast):
         importable_names = []
@@ -94,15 +100,32 @@ class ImportSystem:
         return importable_names
 
     def scan_for_imported_modules(self):
-        for module in self.modules.values():
+        for name, module in self.modules.items():
             if module.source_code is None:
                 raise Exception(f"No source code for module '{module.name}'")
 
-            Nidac = get_nidac()(source=module.source_code)
+            Nidac = get_nidac()(
+                source=module.source_code, module_name=self.name_mapper_reverse(name)
+            )
             ast = Nidac.parse()
             importable_names = self.scan_importable_names(ast)
 
             module.importable_names = importable_names
             module.nidac = Nidac
+
+        print(self.modules)
+
+    def compile_module(self, module):
+        if module.is_c_import:
+            return
+
+        Nidac = module.nidac
+        Nidac.compile()
+        module.is_compiled = True
+        print("COMPILED: ", module.name)
+
+    def compile_all(self):
+        for module in self.modules.values():
+            self.compile_module(module)
 
         print(self.modules)

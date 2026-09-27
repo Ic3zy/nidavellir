@@ -1,15 +1,22 @@
 from IR_gen.irs import *
 from .c_nodes import *
 from .intrinsics_c_handlers import IntrinsicHandler
+from .header_generator import HeaderGenerator
 from semantic.symbol_table import SymbolTableManager
 
 
 class C_Gen:
-    def __init__(self, IRs):
+    def __init__(self, IRs, module_name=None):
         self.IRs = IRs
+        self.module_name = module_name
+
         self.stm = SymbolTableManager()
         self.C_code = []
         self.ih = IntrinsicHandler()
+
+    @property
+    def is_module(self):
+        return self.module_name is not None
 
     def gen_AssignIR(self, ir):
         target = ir.target
@@ -221,6 +228,11 @@ class C_Gen:
             used_includes.append(f"#include <{intrinsic}.h>")
 
         return "\n".join(used_includes)
+
+    def create_header(self):
+        header_generator = HeaderGenerator(self.module_name, self.C_code)
+        header_str = header_generator.gen_Header()
+        return header_str
 
     def get_final_c_code(self):
         c_code = self.get_used_intrinsics_includes()

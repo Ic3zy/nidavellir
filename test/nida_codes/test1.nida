@@ -1,5 +1,4 @@
-char* a = "hello"
-print(a)
+def int a():
+    return 10
 
-def a():
-    pass
+print(a())

@@ -2,8 +2,13 @@ from .irs import *
 
 
 class IRPasser:
-    def __init__(self, irs):
+    def __init__(self, irs, module_name=None):
         self.irs = irs
+        self.module_name = module_name
+
+    @property
+    def is_module(self):
+        return self.module_name is not None
 
     def run(self):
         final_irs = []
@@ -17,10 +22,10 @@ class IRPasser:
 
         if top_level_stmts:
             top_level_stmts.append(ReturnIR(NumberIR("0"), val_type="int"))
-
+            name = f"Nida_Func_By_{self.module_name}_main" if self.is_module else "main"
             main_fn = FunctionIR(
                 decs=[],
-                name="main",
+                name=name,
                 args=[],
                 body=[],
                 return_type="int",
@@ -58,6 +63,12 @@ class IRPasser:
         for body_ir in ir.body_irs:
             new_body.append(self.run_stmt(body_ir))
         ir.body_irs = new_body
+
+        if self.is_module:
+            ir.name = f"Nida_Func_By_{self.module_name}_{ir.name}"
+        elif not ir.is_main_func and not self.is_module:
+            ir.name = f"Nida_Func_{ir.name}"
+
         return ir
 
     def expr_BinaryOpIR(self, ir):
