@@ -17,7 +17,7 @@ class CAssign(CNode):
         else:
             val_str = self.value.str()
 
-        return f"{self.val_type if not self.re_assign else ''} {self.target} {"=" if val_str else ""} {val_str}"
+        return f"{self.val_type.str() if not self.re_assign else ''} {self.target} {"=" if val_str else ""} {val_str}"
 
 
 class CNumber(CNode):
@@ -71,7 +71,7 @@ class CFunction(CNode):
 
         args_str = "".join(args)
 
-        return f"{self.return_type} {self.c_name}({args_str}) {{\n{body_str}}}"
+        return f"{self.return_type.str()} {self.c_name}({args_str}) {{\n{body_str}}}"
 
 
 class CReturn(CNode):

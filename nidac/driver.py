@@ -43,7 +43,7 @@ class Nidac:
         self.parse()
         self.import_systems()
         self.analyze()
-        # self.type_def()  # TODO: impl
+        self.type_def()  # TODO: impl
         # self.check_types()  # TODO: HardAnalyzer
         # return self.emit_c11() # TODO: CodeGen
         # return

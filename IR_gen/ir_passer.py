@@ -1,4 +1,5 @@
 from .irs import *
+from type_systems.types import IntType
 from semantic.intrinsics import INTRINSIC_HANDLERS
 
 
@@ -6,7 +7,6 @@ class IRPasser:
     def __init__(self, irs, module_name=None):
         self.irs = irs
         self.module_name = module_name
-        print("İRSSSSSSSSSSSSSSSSSSSSSSSSs  ", self.irs)
 
     @property
     def is_module(self):
@@ -30,7 +30,7 @@ class IRPasser:
                 name=name,
                 args=[],
                 body=[],
-                return_type="int",
+                return_type=IntType(byte_size=4, signed=True),
                 is_main_func=True,
             )
             main_fn.body_irs = top_level_stmts

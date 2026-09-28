@@ -3,6 +3,7 @@ from .symbol_types import *
 
 from .tree_builder import SymbolTreeBuilder
 from .symbol_types import CallSymbol
+from .type_lowering import TypeLowering
 
 
 def number_to_type(min_val: int, max_val: int) -> str:
@@ -500,3 +501,6 @@ class TypeDefEngine:
         self.stb.print_scopes()
 
         print(self.ast_tree)
+
+        tl = TypeLowering(self.ast_tree)
+        tl.run()

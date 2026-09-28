@@ -2,7 +2,29 @@ from IR_gen.irs import *
 from .c_nodes import *
 from .intrinsics_c_handlers import IntrinsicHandler
 from .header_generator import HeaderGenerator
+from .c_types import *
+from .extra_c_includes import EXTRA_C_INCLUDES
 from semantic.symbol_table import SymbolTableManager
+
+
+class TypeTranslator:
+    def process_IntType(self, type):
+        return CInt(type.signed, type.byte_size)
+
+    def process_FloatType(self, type):
+        return CFloat(type.byte_size)
+
+    def process_StringType(self, type):
+        return CString()
+
+    def process_ArrayType(self, type):
+        raise NotImplementedError
+
+    def process(self, type):
+        func = getattr(self, f"process_{type.__class__.__name__}")
+        if func is None:
+            raise Exception(f"No function named {type.__class__.__name__}")
+        return func(type)
 
 
 class C_Gen:
@@ -13,6 +35,8 @@ class C_Gen:
         self.stm = SymbolTableManager()
         self.C_code = []
         self.ih = IntrinsicHandler()
+
+        self.tt = TypeTranslator()
 
     @property
     def is_module(self):
@@ -28,8 +52,10 @@ class C_Gen:
             value_node = self.gen(value)
             if value_node is None:
                 raise Exception("No value node")
-
-        val_type = ir.val_type
+        try:
+            val_type = self.tt.process(ir.val_type)
+        except Exception as e:
+            raise Exception(ir.val_type)
         # lk = self.stm.lookup_var(target)
         self.stm.define_var(target, val_type)
         # if lk is not None:
@@ -49,7 +75,10 @@ class C_Gen:
 
         args = ir.args
         body = ir.body_irs
-        return_type = ir.return_type
+        try:
+            return_type = self.tt.process(ir.return_type)
+        except Exception as e:
+            raise Exception(ir.return_type)
 
         body_nodes = []
         for b in body:
@@ -224,6 +253,9 @@ class C_Gen:
 
     def get_used_intrinsics_includes(self):
         used_includes = ["#include <Nida_core.h>"]
+        for include in EXTRA_C_INCLUDES:
+            used_includes.append(f"#include {include}")
+
         for intrinsic in self.ih.used_intrinsics:
             used_includes.append(f"#include <{intrinsic}.h>")
 
@@ -235,8 +267,10 @@ class C_Gen:
         return header_str
 
     def get_final_c_code(self):
-        c_code = self.get_used_intrinsics_includes()
+        c_code = ""
         for c_node in self.C_code:
             c_code += "\n" + c_node.str()
 
+        includes = self.get_used_intrinsics_includes()
+        c_code = includes + "\n" + c_code
         return c_code
