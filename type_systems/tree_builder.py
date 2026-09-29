@@ -109,10 +109,11 @@ class SymbolTreeBuilder:
     def run(self):
         res = self.process_from_list(self.ast_tree)
         self.st.extend(res)
-        raise Exception(self.print_scopes())
+        # raise Exception(self.print_scopes())
 
-    def print_scopes(self):
+    def print_scopes(self, st=None):
         print("SymbolTree")
-        lines = render_node("st", self.st, prefix="", is_last=True)
+        st = st or self.st
+        lines = render_node("st", st, prefix="", is_last=True)
         for line in lines:
             print(line)

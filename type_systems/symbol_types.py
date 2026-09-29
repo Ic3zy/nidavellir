@@ -18,6 +18,8 @@ class NumberSymbol(Symbol):
         self.value = value
         self.ast_node = ast_node
 
+        self.type = None
+
 
 class FunctionSymbol(Symbol):
     def __init__(self, name, return_type, args, ast_node, is_variadic=False):
@@ -53,6 +55,10 @@ class VariableSymbol(Symbol):
         self.lookup = lookup
         self.ast_node = ast_node
 
+    @property
+    def type(self):
+        return self.lookup.type
+
 
 class BinaryOpSymbol(Symbol):
     def __init__(self, op, left_sym, right_sym, ast_node=None):
@@ -61,4 +67,4 @@ class BinaryOpSymbol(Symbol):
         self.right_sym = right_sym
         self.ast_node = ast_node
 
-        self.inferred_type = None
+        self.type = None
