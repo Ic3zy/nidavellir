@@ -29,3 +29,20 @@ class SymbolTableManager:
     def __init__(self):
         self.global_scope = Scope()
         self.current_scope = self.global_scope
+
+    def enter_scope(self, attach_to_parent=True):
+        new_scope = Scope(parent=self.current_scope)
+        self.current_scope = new_scope
+        return new_scope
+
+    def exit_scope(self):
+        if self.current_scope.parent is not None:
+            self.current_scope = self.current_scope.parent
+        else:
+            raise SyntaxError("Cannot exit global scope")
+
+    def lookup(self, name):
+        return self.current_scope.lookup(name)
+
+    def add_symbol(self, symbol):
+        self.current_scope.add_symbol(symbol)
