@@ -3,7 +3,8 @@ from lexer import Lexer
 from nida_ast import Parser
 from semantic import SimpleAnalyzer
 from import_systems import ImportSystem
-from type_systems import TypeDefEngine
+
+# from type_systems import TypeDefEngine
 from IR_gen import IRGen
 from C_gen import C_Gen
 from utils import SysArgs
@@ -43,7 +44,7 @@ class Nidac:
         self.parse()
         self.import_systems()
         self.analyze()
-        self.type_def()  # TODO: impl
+        # self.type_def()  # TODO: impl
         # self.check_types()  # TODO: HardAnalyzer
         # return self.emit_c11() # TODO: CodeGen
         # return
@@ -142,8 +143,8 @@ class Nidac:
         if not self.symbol_table:
             self.analyze()
 
-        type_def_engine = TypeDefEngine(self.asts)
-        type_def_engine.run()
+        # type_def_engine = TypeDefEngine(self.asts)
+        # type_def_engine.run()
 
 
 SysArgs.nidac_ptr = Nidac

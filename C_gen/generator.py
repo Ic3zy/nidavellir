@@ -55,7 +55,7 @@ class C_Gen:
         try:
             val_type = self.tt.process(ir.val_type)
         except Exception as e:
-            raise Exception(ir.val_type)
+            raise Exception(ir)
         # lk = self.stm.lookup_var(target)
         self.stm.define_var(target, val_type)
         # if lk is not None:
