@@ -19,9 +19,10 @@ class CInt(CType):
         if self.byte_size is None:
             return "int"
 
-        int_str = "uint" if not self.signed else "int"
         if "<stdint.h>" not in EXTRA_C_INCLUDES:
             EXTRA_C_INCLUDES.append("<stdint.h>")
+
+        int_str = "uint" if not self.signed else "int"
 
         if self.byte_size == 1:
             return f"{int_str}8_t"

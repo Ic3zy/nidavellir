@@ -16,6 +16,9 @@ class TypeDefHelper:
             return (val, val)
 
         if isinstance(sym, BinaryOpSymbol):
+            if sym.min_val is not None and sym.max_val is not None:
+                return (sym.min_val, sym.max_val)
+
             bounds = cls.infer_int_range_from_binaryop(sym)
             if bounds is None:
                 return None
@@ -131,6 +134,14 @@ class AutoTypeDefEngine:
         return sym
 
     def eval_BinaryOpSymbol(self, sym):
+        left = sym.left_sym
+        if isinstance(left, BinaryOpSymbol):
+            self.process_eval(left)
+
+        right = sym.right_sym
+        if isinstance(right, BinaryOpSymbol):
+            self.process_eval(right)
+
         ranges = TypeDefHelper.infer_int_range_from_binaryop(sym)
 
         if ranges is None:
@@ -138,6 +149,13 @@ class AutoTypeDefEngine:
             return None
 
         (left_min, left_max), (right_min, right_max) = ranges
+        if isinstance(left, BinaryOpSymbol):
+            left_min = left.min_val
+            left_max = left.max_val
+
+        if isinstance(right, BinaryOpSymbol):
+            right_min = right.min_val
+            right_max = right.max_val
 
         if (
             left_min is None
@@ -193,7 +211,11 @@ class AutoTypeDefEngine:
             return None
 
         inferred_type = int_type(res_min, res_max)
+
         sym.type = inferred_type
+        sym.max_val = res_max
+        sym.min_val = res_min
+
         return sym
 
     def eval_VariableSymbol(self, sym):

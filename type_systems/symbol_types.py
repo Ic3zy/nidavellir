@@ -94,3 +94,6 @@ class BinaryOpSymbol(Symbol):
         self.ast_node = ast_node
 
         self.type = None
+
+        self.max_val = None
+        self.min_val = None

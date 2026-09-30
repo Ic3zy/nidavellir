@@ -58,7 +58,7 @@ class int_type(str):
             if min_val >= int_type.I64_MIN and max_val <= int_type.I64_MAX:
                 return True, 8
 
-        raise ValueError("Invalid number range.")
+        raise ValueError(f"Invalid number range. {min_val} to {max_val}")
 
 
 if __name__ == "__main__":
