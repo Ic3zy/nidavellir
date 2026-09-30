@@ -13,11 +13,12 @@ class CAssign(CNode):
     def str(self):
         if isinstance(self.value, CNone) and not self.value.is_str:
             val_str = ""
-            print("not str, node", self)
         else:
             val_str = self.value.str()
 
-        return f"{self.val_type.str() if not self.re_assign else ''} {self.target} {"=" if val_str else ""} {val_str}"
+        type_prefix = f"{self.val_type.str()} " if not self.re_assign else ""
+        eq_sign = " = " if val_str else ""
+        return f"{type_prefix}{self.target}{eq_sign}{val_str}".strip()
 
 
 class CNumber(CNode):
@@ -25,7 +26,7 @@ class CNumber(CNode):
         self.value = value
 
     def str(self):
-        return f"{self.value}"
+        return str(self.value)
 
 
 class CCall(CNode):
@@ -34,14 +35,7 @@ class CCall(CNode):
         self.args = args
 
     def str(self):
-        args_str = ""
-
-        args_count = len(self.args)
-        for c_a in range(args_count):
-            a = self.args[c_a]
-            is_last = c_a == args_count - 1
-            args_str += f"{a.str()}, " if not is_last else f"{a.str()}"
-
+        args_str = ", ".join(a.str() for a in self.args)
         return f"{self.target}({args_str})"
 
 
@@ -54,23 +48,8 @@ class CFunction(CNode):
         self.return_type = return_type
 
     def str(self):
-        body = []
-        for b in self.body:
-            body.append(b.str())
-            body.append(";\n")
-
-        body_str = "".join(body)
-
-        args = []
-        c = 0
-        for a in self.args:
-            args.append(a.str())
-            if c < len(self.args) - 1:
-                args.append(", ")
-            c += 1
-
-        args_str = "".join(args)
-
+        body_str = "".join(f"{b.str()};\n" for b in self.body)
+        args_str = ", ".join(a.str() for a in self.args)
         return f"{self.return_type.str()} {self.c_name}({args_str}) {{\n{body_str}}}"
 
 
@@ -115,19 +94,21 @@ class CBinaryOp(CNode):
     def format_op(self, op):
         if op == "and":
             return "&&"
-        elif op == "or":
+        if op == "or":
             return "||"
-        else:
-            return op
+        return op
 
     def str(self):
         formatted_op = self.format_op(self.op)
+        left_str = self.left.str()
+        right_str = self.right.str()
+
         if formatted_op == "is":
-            return f"((void*)({self.left.str()}) == (void*)({self.right.str()}))"
-        elif formatted_op == "is not":
-            return f"((void*)({self.left.str()}) != (void*)({self.right.str()}))"
-        else:
-            return f"{self.left.str()} {self.format_op(self.op)} {self.right.str()}"
+            return f"((void*)({left_str}) == (void*)({right_str}))"
+        if formatted_op == "is not":
+            return f"((void*)({left_str}) != (void*)({right_str}))"
+
+        return f"{left_str} {formatted_op} {right_str}"
 
 
 class CElif(CNode):
@@ -136,12 +117,7 @@ class CElif(CNode):
         self.body = body
 
     def str(self):
-        body = []
-        for b in self.body:
-            body.append(b.str())
-            body.append(";\n")
-
-        body_str = "".join(body)
+        body_str = "".join(f"{b.str()};\n" for b in self.body)
         return f"else if ({self.cond.str()}) {{\n{body_str}}}"
 
 
@@ -153,24 +129,18 @@ class CIf(CNode):
         self.else_body = else_body
 
     def str(self):
-        body_str = "".join(
-            f"{b.str()};\n" if not b.str().endswith(";") else f"{b.str()}\n"
-            for b in self.body
-        )
+        def format_stmt(stmt):
+            s = stmt.str()
+            return f"{s}\n" if s.endswith(";") else f"{s};\n"
 
-        else_body_str = "".join(
-            f"{b.str()};\n" if not b.str().endswith(";") else f"{b.str()}\n"
-            for b in self.else_body
-        )
-
-        elifs_str = "\n".join(e.str() for e in self.elifs)
-
+        body_str = "".join(format_stmt(b) for b in self.body)
         parts = [f"if ({self.cond.str()}) {{\n{body_str}}}"]
 
         if self.elifs:
-            parts.append(elifs_str)
+            parts.append("\n".join(e.str() for e in self.elifs))
 
         if self.else_body:
+            else_body_str = "".join(format_stmt(b) for b in self.else_body)
             parts.append(f"else {{\n{else_body_str}}}")
 
         return "\n".join(parts)
@@ -189,15 +159,11 @@ class CBlock(CNode):
         self.body = body
 
     def str(self):
-        result = []
         total = len(self.body)
-        for i, stmt in enumerate(self.body):
-            stmt_str = stmt.str()
-            if i < total - 1:
-                result.append(f"{stmt_str};\n")
-            else:
-                result.append(stmt_str)
-        return "".join(result)
+        return "".join(
+            f"{stmt.str()};\n" if i < total - 1 else stmt.str()
+            for i, stmt in enumerate(self.body)
+        )
 
 
 class CFor(CNode):
@@ -207,9 +173,8 @@ class CFor(CNode):
         self.body = body
 
     def str(self):
-        body_str = "".join(b.str() + ";\n" for b in self.body)
-        fr = f"for (int {self.target} = 0; {self.target} < {self.range}; {self.target}++) {{\n{body_str}}}"
-        return fr
+        body_str = "".join(f"{b.str()};\n" for b in self.body)
+        return f"for (int {self.target} = 0; {self.target} < {self.range}; {self.target}++) {{\n{body_str}}}"
 
 
 class CWhile(CNode):
@@ -218,9 +183,8 @@ class CWhile(CNode):
         self.body = body
 
     def str(self):
-        body_str = "".join(b.str() + ";\n" for b in self.body)
-        fr = f"while ({self.cond.str()}) {{\n{body_str}}}"
-        return fr
+        body_str = "".join(f"{b.str()};\n" for b in self.body)
+        return f"while ({self.cond.str()}) {{\n{body_str}}}"
 
 
 class CBoolean(CNode):
@@ -228,10 +192,7 @@ class CBoolean(CNode):
         self.value = value
 
     def str(self):
-        if self.value is True:
-            return "true"
-        else:
-            return "false"
+        return "true" if self.value else "false"
 
 
 class CNone(CNode):
@@ -239,7 +200,4 @@ class CNone(CNode):
         self.is_str = is_str
 
     def str(self):
-        if self.is_str:
-            return "Nida_None"
-        else:
-            return ""
+        return "Nida_None" if self.is_str else ""

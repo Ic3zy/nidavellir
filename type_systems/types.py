@@ -33,3 +33,7 @@ class ArrayType(Type):
         self.element_type = element_type
         self.size = size
         self.is_dynamic = size == DynamicType
+
+
+class NoneType(Type):
+    pass

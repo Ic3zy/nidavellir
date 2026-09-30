@@ -37,6 +37,9 @@ def type_lowering(type_str: str):
         case "str":
             return StringType()
 
+        case "None":
+            return NoneType()
+
         case _:
             raise SyntaxError(f"Invalid type {type_str}")
 

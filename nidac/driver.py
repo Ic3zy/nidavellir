@@ -43,15 +43,16 @@ class Nidac:
         self.lex()
         self.parse()
         self.import_systems()
+        # self.imported_modules = []
         self.analyze()
         self.type_def()  # TODO: impl
         # self.check_types()  # TODO: HardAnalyzer
-        # return self.emit_c11() # TODO: CodeGen
-        # return
+        self.emit_c11()  # TODO: CodeGen
 
         self.IRGen()
         self.emit_c11()
-        self.compile_binary()
+        if not SysArgs.no_binary_compile:
+            self.compile_binary()
         return self
 
     def import_systems(self):

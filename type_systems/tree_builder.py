@@ -37,6 +37,18 @@ class SymbolTreeBuilder:
 
         return BinaryOpSymbol(ast.op, left_sym, right_sym, ast)
 
+    def eval_StringAST(self, ast):
+        return StringSymbol(ast.value, ast)
+
+    def eval_NoneAST(self, ast):
+        return NoneSymbol(ast)
+
+    def eval_CallAST(self, ast):
+        return self.stmt_CallAST(ast)
+
+    def stmt_PassAST(self, ast):
+        pass
+
     def stmt_AssignAST(self, ast):
         val = ast.value
         val_sym = None
@@ -70,6 +82,7 @@ class SymbolTreeBuilder:
         fn_sym.args = params
 
         res = self.process_from_list(ast.body)
+        fn_sym.body = res
         fn_sym.returned.extend([r for r in res if isinstance(r, ReturnSymbol)])
 
         self.stm.exit_scope()
@@ -82,6 +95,25 @@ class SymbolTreeBuilder:
             val = self.process_eval(ast.value)
 
         return ReturnSymbol(val, ast)
+
+    def stmt_CallAST(self, ast):
+        func_name = ast.target
+        # TODO: impl intrinsic
+
+        lookup = self.stm.lookup(func_name)
+        if lookup is None:
+            self.error(ast, f"Function '{func_name}' is not defined")
+
+        params = []
+        for arg in ast.args:
+            res = self.process_eval(arg)
+            if res is not None:
+                params.append(res)
+
+        sym = CallSymbol(func_name, params, lookup, ast)
+        lookup.uses.append(sym)
+
+        return sym
 
     def process_eval(self, ast):
         method_name = f"eval_{type(ast).__name__}"
@@ -117,3 +149,6 @@ class SymbolTreeBuilder:
         lines = render_node("st", st, prefix="", is_last=True)
         for line in lines:
             print(line)
+
+    def print_ast_tree(self):
+        print(self.ast_tree)

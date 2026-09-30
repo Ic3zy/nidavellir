@@ -1,4 +1,6 @@
-import time
+import time, sys
+
+sys.argv.append("-nb")
 from nidac_importer import Nidac
 
 code = """
@@ -247,10 +249,32 @@ def void main():
     inv = player.get_inventory()
     total_items = inv.get_total_items()
 """
+code = """
+def test(a, b):
+    return b
+
+
+test(1, 2)
+"""
 top_t1 = time.perf_counter()
 
+import builtins
 
-test_count = 1000
+_original_print = builtins.print
+
+
+def my_custom_print(*args, **kwargs):
+    force = kwargs.pop("force", False)
+    if not force:
+        return
+
+    _original_print(*args, **kwargs)
+
+
+builtins.print = my_custom_print
+
+
+test_count = 20000
 latencys = []
 
 for _ in range(test_count):
@@ -273,8 +297,11 @@ max_latency = max(latencys)
 total_time = top_t2 - top_t1
 processed_lines = len(code.splitlines()) * test_count
 
-print(f"Average Latency: {average_latency * 1000:.2f} ms")
-print(f"Min Latency: {min_latency * 1000:.2f} ms")
-print(f"Max Latency: {max_latency * 1000:.2f} ms")
-print(f"Total Time: {total_time}\n" f"Processed Lines of Code: {processed_lines}")
-print(f"Lines per second: {processed_lines / total_time:.2f}")
+print(f"Average Latency: {average_latency * 1000:.2f} ms", force=True)
+print(f"Min Latency: {min_latency * 1000:.2f} ms", force=True)
+print(f"Max Latency: {max_latency * 1000:.2f} ms", force=True)
+print(
+    f"Total Time: {total_time}\n" f"Processed Lines of Code: {processed_lines}",
+    force=True,
+)
+print(f"Lines per second: {processed_lines / total_time:.2f}", force=True)

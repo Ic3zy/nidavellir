@@ -1,6 +1,9 @@
 class Symbol:
     pass
 
+    def set_type_to_AST(self):
+        pass
+
 
 class AssignSymbol(Symbol):
     def __init__(self, name, type, value, ast_node):
@@ -12,6 +15,9 @@ class AssignSymbol(Symbol):
 
         self.uses = []
 
+    def set_type_to_AST(self):
+        self.ast_node.type_annotation = self.type
+
 
 class NumberSymbol(Symbol):
     def __init__(self, value, ast_node):
@@ -19,6 +25,21 @@ class NumberSymbol(Symbol):
         self.ast_node = ast_node
 
         self.type = None
+
+
+class StringSymbol(Symbol):
+    def __init__(self, value, ast_node):
+        self.value = value
+        self.ast_node = ast_node
+
+        self.type = "str"
+
+
+class NoneSymbol(Symbol):
+    def __init__(self, ast_node):
+        self.ast_node = ast_node
+
+        self.type = "None"
 
 
 class FunctionSymbol(Symbol):
@@ -29,8 +50,13 @@ class FunctionSymbol(Symbol):
         self.ast_node = ast_node
         self.is_variadic = is_variadic
 
+        self.body = []
+
         self.uses = []
         self.returned = []
+
+    def set_type_to_AST(self):
+        self.ast_node.type = self.return_type
 
 
 class ReturnSymbol(Symbol):
@@ -40,13 +66,13 @@ class ReturnSymbol(Symbol):
 
 
 class CallSymbol(Symbol):
-    def __init__(self, name, args, func, ast_node):
+    def __init__(self, name, args, lookup, ast_node):
         self.name = name
         self.args = args
-        self.func = func
+        self.lookup = lookup
         self.ast_node = ast_node
 
-        self.return_type = None
+        self.type = None
 
 
 class VariableSymbol(Symbol):

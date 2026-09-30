@@ -19,6 +19,8 @@ class SysArgs:
         parser.add_argument(
             "file",
             type=Path,
+            nargs="?",
+            default=None,
             help="Path to the source .nida file",
         )
 
@@ -78,11 +80,17 @@ class SysArgs:
             action="store_true",
             help="Bypasses build cache and forces full re-compilation",
         )
+        parser.add_argument(
+            "-nb",
+            "--no-binary-compile",
+            action="store_true",
+            help="Disables invocation of the underlying C compiler (GCC/Clang) and skips binary generation",
+        )
 
         parsed = parser.parse_args(args)
 
         temp_dir = Path(tempfile.gettempdir())
-        file_stem = parsed.file.stem
+        file_stem = parsed.file.stem if parsed.file else "snippet"
 
         if parsed.emit_c is None:
             parsed.emit_c = temp_dir / f"{file_stem}.c"

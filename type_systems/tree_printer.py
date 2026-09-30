@@ -1,5 +1,6 @@
 IGNORED_FIELDS = {
-    "parent",
+    "uses",
+    "lookup" "parent",
     "children",
     "scope_type",
     "__module__",
@@ -16,6 +17,7 @@ def format_item(item):
         target = getattr(item, "target", getattr(item, "name", ""))
         target_str = f" ({target})" if target else ""
         return f"<{node_name}{target_str}>"
+
     return item
 
 

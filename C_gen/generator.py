@@ -21,9 +21,16 @@ class TypeTranslator:
         raise NotImplementedError
 
     def process(self, type):
-        func = getattr(self, f"process_{type.__class__.__name__}")
+        if isinstance(type, str):
+            raise Exception(f"Type {type} is not a type")
+        elif type is None:
+            raise Exception(f"Type {type} is not a type")
+
+        func = getattr(self, f"process_{type.__class__.__name__}", None)
         if func is None:
-            raise Exception(f"No function named {type.__class__.__name__}")
+            raise Exception(
+                f"No function named {type.__class__.__name__}, type: {type}"
+            )
         return func(type)
 
 
