@@ -19,15 +19,48 @@ class TypeDefHelper:
             if sym.min_val is not None and sym.max_val is not None:
                 return (sym.min_val, sym.max_val)
 
-            bounds = cls.infer_int_range_from_binaryop(sym)
-            if bounds is None:
-                return None
-            return (min(bounds), max(bounds))
+            min_val, max_val = cls.infer_int_range_from_binaryop(sym)
+            if min_val is not None and max_val is not None:
+                return (min_val, max_val)
 
         if isinstance(sym, VariableSymbol):
             if hasattr(sym, "lookup") and sym.lookup is not None:
                 return cls.infer_int_range(sym.lookup)
             return None
+
+        if isinstance(sym, CallSymbol):
+            func = sym.lookup
+            if func is None:
+                return None
+            if not func.uses:
+                return None
+
+            returned = func.returned
+            if not returned:
+                return None
+
+            top_ranges = []
+            for ret in returned:
+                if isinstance(ret, NumberSymbol):
+                    top_ranges.append(cls._to_int(ret.value))
+                if isinstance(ret, BinaryOpSymbol):
+                    mins = ret.min_val
+                    maxs = ret.max_val
+                    if mins is not None and maxs is not None:
+                        top_ranges.append(mins)
+                        top_ranges.append(maxs)
+                else:
+                    res = cls.infer_int_range(ret)
+                    if res is not None:
+                        top_ranges.append(res[0])
+                        top_ranges.append(res[1])
+
+            if not top_ranges:
+                return None
+
+            min_val = min(top_ranges)
+            max_val = max(top_ranges)
+            return (min_val, max_val)
 
         return None
 
@@ -47,6 +80,9 @@ class TypeDefHelper:
         for use in uses:
             if isinstance(use, NumberSymbol):
                 range_list.append(cls._to_int(use.value))
+            elif isinstance(use, VariableSymbol):
+                if hasattr(use, "lookup") and use.lookup is not None:
+                    return cls.infer_int_range(use.lookup)
             else:
                 val_node = use.value if hasattr(use, "value") else use
                 if isinstance(val_node, NumberSymbol):
@@ -63,6 +99,8 @@ class TypeDefHelper:
 
     @classmethod
     def infer_int_range_from_binaryop(cls, binaryop):
+        left = binaryop.left_sym
+        right = binaryop.right_sym
         left_range = cls._resolve_sym_range(binaryop.left_sym)
         right_range = cls._resolve_sym_range(binaryop.right_sym)
 
@@ -74,10 +112,66 @@ class TypeDefHelper:
         ):
             return None
 
-        l_min, l_max = left_range
-        r_min, r_max = right_range
+        left_min, left_max = left_range
+        right_min, right_max = right_range
 
-        return ((l_min, l_max), (r_min, r_max))
+        if isinstance(left, BinaryOpSymbol):
+            left_min = left.min_val
+            left_max = left.max_val
+
+        if isinstance(right, BinaryOpSymbol):
+            right_min = right.min_val
+            right_max = right.max_val
+
+        if (
+            left_min is None
+            or right_min is None
+            or left_max is None
+            or right_max is None
+        ):
+            return None
+
+        op = binaryop.op
+
+        if op == "+":
+            res_min = left_min + right_min
+            res_max = left_max + right_max
+
+        elif op == "-":
+            res_min = left_min - right_max
+            res_max = left_max - right_min
+
+        elif op == "*":
+            p1 = left_min * right_min
+            p2 = left_min * right_max
+            p3 = left_max * right_min
+            p4 = left_max * right_max
+            res_min = min(p1, p2, p3, p4)
+            res_max = max(p1, p2, p3, p4)
+
+        elif op in ("/", "//"):
+            if right_min <= 0 <= right_max:
+                return None
+
+            d1 = left_min // right_min
+            d2 = left_min // right_max
+            d3 = left_max // right_min
+            d4 = left_max // right_max
+            res_min = min(d1, d2, d3, d4)
+            res_max = max(d1, d2, d3, d4)
+
+        elif op == "%":
+            res_min = 0
+            res_max = max(abs(right_min), abs(right_max)) - 1
+
+        elif op in ("==", "!=", "<", "<=", ">", ">="):
+            res_min = 0
+            res_max = 1
+
+        else:
+            return None
+
+        return (res_min, res_max)
 
     @classmethod
     def get_int_value(cls, arg):
@@ -144,73 +238,9 @@ class AutoTypeDefEngine:
         if isinstance(right, BinaryOpSymbol):
             self.process_eval(right)
 
-        ranges = TypeDefHelper.infer_int_range_from_binaryop(sym)
-
-        if ranges is None:
+        res_min, res_max = TypeDefHelper.infer_int_range_from_binaryop(sym)
+        if res_min is None or res_max is None:
             self.error(sym, f"Cannot infer type of binary operation '{sym.op}'")
-            return None
-
-        (left_min, left_max), (right_min, right_max) = ranges
-        if isinstance(left, BinaryOpSymbol):
-            left_min = left.min_val
-            left_max = left.max_val
-
-        if isinstance(right, BinaryOpSymbol):
-            right_min = right.min_val
-            right_max = right.max_val
-
-        if (
-            left_min is None
-            or right_min is None
-            or left_max is None
-            or right_max is None
-        ):
-            self.error(sym, f"Cannot infer type of binary operation '{sym.op}'")
-            return None
-
-        op = sym.op
-
-        if op == "+":
-            res_min = left_min + right_min
-            res_max = left_max + right_max
-
-        elif op == "-":
-            res_min = left_min - right_max
-            res_max = left_max - right_min
-
-        elif op == "*":
-            p1 = left_min * right_min
-            p2 = left_min * right_max
-            p3 = left_max * right_min
-            p4 = left_max * right_max
-            res_min = min(p1, p2, p3, p4)
-            res_max = max(p1, p2, p3, p4)
-
-        elif op in ("/", "//"):
-            if right_min <= 0 <= right_max:
-                self.error(sym, "Possible division by zero during type inference")
-                return None
-
-            d1 = left_min // right_min
-            d2 = left_min // right_max
-            d3 = left_max // right_min
-            d4 = left_max // right_max
-            res_min = min(d1, d2, d3, d4)
-            res_max = max(d1, d2, d3, d4)
-
-        elif op == "%":
-            res_min = 0
-            res_max = max(abs(right_min), abs(right_max)) - 1
-
-        elif op in ("==", "!=", "<", "<=", ">", ">="):
-            res_min = 0
-            res_max = 1
-
-        else:
-            self.error(
-                sym, f"Unsupported binary operator '{op}' for interval arithmetic"
-            )
-            return None
 
         inferred_type = int_type(res_min, res_max)
 
@@ -222,7 +252,7 @@ class AutoTypeDefEngine:
 
     def eval_VariableSymbol(self, sym):
         if sym.type is None:
-            self.process_eval(sym.lookup)
+            self.process_stmt_or_eval(sym.lookup)
             sym.type = sym.lookup.type
 
         if sym.type is None:
@@ -321,7 +351,7 @@ class AutoTypeDefEngine:
         if sym.uses:
             is_int = False
             for use in sym.uses:
-                self.process_stmt(use)
+                self.process_stmt_or_eval(use)
                 use_type = use.type
 
                 if isinstance(use_type, int_type):
@@ -363,6 +393,19 @@ class AutoTypeDefEngine:
         visitor = getattr(self, method_name, None)
         if visitor is None:
             self.error(sym, f"No evaluator method '{method_name}' for symbol")
+
+        return visitor(sym)
+
+    def process_stmt_or_eval(self, sym):
+        method_stmt_name = f"stmt_{type(sym).__name__}"
+        method_eval_name = f"eval_{type(sym).__name__}"
+        visitor = getattr(self, method_stmt_name, None)
+        if visitor is None:
+            visitor = getattr(self, method_eval_name, None)
+            if visitor is None:
+                self.error(
+                    sym, f"No evaluator method '{sym.__class__.__name__}' for symbol"
+                )
 
         return visitor(sym)
 

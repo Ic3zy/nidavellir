@@ -81,9 +81,7 @@ class VariableSymbol(Symbol):
         self.lookup = lookup
         self.ast_node = ast_node
 
-    @property
-    def type(self):
-        return self.lookup.type
+        self.type = None
 
 
 class BinaryOpSymbol(Symbol):
