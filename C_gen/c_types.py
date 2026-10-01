@@ -5,12 +5,12 @@ class CType:
     pass
 
 
-class CVoid(CType):
+class CTVoid(CType):
     def str(self):
         return "void"
 
 
-class CInt(CType):
+class CTInt(CType):
     def __init__(self, signed=False, byte_size=None):
         self.signed = signed
         self.byte_size = byte_size
@@ -36,7 +36,7 @@ class CInt(CType):
             raise Exception("Invalid byte size")
 
 
-class CFloat(CType):
+class CTFloat(CType):
     def __init__(self, byte_size=None):
         self.byte_size = byte_size
 
@@ -52,6 +52,6 @@ class CFloat(CType):
             raise Exception("Invalid byte size")
 
 
-class CString(CType):
+class CTString(CType):
     def str(self):
         return "Nida_Str"

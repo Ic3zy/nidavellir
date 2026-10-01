@@ -9,13 +9,13 @@ from semantic.symbol_table import SymbolTableManager
 
 class TypeTranslator:
     def process_IntType(self, type):
-        return CInt(type.signed, type.byte_size)
+        return CTInt(type.signed, type.byte_size)
 
     def process_FloatType(self, type):
-        return CFloat(type.byte_size)
+        return CTFloat(type.byte_size)
 
     def process_StringType(self, type):
-        return CString()
+        return CTString()
 
     def process_ArrayType(self, type):
         raise NotImplementedError

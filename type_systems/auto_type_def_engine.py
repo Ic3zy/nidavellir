@@ -45,14 +45,16 @@ class TypeDefHelper:
             range_list.append(cls._to_int(sym.value.value))
 
         for use in uses:
-            val_node = use.value if hasattr(use, "value") else use
-
-            if isinstance(val_node, NumberSymbol):
-                range_list.append(cls._to_int(val_node.value))
+            if isinstance(use, NumberSymbol):
+                range_list.append(cls._to_int(use.value))
             else:
-                raise SyntaxError(
-                    f"Cannot infer integer range of '{getattr(use, 'name', 'unknown')}' ({type(use).__name__})"
-                )
+                val_node = use.value if hasattr(use, "value") else use
+                if isinstance(val_node, NumberSymbol):
+                    range_list.append(cls._to_int(val_node.value))
+                else:
+                    raise SyntaxError(
+                        f"Cannot infer integer range of '{getattr(use, 'name', 'unknown')}' ({type(use).__name__})"
+                    )
 
         if not range_list:
             return None
@@ -371,5 +373,7 @@ class AutoTypeDefEngine:
     def run(self):
         for sym in self.sym_tree:
             self.process_stmt(sym)
+
+        # raise Exception(self.stb.print_scopes(st=self.sym_tree))
 
         self.lower_types()

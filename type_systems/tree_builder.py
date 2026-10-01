@@ -2,6 +2,7 @@ from .symbol_table import SymbolTableManager
 from .tree_printer import render_node
 from .symbol_types import *
 from nida_ast.base import *
+from semantic import INTRINSIC_HANDLERS as INTRINSICS
 
 
 class SymbolTreeBuilder:
@@ -64,6 +65,11 @@ class SymbolTreeBuilder:
             self.stm.add_symbol(final_sym)
             return final_sym
 
+    def stmt_intrinsic(self, name, type, args, is_variadic=False):
+        fn_sym = FunctionSymbol(name, type, args, None, is_variadic)
+        self.stm.add_symbol(fn_sym)
+        return fn_sym
+
     def stmt_FunctionAST(self, ast):
         lookup = self.stm.lookup(ast.name)
         if lookup is not None:
@@ -100,15 +106,37 @@ class SymbolTreeBuilder:
         func_name = ast.target
         # TODO: impl intrinsic
 
+        is_intrinsic = func_name in INTRINSICS
+
         lookup = self.stm.lookup(func_name)
+        if lookup is None and is_intrinsic:
+            intrinsic = INTRINSICS[func_name]
+            ret = self.stmt_intrinsic(
+                func_name,
+                intrinsic["return_type"],
+                intrinsic["params"],
+                intrinsic["is_variadic"],
+            )
+            lookup = ret
         if lookup is None:
             self.error(ast, f"Function '{func_name}' is not defined")
 
         params = []
-        for arg in ast.args:
+        for idx, arg in enumerate(ast.args):
             res = self.process_eval(arg)
+            if is_intrinsic:
+                continue
+
+            if idx >= len(lookup.args):
+                self.error(arg, f"Too many arguments for function '{func_name}'")
+
+            lookup_func_arg = lookup.args[idx]
+
             if res is not None:
                 params.append(res)
+
+            if lookup_func_arg is not None and res is not None:
+                lookup_func_arg.uses.append(res)
 
         sym = CallSymbol(func_name, params, lookup, ast)
         lookup.uses.append(sym)
