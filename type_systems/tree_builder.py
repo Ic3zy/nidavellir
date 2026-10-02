@@ -60,10 +60,12 @@ class SymbolTreeBuilder:
 
         target_lookup = self.stm.lookup(ast.target)
         if target_lookup is not None:
+            final_sym.parent_assign = target_lookup
             target_lookup.uses.append(final_sym)
         else:
             self.stm.add_symbol(final_sym)
-            return final_sym
+
+        return final_sym
 
     def stmt_intrinsic(self, name, type, args, is_variadic=False):
         fn_sym = FunctionSymbol(name, type, args, None, is_variadic)
@@ -142,6 +144,37 @@ class SymbolTreeBuilder:
         lookup.uses.append(sym)
 
         return sym
+
+    def stmt_ForAST(self, ast):
+        self.stm.enter_scope()
+        target = self.process_stmt(ast.target)
+        source = ast.source
+        loop_count = None
+        if isinstance(source, CallAST):
+            target_fn = source.target
+            if target_fn == "range" and isinstance(source.args[0], NumberAST):
+                loop_count = source.args[0].value
+                loop_count = int(loop_count)
+            else:
+                raise NotImplementedError(
+                    f"For loop source '{target_fn}' is not implemented"
+                )
+        else:
+            raise NotImplementedError(
+                f"For loop source '{type(source).__name__}' is not implemented"
+            )
+
+        target.uses.append(NumberSymbol(0, ast))
+        target.uses.append(NumberSymbol(loop_count, ast))
+
+        body = []
+        for b in ast.body:
+            body.append(self.process_stmt(b))
+
+        self.stm.exit_scope()
+
+        # raise Exception(ast)
+        return ForSymbol(target, source, body, loop_count, ast)
 
     def process_eval(self, ast):
         method_name = f"eval_{type(ast).__name__}"

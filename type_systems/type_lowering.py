@@ -71,6 +71,13 @@ class TypeLowering:
 
         ast.type_annotation = type_lowering(type)
 
+    def process_ForAST(self, ast):
+        target = ast.target
+
+        self.process(target)
+        for body in ast.body:
+            self.process(body)
+
     def process(self, ast):
         method_name = f"process_{type(ast).__name__}"
         visitor = getattr(self, method_name, None) or self.default_pass

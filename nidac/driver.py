@@ -10,6 +10,10 @@ from C_gen import C_Gen
 from utils import SysArgs
 from .gcc import compile_c_file, run_compiled_file
 
+import sys
+
+sys.set_int_max_str_digits(0)
+
 
 class Nidac:
     def __init__(

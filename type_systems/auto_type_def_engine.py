@@ -87,10 +87,6 @@ class TypeDefHelper:
                 val_node = use.value if hasattr(use, "value") else use
                 if isinstance(val_node, NumberSymbol):
                     range_list.append(cls._to_int(val_node.value))
-                else:
-                    raise SyntaxError(
-                        f"Cannot infer integer range of '{getattr(use, 'name', 'unknown')}' ({type(use).__name__})"
-                    )
 
         if not range_list:
             return None
@@ -238,7 +234,12 @@ class AutoTypeDefEngine:
         if isinstance(right, BinaryOpSymbol):
             self.process_eval(right)
 
-        res_min, res_max = TypeDefHelper.infer_int_range_from_binaryop(sym)
+        range = TypeDefHelper.infer_int_range_from_binaryop(sym)
+        if range is None:
+            self.stb.print_scopes()
+            self.error(sym, f"Cannot infer type of binary operation '{sym.op}'")
+
+        res_min, res_max = range
         if res_min is None or res_max is None:
             self.error(sym, f"Cannot infer type of binary operation '{sym.op}'")
 
@@ -366,19 +367,159 @@ class AutoTypeDefEngine:
         if val_type is None and val is not None:
             val_type = val.type
 
-        if val_type is None and val.type is not None:
+        if val_type is None and val is not None and val.type is not None:
             val_type = val.type
 
-        if val_type is None:
-            self.error(sym, f"Cannot infer type of assignment '{sym.name}'")
-
-        sym.type = val_type
-        sym.set_type_to_AST()
-
-        if sym.name == "a1":
-            raise Exception(self.stb.print_scopes(st=[sym]))
+        if val_type is not None:
+            sym.type = val_type
+            sym.set_type_to_AST()
 
         return sym
+
+    def stmt_ForSymbol(self, sym):
+        target = sym.target
+        source = sym.source
+        loop_count = sym.loop_count
+
+        if loop_count is None:
+            self.error(sym, f"Cannot infer iteration count for loop")
+
+        N = (
+            self.TypeDefHelper._to_int(loop_count)
+            if not isinstance(loop_count, int)
+            else loop_count
+        )
+
+        target_min = 0
+        target_max = max(0, N - 1)
+        target.type = int_type(target_min, target_max)
+        target.set_type_to_AST()
+
+        if sym.body:
+            for stmt in sym.body:
+                self._process_for_body_stmt(stmt, N, target_min, target_max)
+
+        return sym
+
+    def _process_for_body_stmt(self, stmt, N, i_min, i_max):
+        if isinstance(stmt, AssignSymbol):
+            var_sym = stmt.target if hasattr(stmt, "target") else stmt
+            val_expr = stmt.value
+
+            if isinstance(val_expr, BinaryOpSymbol):
+                op = val_expr.op
+
+                curr_range = TypeDefHelper.infer_int_range(var_sym)
+                if curr_range is None:
+                    self.process_eval(val_expr)
+                    return
+
+                a_min, a_max = curr_range
+
+                is_left_var = (
+                    hasattr(val_expr.left_sym, "name")
+                    and val_expr.left_sym.name == var_sym.name
+                )
+                other_sym = val_expr.right_sym if is_left_var else val_expr.left_sym
+
+                if isinstance(other_sym, VariableSymbol) and other_sym.name == "i":
+                    delta_min = i_min
+                    delta_max = i_max
+                    is_linearly_growing = True
+                else:
+                    other_range = TypeDefHelper._resolve_sym_range(other_sym)
+                    if other_range is None:
+                        return
+                    delta_min, delta_max = other_range
+                    is_linearly_growing = False
+
+                new_min, new_max = a_min, a_max
+
+                if op == "+":
+                    if is_linearly_growing:
+                        total_delta = (N * (delta_min + delta_max)) // 2
+                        new_min = a_min + (N * delta_min)
+                        new_max = a_max + total_delta
+                    else:
+                        new_min = a_min + (N * delta_min)
+                        new_max = a_max + (N * delta_max)
+
+                elif op == "-":
+                    if is_linearly_growing:
+                        total_delta = (N * (delta_min + delta_max)) // 2
+                        new_min = a_min - total_delta
+                        new_max = a_max - (N * delta_min)
+                    else:
+                        new_min = a_min - (N * delta_max)
+                        new_max = a_max - (N * delta_min)
+
+                elif op == "*":
+                    if is_linearly_growing:
+                        if delta_min <= 0 <= delta_max:
+                            candidates = [
+                                0,
+                                a_min * delta_min,
+                                a_max * delta_min,
+                                a_min * delta_max,
+                                a_max * delta_max,
+                            ]
+                            new_min = min(candidates)
+                            new_max = max(candidates)
+                        else:
+                            p1 = a_min * (delta_min**N)
+                            p2 = a_min * (delta_max**N)
+                            p3 = a_max * (delta_min**N)
+                            p4 = a_max * (delta_max**N)
+                            new_min = min(p1, p2, p3, p4)
+                            new_max = max(p1, p2, p3, p4)
+                    else:
+                        if delta_min <= 0 <= delta_max:
+                            candidates = [
+                                0,
+                                a_min * delta_min,
+                                a_max * delta_min,
+                                a_min * delta_max,
+                                a_max * delta_max,
+                            ]
+                            new_min = min(candidates)
+                            new_max = max(candidates)
+                        else:
+                            p1 = a_min * (delta_min**N)
+                            p2 = a_min * (delta_max**N)
+                            p3 = a_max * (delta_min**N)
+                            p4 = a_max * (delta_max**N)
+                            new_min = min(p1, p2, p3, p4)
+                            new_max = max(p1, p2, p3, p4)
+
+                elif op == "/":
+                    divisor_sym = val_expr.right_sym
+                    divisor_range = TypeDefHelper._resolve_sym_range(divisor_sym)
+
+                    if divisor_range is not None:
+                        d_min, d_max = divisor_range
+                        if d_min <= 0 <= d_max:
+                            self.error(
+                                stmt.ast_node,
+                                f"Nidavellir Static Analysis Error: Division by zero risk detected in loop! Range for divisor '{divisor_sym.name if hasattr(divisor_sym, 'name') else 'expr'}' includes 0 [{d_min}, {d_max}].",
+                            )
+
+                        if d_min > 0:
+                            div_max_pow = (d_max**N) if d_max > 1 else 1
+                            div_min_pow = (d_min**N) if d_min > 1 else 1
+
+                            c1 = a_min // div_max_pow
+                            c2 = a_min // div_min_pow
+                            c3 = a_max // div_max_pow
+                            c4 = a_max // div_min_pow
+
+                            new_min = min(c1, c2, c3, c4)
+                            new_max = max(c1, c2, c3, c4)
+
+                new_type = int_type(new_min, new_max)
+                var_sym.type = new_type
+                stmt.type = new_type
+                if hasattr(var_sym, "set_type_to_AST"):
+                    var_sym.set_type_to_AST()
 
     def process_stmt(self, sym):
         method_name = f"stmt_{type(sym).__name__}"

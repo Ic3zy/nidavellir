@@ -13,10 +13,16 @@ class AssignSymbol(Symbol):
 
         self.ast_node = ast_node
 
+        self.parent_assign = None
+
         self.uses = []
 
     def set_type_to_AST(self):
         self.ast_node.type_annotation = self.type
+        if self.parent_assign is not None:
+            self.parent_assign.type = self.type
+            if hasattr(self.parent_assign, "set_type_to_AST"):
+                self.parent_assign.set_type_to_AST()
 
 
 class NumberSymbol(Symbol):
@@ -95,3 +101,14 @@ class BinaryOpSymbol(Symbol):
 
         self.max_val = None
         self.min_val = None
+
+
+class ForSymbol(Symbol):
+    def __init__(self, target, source, body, loop_count, ast_node):
+        self.target = target
+        self.source = source
+        self.ast_node = ast_node
+        self.body = body
+        self.loop_count = loop_count
+
+        self.type = None

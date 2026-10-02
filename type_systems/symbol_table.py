@@ -15,8 +15,8 @@ class Scope:
             return self.parent.lookup(name)
         return None
 
-    def add_symbol(self, symbol):
-        if symbol.name in self.symbols:
+    def add_symbol(self, symbol, replace=False):
+        if symbol.name in self.symbols and not replace:
             raise SyntaxError(
                 f"Symbol {symbol.name} already exists in scope and cannot be redefined"
             )
