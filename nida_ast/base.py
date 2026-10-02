@@ -95,12 +95,6 @@ class IndexAccessAST(AST):
         self.index = index
 
 
-class MemberAccessAST(AST):
-    def __init__(self, target, member):
-        self.target = target
-        self.member = member
-
-
 class CallAST(AST):
     def __init__(self, target, chain, args):
         self.target = target
@@ -108,13 +102,6 @@ class CallAST(AST):
         self.args = args
 
         self.imported_func_call = False
-
-
-class ChainAccessAST(AST):
-    def __init__(self, base, chain, args=None):
-        self.base = base
-        self.chain = chain
-        self.args = args
 
 
 class ReturnAST(AST):
@@ -130,31 +117,6 @@ class AssignAST(AST):
         self.value = value
 
         self.is_re_assign = None
-
-
-class VarAssignAST(AST):
-    def __init__(self, target, type, value):
-        self.target = target
-        self.value = value
-        self.type = type
-
-
-class ExpressionAST(AST):
-    def __init__(self, target):
-        self.target = target
-
-
-class BinaryExprAST(AST):
-    def __init__(self, left, op, right):
-        self.left = left
-        self.op = op
-        self.right = right
-
-
-class UnaryExprAST(AST):
-    def __init__(self, op, right):
-        self.op = op
-        self.right = right
 
 
 class WhileAST(AST):
@@ -231,15 +193,6 @@ class FieldAccessAST(AST):
 class ListLiteralAST(AST):
     def __init__(self, elements):
         self.elements = elements
-
-
-class IntrinsicAST(AST):
-    def __init__(self, name, return_type, params, handler, is_variadic=False):
-        self.name = name
-        self.type = return_type
-        self.args = params
-        self.handler = handler
-        self.is_variadic = is_variadic
 
 
 class ImportAST(AST):
