@@ -106,7 +106,7 @@ class CallIR(IR):
 class NumberIR(IR):
     def __init__(self, value):
         self.value = value
-        self.val_type = None
+        self.type = None
 
 
 class ClassIR(IR):

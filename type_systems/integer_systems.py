@@ -10,11 +10,17 @@ TYPE_RANK = {
     "i64": 8,
     "f32": 9,
     "f64": 10,
+    "dyn_int": 11,
 }
 
 
 def get_type_rank(target_type) -> int:
     return TYPE_RANK.get(str(target_type), -1)
+
+
+class Infinity:
+    def __repr__(self):
+        return "∞ (Nida_Infinity)"
 
 
 class int_type(str):
@@ -23,8 +29,11 @@ class int_type(str):
 
     def __new__(cls, min_val: int, max_val: int):
         signed, byte_size = cls._infer_bounds(min_val, max_val)
-        prefix = "i" if signed else "u"
-        name = f"{prefix}{byte_size * 8}"
+        if byte_size == Infinity:
+            name = "dyn_int"
+        else:
+            prefix = "i" if signed else "u"
+            name = f"{prefix}{byte_size * 8}"
 
         obj = super().__new__(cls, name)
         obj.min_val = min_val
@@ -58,7 +67,7 @@ class int_type(str):
             if min_val >= int_type.I64_MIN and max_val <= int_type.I64_MAX:
                 return True, 8
 
-        raise ValueError(f"Invalid number range. {min_val} to {max_val}")
+        return True, Infinity
 
 
 if __name__ == "__main__":

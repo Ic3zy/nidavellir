@@ -16,6 +16,8 @@ class IRGen:
     def gen_AssignAST(self, ast):
         target = ast.target
         value = ast.value
+        type_annotation = ast.type_annotation
+
         if isinstance(value, UnaryOpAST):
             val_res = self._gen_unary_op(target, value)
         elif value is None:
@@ -23,7 +25,9 @@ class IRGen:
         else:
             val_res = self.gen(value)
 
-        type_annotation = ast.type_annotation
+        if hasattr(val_res, "type") and val_res.type is None:
+            val_res.type = type_annotation
+
         return AssignIR(target, val_res, type_annotation, re_assign=ast.is_re_assign)
 
     def gen_ReturnAST(self, ast):

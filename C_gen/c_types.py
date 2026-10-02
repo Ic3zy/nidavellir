@@ -1,4 +1,5 @@
 from .extra_c_includes import EXTRA_C_INCLUDES
+from type_systems.integer_systems import Infinity
 
 
 class CType:
@@ -23,6 +24,9 @@ class CTInt(CType):
             EXTRA_C_INCLUDES.append("<stdint.h>")
 
         int_str = "uint" if not self.signed else "int"
+
+        if self.byte_size == Infinity:
+            return f"dyn_int"
 
         if self.byte_size == 1:
             return f"{int_str}8_t"

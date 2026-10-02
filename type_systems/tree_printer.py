@@ -1,5 +1,5 @@
 IGNORED_FIELDS = {
-    # "uses",
+    "uses",
     "lookup" "parent",
     "children",
     "scope_type",

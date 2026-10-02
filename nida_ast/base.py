@@ -195,6 +195,15 @@ class ListLiteralAST(AST):
         self.elements = elements
 
 
+class IntrinsicAST(AST):
+    def __init__(self, name, return_type, params, handler, is_variadic=False):
+        self.name = name
+        self.type = return_type
+        self.args = params
+        self.handler = handler
+        self.is_variadic = is_variadic
+
+
 class ImportAST(AST):
     def __init__(
         self, module: str, symbols: list = None, alias: str = None, line: int = 1

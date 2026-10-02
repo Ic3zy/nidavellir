@@ -6,6 +6,7 @@ from import_systems import ImportSystem
 
 from type_systems import AutoTypeDefEngine
 from IR_gen import IRGen
+from LIR_gen import IRLowerer
 from C_gen import C_Gen
 from utils import SysArgs
 from .gcc import compile_c_file, run_compiled_file
@@ -34,7 +35,8 @@ class Nidac:
         self.asts = []
         self.symbol_table = None
 
-        self.ir = None
+        self.hir = None
+        self.lir = None
         self.final_c_code = None
         self.c_gen = None
         # compile_c_file("output.c", "output_bin")
@@ -51,10 +53,9 @@ class Nidac:
         self.analyze()
         self.type_def()  # TODO: impl
         # self.check_types()  # TODO: HardAnalyzer
+        self.IRGen()
         self.emit_c11()  # TODO: CodeGen
 
-        self.IRGen()
-        self.emit_c11()
         if not SysArgs.no_binary_compile:
             self.compile_binary()
         return self
@@ -109,7 +110,9 @@ class Nidac:
 
     def IRGen(self):
         ir = IRGen(self.asts, module_name=self.module_name)
-        self.ir = ir.gen_from_list(self.asts)
+        self.hir = ir.gen_from_list(self.asts)
+        lir = IRLowerer(self.hir)
+        self.lir = lir.run()
 
     def read_file(self):
         with open(self.file_path, "r") as f:

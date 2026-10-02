@@ -26,8 +26,8 @@ def type_lowering(type_str: str):
             return IntType(signed=True, byte_size=16)
         case "u128":
             return IntType(signed=False, byte_size=16)
-        case "dynamic_int":
-            return IntType()
+        case "dyn_int":
+            return IntType(signed=True)
 
         case "f32":
             return FloatType(byte_size=4)

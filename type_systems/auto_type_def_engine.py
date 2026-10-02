@@ -385,7 +385,7 @@ class AutoTypeDefEngine:
             self.error(sym, f"Cannot infer iteration count for loop")
 
         N = (
-            self.TypeDefHelper._to_int(loop_count)
+            TypeDefHelper._to_int(loop_count)
             if not isinstance(loop_count, int)
             else loop_count
         )
