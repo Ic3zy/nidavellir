@@ -32,6 +32,9 @@ class NumberSymbol(Symbol):
 
         self.type = None
 
+    def set_type_to_AST(self):
+        self.ast_node.data_type = self.type
+
 
 class StringSymbol(Symbol):
     def __init__(self, value, ast_node):

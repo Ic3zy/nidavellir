@@ -48,12 +48,53 @@ class LoadLIR(LIR):
 
 
 class FunctionLIR(LIR):
-    def __init__(self, name, args, body):
+    def __init__(self, name, args, type, body):
         self.name = name
         self.args = args
+        self.type = type
         self.body = body
 
 
 class ReturnLIR(LIR):
     def __init__(self, value):
         self.value = value
+
+
+class AddLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
+class SubLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
+class MulLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
+class DivLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
+class ModLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id

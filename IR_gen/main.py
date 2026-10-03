@@ -61,7 +61,7 @@ class IRGen:
         return StringLiteralIR(ast.value)
 
     def gen_NumberAST(self, ast):
-        return NumberIR(ast.value)
+        return NumberIR(ast.value, ast.data_type)
 
     def gen_VariableAST(self, ast):
         name = ast.name

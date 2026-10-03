@@ -2,6 +2,33 @@ class CNode:
     def str(self):
         raise NotImplementedError
 
+    def _format_item(self, item, indent=0):
+        if isinstance(item, CNode):
+            return item._format(indent)
+        elif isinstance(item, list):
+            return "\n".join([self._format_item(i, indent + 1) for i in item])
+        else:
+            return repr(item)
+
+    def _format(self, indent=0):
+        indent_str = ("  ") * (indent + 1)
+        indent_str_parent = ("  ") * indent
+
+        lines = []
+
+        class_args = self.__dict__.items()
+        class_name = self.__class__.__name__
+        lines.append(f"{indent_str_parent}{class_name}:")
+
+        for key, value in class_args:
+            field_prefix = f"{key}: {self._format_item(value, indent + 1)}"
+            lines.append(f"{indent_str}{field_prefix}")
+
+        return "\n" + "\n".join(lines) + "\n"
+
+    def __repr__(self):
+        return self._format()
+
 
 class CAssign(CNode):
     def __init__(self, target, value, val_type, re_assign=False):

@@ -223,16 +223,15 @@ class AutoTypeDefEngine:
     def eval_NumberSymbol(self, sym):
         val = int(sym.value, 0) if isinstance(sym.value, str) else int(sym.value)
         sym.type = int_type(val, val)
+        sym.set_type_to_AST()
         return sym
 
     def eval_BinaryOpSymbol(self, sym):
         left = sym.left_sym
-        if isinstance(left, BinaryOpSymbol):
-            self.process_eval(left)
+        self.process_eval(left)
 
         right = sym.right_sym
-        if isinstance(right, BinaryOpSymbol):
-            self.process_eval(right)
+        self.process_eval(right)
 
         range = TypeDefHelper.infer_int_range_from_binaryop(sym)
         if range is None:
@@ -339,6 +338,11 @@ class AutoTypeDefEngine:
             self.error(sym, f"Cannot infer return type of call '{sym.name}'")
 
         sym.type = func_return_type
+        return sym
+
+    def stmt_ReturnSymbol(self, sym):
+        if sym.value:
+            self.process_eval(sym.value)
         return sym
 
     def stmt_AssignSymbol(self, sym):

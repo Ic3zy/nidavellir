@@ -7,277 +7,146 @@ from .extra_c_includes import EXTRA_C_INCLUDES
 from semantic.symbol_table import SymbolTableManager
 
 
-class TypeTranslator:
-    def process_IntType(self, type):
-        return CTInt(type.signed, type.byte_size)
+class CExprTranslator:
+    @classmethod
+    def translate(cls, value):
+        if isinstance(value, int):
+            return CNumber(value)
 
-    def process_FloatType(self, type):
-        return CTFloat(type.byte_size)
+        if isinstance(value, float):
+            return CNumber(value)
 
-    def process_StringType(self, type):
-        return CTString()
+        if isinstance(value, str):
+            return CString(value)
 
-    def process_ArrayType(self, type):
-        raise NotImplementedError
+        raise Exception(f"Unsupported expression value: {type(value).__name__}")
 
-    def process(self, type):
-        if isinstance(type, str):
-            raise Exception(f"Type {type} is not a type")
-        elif type is None:
-            raise Exception(f"Type {type} is not a type")
 
-        func = getattr(self, f"process_{type.__class__.__name__}", None)
-        if func is None:
-            raise Exception(
-                f"No function named {type.__class__.__name__}, type: {type}"
-            )
-        return func(type)
+class CTypeTranslator:
+    INT_TYPES = {
+        "u8": CTInt(False, 1),
+        "i8": CTInt(True, 1),
+        "u16": CTInt(False, 2),
+        "i16": CTInt(True, 2),
+        "u32": CTInt(False, 4),
+        "i32": CTInt(True, 4),
+        "u64": CTInt(False, 8),
+        "i64": CTInt(True, 8),
+    }
+
+    FLOAT_TYPES = {
+        "f32": CTFloat(4),
+        "f64": CTFloat(8),
+    }
+
+    TYPES = {
+        **INT_TYPES,
+        **FLOAT_TYPES,
+        "bool": CTInt(False, 1),
+        "None": CTVoid(),
+        "str": CTString(),
+    }
+
+    @classmethod
+    def translate(cls, type_name: str) -> CType:
+        try:
+            return cls.TYPES[type_name]
+        except KeyError:
+            raise Exception(f"Unsupported C translation for type: {type_name}")
 
 
 class C_Gen:
-    def __init__(self, IRs, module_name=None):
-        self.IRs = IRs
-        self.module_name = module_name
+    def __init__(self, LIRs, module_name=None):
+        self.LIRs = LIRs
+        self.c_nodes = []
 
-        self.stm = SymbolTableManager()
-        self.C_code = []
-        self.ih = IntrinsicHandler()
+    def name_maper(self, name):
+        if name[0] == "%":
+            name = "v" + name[1:]
+        return name
 
-        self.tt = TypeTranslator()
+    def process_FunctionLIR(self, lir):
+        name = lir.name
+        args = lir.args
+        body = lir.body
+        return_type = CTypeTranslator.translate(lir.type)
 
-    @property
-    def is_module(self):
-        return self.module_name is not None
-
-    def gen_AssignIR(self, ir):
-        target = ir.target
-
-        value = ir.value
-        if isinstance(value, NoneIR) and value.air:
-            value_node = CNone(is_str=False)
-        else:
-            value_node = self.gen(value)
-            if value_node is None:
-                raise Exception("No value node")
-        try:
-            val_type = self.tt.process(ir.val_type)
-        except Exception as e:
-            raise Exception(ir)
-        # lk = self.stm.lookup_var(target)
-        self.stm.define_var(target, val_type)
-        # if lk is not None:
-        #     ir.re_assign = True
-        # else:
-        #     ir.re_assign = False
-
-        return CAssign(target, value_node, val_type, re_assign=ir.re_assign)
-
-    def gen_NumberIR(self, ir):
-        value = ir.value
-        return CNumber(value)
-
-    def gen_FunctionIR(self, ir):
-        name = ir.name
-        is_main_func = ir.is_main_func
-
-        args = ir.args
-        body = ir.body_irs
-        try:
-            return_type = self.tt.process(ir.return_type)
-        except Exception as e:
-            raise Exception(ir.return_type)
+        args_nodes = []
+        for arg in args:
+            args_nodes.append(CVariable(arg.name))
 
         body_nodes = []
         for b in body:
-            body_nodes.append(self.gen(b))
-
-        args_nodes = []
-        for a in args:
-            args_nodes.append(self.gen(a))
-
-        self.stm.define_func(name, 0, 0, 0, name)
+            body_nodes.append(self.process(b))
 
         return CFunction(name, name, args_nodes, body_nodes, return_type)
 
-    def gen_ReturnIR(self, ir):
-        value = ir.value
-        value_node = self.gen(value)
-        if value_node is None:
-            raise Exception("No value node")
+    def process_ConstLIR(self, lir):
+        lir_name = self.name_maper(lir.name)
 
-        return CReturn(value_node)
+        val = CExprTranslator.translate(lir.value)
 
-    def gen_IRImport(self, ir):
-        # TODO: impl
-        return CImport(ir.module)
+        type = CTypeTranslator.translate(lir.type)
+        return CAssign(lir_name, val, type)
 
-    def gen_CallIR(self, ir):
-        target = ir.target
-        args = ir.args
-        args_nodes = []
-        for arg in args:
-            args_nodes.append(self.gen(arg))
+    def process_AddLIR(self, lir):
+        name = self.name_maper(lir.name)
+        type = CTypeTranslator.translate(lir.type)
+        left = lir.left_id
+        right = lir.right_id
 
-        # TODO: impl
+        left_val = self.name_maper(left)
+        left = CVariable(left_val)
+        right_val = self.name_maper(right)
+        right = CVariable(right_val)
 
-        func = self.stm.lookup_func(target)
-        if func is None:
-            return CCall(target, args_nodes)
+        bin_op = CBinaryOp(left, right, "+")
 
-        c_name = func.get("c_name")
-        if c_name is None:
-            is_default_func = func.get("is_default_function")
-            if is_default_func:
-                irs = self.ih.run_intrinsic_handler(ir)
-                print(irs)
-                top_c_nodes = []
-                for ir in irs:
-                    res = self.gen(ir)
-                    top_c_nodes.append(res)
+        return CAssign(name, bin_op, type)
 
-                return CBlock(top_c_nodes)
-            else:
-                raise Exception("No c_name")
+    def process_StoreLIR(self, lir):
+        name = lir.name
+        type = CTypeTranslator.translate(lir.type)
+        val_name = self.name_maper(lir.value)
+        value = CVariable(val_name)
+        return CAssign(name, value, type)
 
-        return CCall(c_name, args_nodes)
+    def process_ReturnLIR(self, lir):
+        value = lir.value
+        if value is None:
+            return CReturn(CNone())
 
-    def gen_StringLiteralIR(self, ir):
-        return CString(ir.value)
+        val_name = self.name_maper(value)
+        value = CVariable(val_name)
+        return CReturn(value)
 
-    def gen_VariableIR(self, ir):
-        return CVariable(ir.name)
-
-    def gen_BinaryOpIR(self, ir):
-        left = ir.left
-        right = ir.right
-
-        left_node = self.gen(left)
-        right_node = self.gen(right)
-
-        op = ir.op
-
-        return CBinaryOp(left_node, right_node, op)
-
-    def gen_ElifIR(self, ir):
-        cond = ir.cond
-        body = ir.body
-
-        cond_node = self.gen(cond)
-        body_nodes = []
-        for b in body:
-            body_nodes.append(self.gen(b))
-
-        return CElif(cond_node, body_nodes)
-
-    def gen_IfIR(self, ir):
-        cond = ir.cond
-        body = ir.body
-        elifs = ir.elifs
-        else_body = ir.else_body
-
-        cond_node = self.gen(cond)
-        elifs_nodes = []
-        body_nodes = []
-        else_body_nodes = []
-
-        for b in body:
-            body_nodes.append(self.gen(b))
-
-        for e in elifs:
-            elifs_nodes.append(self.gen(e))
-
-        if else_body is not None:
-            for b in else_body.body:
-                else_body_nodes.append(self.gen(b))
-
-        return CIf(cond_node, body_nodes, elifs_nodes, else_body_nodes)
-
-    def gen_GroupIR(self, ir):
-        expr = ir.expr
-        expr_node = self.gen(expr)
-        return CGroup(expr_node)
-
-    def gen_ForIR(self, ir):
-        target = ir.target
-        source = ir.source
-        body = ir.body
-
-        body_nodes = []
-        for b in body:
-            body_nodes.append(self.gen(b))
-
-        range = None
-
-        if isinstance(source, CallIR):
-            target_fn = source.target
-            if target_fn == "range" and isinstance(source.args[0], NumberIR):
-                range = source.args[0].value
-                range = int(range)
-            else:
-                raise NotImplementedError(
-                    f"For loop source '{target_fn}' is not implemented"
-                )
-        else:
-            raise NotImplementedError(
-                f"For loop source '{type(source).__name__}' is not implemented"
-            )
-
-        return CFor(target.name, range, body_nodes)
-
-    def gen_WhileIR(self, ir):
-        cond = ir.cond
-        body = ir.body
-        cond_node = self.gen(cond)
-        body_nodes = []
-        for b in body:
-            body_nodes.append(self.gen(b))
-
-        return CWhile(cond_node, body_nodes)
-
-    def gen_BooleanIR(self, ir):
-        value = ir.value
-        return CBoolean(value)
-
-    def gen_NoneIR(self, ir):
-        return CNone()
-
-    def gen(self, ir):
-        name = ir.__class__.__name__
-        func = getattr(self, f"gen_{name}")
+    def process(self, lir):
+        name = lir.__class__.__name__
+        func = getattr(self, f"process_{name}", None)
         if func is None:
             raise Exception(f"No function named {name}")
 
-        return func(ir)
+        return func(lir)
 
-    def gen_from_list(self, IRs):
-        for ir in IRs:
-            res = self.gen(ir)
-            self.C_code.append(res)
-
-        print("\n\n\n C code final: ", c_code := self.get_final_c_code())
-
-        return c_code
-
-    def get_used_intrinsics_includes(self):
-        used_includes = ["#include <Nida_core.h>"]
+    def get_code_string(self):
+        includes = ["#include <Nida_core.h>"]
         for include in EXTRA_C_INCLUDES:
-            used_includes.append(f"#include {include}")
+            includes.append(f"#include {include}")
+        includes_str = "\n".join(includes)
 
-        for intrinsic in self.ih.used_intrinsics:
-            used_includes.append(f"#include <{intrinsic}.h>")
+        c_code = includes_str + "\n"
+        for idx, c_node in enumerate(self.c_nodes):
+            if idx == 0:
+                c_code += "\n" + c_node.str()
+            else:
+                c_code += ";\n" + c_node.str()
 
-        return "\n".join(used_includes)
-
-    def create_header(self):
-        header_generator = HeaderGenerator(self.module_name, self.C_code)
-        header_str = header_generator.gen_Header()
-        return header_str
-
-    def get_final_c_code(self):
-        c_code = ""
-        for c_node in self.C_code:
-            c_code += "\n" + c_node.str()
-
-        includes = self.get_used_intrinsics_includes()
-        c_code = includes + "\n" + c_code
         return c_code
+
+    def gen_from_list(self, lirs):
+        for lir in lirs:
+            res = self.process(lir)
+            if res is not None:
+                self.c_nodes.append(res)
+
+        return self.get_code_string()

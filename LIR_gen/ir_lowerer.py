@@ -2,6 +2,20 @@ from IR_gen.irs import *
 from .lirs import *
 
 
+class LIRs(list):
+    def __init__(self, *args):
+        super().__init__()
+
+        for arg in args:
+            self.append(arg)
+
+    def append(self, item):
+        if isinstance(item, list):
+            super().extend(item)
+        else:
+            super().append(item)
+
+
 class Value_Id:
     def __init__(self, parrent=None):
         self.value = -1
@@ -18,11 +32,9 @@ class Value_Id:
 class IRLowerer:
     def __init__(self, hirs):
         self.hir = hirs
-        self.lir = []
+        self.lir = LIRs()
 
         self.value_id = Value_Id()
-
-        self.run()
 
     def enter_new_value_scope(self):
         parrent = (
@@ -44,15 +56,19 @@ class IRLowerer:
         return f"%{self.value_id.current()}"
 
     def process_NumberIR(self, hir):
+        val = hir.value
+        if val is not None and isinstance(val, str):
+            val = int(val)
+
         const_id = self.get_value_id()
         type = hir.type
 
         type_str = str(type)
 
-        return ConstLIR(const_id, type_str, hir.value)
+        return ConstLIR(const_id, type_str, val)
 
     def process_ReturnIR(self, hir):
-        lirs = []
+        lirs = LIRs()
         val = hir.value
         if val is None:
             return ReturnLIR(None)
@@ -66,7 +82,7 @@ class IRLowerer:
         return lirs
 
     def process_AssignIR(self, hir):
-        lirs = []
+        lirs = LIRs()
 
         target = hir.target
         value = hir.value
@@ -75,10 +91,7 @@ class IRLowerer:
         type_str = str(type)
 
         value_lirs = self.process(value)
-        if isinstance(value_lirs, list):
-            lirs.extend(value_lirs)
-        else:
-            lirs.append(value_lirs)
+        lirs.append(value_lirs)
 
         const_id = self.get_current_value_id()
 
@@ -88,14 +101,51 @@ class IRLowerer:
     def process_FunctionIR(self, hir):
         name = hir.name
         args = hir.args
+        type = hir.return_type
+        type_str = str(type)
         body = hir.body_irs
-        body_lir = []
+        body_lir = LIRs()
         for hir in body:
             res = self.process(hir)
             if res is not None:
                 body_lir.append(res)
 
-        return FunctionLIR(name, args, body_lir)
+        return FunctionLIR(name, args, type_str, body_lir)
+
+    def _op_to_lir(self, type, left_id, right_id, op):
+        match op:
+            case "+":
+                return AddLIR(self.get_value_id(), type, left_id, right_id)
+            case "-":
+                return SubLIR(self.get_value_id(), type, left_id, right_id)
+            case "*":
+                return MulLIR(self.get_value_id(), type, left_id, right_id)
+            case "/":
+                return DivLIR(self.get_value_id(), type, left_id, right_id)
+            case "%":
+                return ModLIR(self.get_value_id(), type, left_id, right_id)
+            case _:
+                raise Exception(f"No LIR for op {op}")
+
+    def process_BinaryOpIR(self, hir):
+        left = hir.left
+        right = hir.right
+        type = str(hir.type)
+        op = hir.op
+
+        lirs = LIRs()
+
+        left_lir = self.process(left)
+        left_id = self.get_current_value_id()
+        right_lir = self.process(right)
+        right_id = self.get_current_value_id()
+
+        lirs.append(left_lir)
+        lirs.append(right_lir)
+
+        op_lir = self._op_to_lir(type, left_id, right_id, op)
+        lirs.append(op_lir)
+        return lirs
 
     def process(self, hir):
         name = hir.__class__.__name__
@@ -106,14 +156,11 @@ class IRLowerer:
         return func(hir)
 
     def process_from_list(self, hirs):
-        lirs = []
+        lirs = LIRs()
         for hir in hirs:
             res = self.process(hir)
             if res is not None:
-                if isinstance(res, list):
-                    lirs.extend(res)
-                else:
-                    lirs.append(res)
+                lirs.append(res)
 
         return lirs
 
@@ -121,6 +168,7 @@ class IRLowerer:
         lirs = self.process_from_list(self.hir)
         self.lir = lirs
 
-        raise Exception(self.lir)
+        # raise Exception(self.lir)
+        print(self.lir)
 
         return self.lir

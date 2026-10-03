@@ -102,11 +102,11 @@ class Nidac:
             self.run_binary(SysArgs.output)
 
     def emit_c11(self):
-        if self.ir is None:
+        if self.lir is None:
             self.IRGen()
 
-        self.c_gen = C_Gen(self.ir, module_name=self.module_name)
-        self.final_c_code = self.c_gen.gen_from_list(self.ir)
+        self.c_gen = C_Gen(self.lir, module_name=self.module_name)
+        self.final_c_code = self.c_gen.gen_from_list(self.lir)
 
     def IRGen(self):
         ir = IRGen(self.asts, module_name=self.module_name)

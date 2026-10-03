@@ -87,6 +87,7 @@ class BinaryOpIR(IR):
         self.left = left
         self.right = right
         self.op = op
+        self.type = None
 
 
 class VariableIR(IR):
@@ -104,9 +105,9 @@ class CallIR(IR):
 
 
 class NumberIR(IR):
-    def __init__(self, value):
+    def __init__(self, value, type=None):
         self.value = value
-        self.type = None
+        self.type = type
 
 
 class ClassIR(IR):
