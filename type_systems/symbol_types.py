@@ -120,6 +120,9 @@ class BinaryOpSymbol(Symbol):
         self.max_val = None
         self.min_val = None
 
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type
+
 
 class ForSymbol(Symbol):
     def __init__(self, target, source, body, loop_count, ast_node):

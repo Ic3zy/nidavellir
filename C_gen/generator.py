@@ -128,7 +128,16 @@ class C_Gen:
     def process_AddLIR(self, lir):
         return self._bin_ops(lir)
 
+    def process_SubLIR(self, lir):
+        return self._bin_ops(lir)
+
     def process_MulLIR(self, lir):
+        return self._bin_ops(lir)
+
+    def process_DivLIR(self, lir):
+        return self._bin_ops(lir)
+
+    def process_ModLIR(self, lir):
         return self._bin_ops(lir)
 
     def process_StoreLIR(self, lir):

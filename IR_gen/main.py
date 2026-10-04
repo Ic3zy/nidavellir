@@ -89,7 +89,8 @@ class IRGen:
         right = ast.right
         right_ir = self.gen(right)
         op = ast.op
-        return BinaryOpIR(left_ir, right_ir, op)
+        type = ast.type
+        return BinaryOpIR(left_ir, right_ir, op, type)
 
     def gen_FunctionAST(self, ast):
         decs = ast.decorators

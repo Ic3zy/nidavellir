@@ -98,7 +98,6 @@ class IRLowerer:
         target = hir.target
         value = hir.value
         type = hir.type
-
         type_str = str(type)
 
         value_lirs = self.process(value)
@@ -125,6 +124,9 @@ class IRLowerer:
 
     def process_IntrinsicIR(self, hir):
         return self.process_CallIR(hir)
+
+    def process_GroupIR(self, hir):
+        return self.process(hir.expr)
 
     def process_CallIR(self, hir):
         is_not_return = isinstance(hir.type, NoneType) or hir.type is None

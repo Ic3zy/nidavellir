@@ -83,11 +83,11 @@ class ReturnIR(IR):
 
 
 class BinaryOpIR(IR):
-    def __init__(self, left, right, op):
+    def __init__(self, left, right, op, type=None):
         self.left = left
         self.right = right
         self.op = op
-        self.type = None
+        self.type = type
 
 
 class VariableIR(IR):

@@ -154,6 +154,7 @@ class BinaryOpAST(AST):
         self.left = left
         self.op = op
         self.right = right
+        self.type = None
 
 
 class BooleanAST(AST):
@@ -216,10 +217,10 @@ class ImportAST(AST):
         self.line = line
 
 
-class GroupAST:
+class GroupAST(AST):
     def __init__(self, expr):
         self.expr = expr
 
 
-class NoneAST:
+class NoneAST(AST):
     pass

@@ -38,6 +38,9 @@ class SymbolTreeBuilder:
 
         return BinaryOpSymbol(ast.op, left_sym, right_sym, ast)
 
+    def eval_GroupAST(self, ast):
+        return self.process_eval(ast.expr)
+
     def eval_StringAST(self, ast):
         return StringSymbol(ast.value, ast)
 

@@ -246,6 +246,7 @@ class AutoTypeDefEngine:
         sym.type = inferred_type
         sym.max_val = res_max
         sym.min_val = res_min
+        sym.set_type_to_AST()
 
         return sym
 
@@ -563,3 +564,5 @@ class AutoTypeDefEngine:
     def run(self):
         for sym in self.sym_tree:
             self.process_stmt(sym)
+
+        # raise Exception(self.stb.print_scopes(st=self.sym_tree))
