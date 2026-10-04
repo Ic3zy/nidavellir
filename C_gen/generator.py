@@ -1,6 +1,5 @@
 from IR_gen.irs import *
 from .c_nodes import *
-from .intrinsics_c_handlers import IntrinsicHandler
 from .header_generator import HeaderGenerator
 from .c_types import *
 from .extra_c_includes import EXTRA_C_INCLUDES
@@ -43,7 +42,7 @@ class CTypeTranslator:
         **INT_TYPES,
         **FLOAT_TYPES,
         "bool": CTInt(False, 1),
-        "None": CTVoid(),
+        "None": CTNone(),
         "str": CTString(),
     }
 
@@ -83,8 +82,10 @@ class C_Gen:
 
     def process_ConstLIR(self, lir):
         lir_name = self.name_maper(lir.name)
-
-        val = CExprTranslator.translate(lir.value)
+        if lir.value is None:
+            val = CNone()
+        else:
+            val = CExprTranslator.translate(lir.value)
 
         type = CTypeTranslator.translate(lir.type)
         return CAssign(lir_name, val, type)
@@ -119,6 +120,29 @@ class C_Gen:
         val_name = self.name_maper(value)
         value = CVariable(val_name)
         return CReturn(value)
+
+    def process_LoadLIR(self, lir):
+        name = self.name_maper(lir.name)
+        var_name = self.name_maper(lir.var_name)
+        var = CVariable(var_name)
+        return CAssign(name, var, CTypeTranslator.translate(lir.type))
+
+    def process_CallLIR(self, lir):
+        name = lir.name
+        target = lir.func_name
+        args = lir.args
+
+        args_lirs = []
+        for arg in args:
+            mname = self.name_maper(arg)
+            args_lirs.append(CVariable(mname))
+
+        call = CCall(target, args_lirs)
+        if name is None:
+            return call
+        else:
+            assign = CAssign(name, call, CTypeTranslator.translate(lir.type))
+            return assign
 
     def process(self, lir):
         name = lir.__class__.__name__

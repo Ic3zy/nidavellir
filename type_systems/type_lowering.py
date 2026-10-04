@@ -51,6 +51,14 @@ class TypeLowering:
     def default_pass(self, ast):
         pass
 
+    def process_CallAST(self, ast):
+        type = ast.type
+        if type is None:
+            raise SyntaxError(f"Cannot infer type of {ast.name}")
+
+        ast.type = type_lowering(type)
+        return ast
+
     def process_FunctionAST(self, ast):
         return_type = ast.type
         if return_type is None:
@@ -65,6 +73,8 @@ class TypeLowering:
             self.process(body)
 
     def process_AssignAST(self, ast):
+        value = ast.value
+        self.process(value)
         type = ast.type_annotation
         if type is None:
             raise SyntaxError(f"Cannot infer type of {ast.name}")

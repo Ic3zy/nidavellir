@@ -1,11 +1,16 @@
 import argparse
+
 import sys
+
 import tempfile
+
 from pathlib import Path
 
 
 class SysArgs:
+
     def __init__(self, args=None):
+
         if args is None:
             args = sys.argv[1:]
 
@@ -54,6 +59,7 @@ class SysArgs:
             default=None,
             help="Path for compiled binary executable (Defaults to temp directory)",
         )
+
         parser.add_argument(
             "--emit-c",
             type=Path,
@@ -68,18 +74,21 @@ class SysArgs:
             action="store_true",
             help="Disables printing at compile time",
         )
+
         parser.add_argument(
             "-nr",
             "--no-auto-run",
             action="store_true",
             help="Disables automatic execution of the compiled binary",
         )
+
         parser.add_argument(
             "-nc",
             "--no-cache",
             action="store_true",
             help="Bypasses build cache and forces full re-compilation",
         )
+
         parser.add_argument(
             "-nb",
             "--no-binary-compile",
@@ -90,6 +99,7 @@ class SysArgs:
         parsed = parser.parse_args(args)
 
         temp_dir = Path(tempfile.gettempdir())
+
         file_stem = parsed.file.stem if parsed.file else "snippet"
 
         if parsed.emit_c is None:
@@ -99,13 +109,19 @@ class SysArgs:
             parsed.output = temp_dir / file_stem
 
         self.__dict__.update(vars(parsed))
+        self.extra_c_includes = []
 
     def add_include_path(self, path: Path | str) -> None:
         path_obj = Path(path).resolve()
+
         if path_obj not in self.include_paths:
             self.include_paths.append(path_obj)
 
     def add_c_file(self, path: Path | str) -> None:
         path_obj = Path(path).resolve()
+
         if path_obj not in self.extra_c_files:
             self.extra_c_files.append(path_obj)
+
+    def add_extra_c_include(self, name: str) -> None:
+        self.extra_c_includes.append(name)

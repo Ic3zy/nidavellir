@@ -127,6 +127,7 @@ class SymbolTreeBuilder:
         for idx, arg in enumerate(ast.args):
             res = self.process_eval(arg)
             if is_intrinsic:
+                params.append(res)
                 continue
 
             if idx >= len(lookup.args):

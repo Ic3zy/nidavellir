@@ -83,6 +83,9 @@ class CallSymbol(Symbol):
 
         self.type = None
 
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type
+
 
 class VariableSymbol(Symbol):
     def __init__(self, name, lookup, ast_node):
@@ -91,6 +94,9 @@ class VariableSymbol(Symbol):
         self.ast_node = ast_node
 
         self.type = None
+
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type
 
 
 class BinaryOpSymbol(Symbol):

@@ -1,5 +1,6 @@
 from IR_gen.irs import *
 from .lirs import *
+from type_systems.types import *
 
 
 class LIRs(list):
@@ -54,6 +55,16 @@ class IRLowerer:
 
     def get_current_value_id(self):
         return f"%{self.value_id.current()}"
+
+    def process_VariableIR(self, hir):
+        name = hir.name
+        type_str = str(hir.type)
+
+        const_id = self.get_value_id()
+        lirs = LIRs()
+        lirs.append(LoadLIR(const_id, name, type_str))
+
+        return lirs
 
     def process_NumberIR(self, hir):
         val = hir.value
@@ -112,6 +123,35 @@ class IRLowerer:
 
         return FunctionLIR(name, args, type_str, body_lir)
 
+    def process_CallIR(self, hir):
+        is_not_return = isinstance(hir.type, NoneType) or hir.type is None
+
+        type = str(hir.type)
+        target = hir.target
+        args = hir.args
+
+        lirs = LIRs()
+        arg_ids = []
+
+        for arg in args:
+            lir = self.process(arg)
+
+            lirs.append(lir)
+            arg_ids.append(self.get_current_value_id())
+
+        if is_not_return:
+            nonetype = str(NoneType())
+            const_lir = ConstLIR(self.get_value_id(), nonetype, None)
+            lirs.append(const_lir)
+
+            call_lir = CallLIR(None, type, target, arg_ids)
+        else:
+            call_lir = CallLIR(self.get_value_id(), type, target, arg_ids)
+
+        lirs.append(call_lir)
+
+        return lirs
+
     def _op_to_lir(self, type, left_id, right_id, op):
         match op:
             case "+":
@@ -147,6 +187,17 @@ class IRLowerer:
         lirs.append(op_lir)
         return lirs
 
+    def process_BooleanIR(self, hir):
+        value = hir.value
+        if value:
+            return ConstLIR(self.get_value_id(), "bool", 1)
+        else:
+            return ConstLIR(self.get_value_id(), "bool", 0)
+
+    def process_BlockIR(self, hir):
+        lirs = self.process_from_list(hir.body)
+        return lirs
+
     def process(self, hir):
         name = hir.__class__.__name__
         func = getattr(self, f"process_{name}", None)
@@ -168,7 +219,6 @@ class IRLowerer:
         lirs = self.process_from_list(self.hir)
         self.lir = lirs
 
-        # raise Exception(self.lir)
         print(self.lir)
 
         return self.lir

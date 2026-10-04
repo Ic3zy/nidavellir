@@ -87,6 +87,7 @@ class StringAST(AST):
 class VariableAST(AST):
     def __init__(self, name):
         self.name = name
+        self.type = None
 
 
 class IndexAccessAST(AST):
@@ -102,6 +103,7 @@ class CallAST(AST):
         self.args = args
 
         self.imported_func_call = False
+        self.type = None
 
 
 class ReturnAST(AST):

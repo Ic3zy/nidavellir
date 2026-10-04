@@ -42,8 +42,9 @@ class StoreLIR(LIR):
 
 
 class LoadLIR(LIR):
-    def __init__(self, name, type):
+    def __init__(self, name, var_name, type):
         self.name = name
+        self.var_name = var_name
         self.type = type
 
 
@@ -98,3 +99,11 @@ class ModLIR(LIR):
         self.type = type
         self.left_id = left_id
         self.right_id = right_id
+
+
+class CallLIR(LIR):
+    def __init__(self, name, type, func_name, args):
+        self.name = name
+        self.type = type
+        self.func_name = func_name
+        self.args = args

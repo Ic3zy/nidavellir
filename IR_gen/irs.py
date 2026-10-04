@@ -91,15 +91,16 @@ class BinaryOpIR(IR):
 
 
 class VariableIR(IR):
-    def __init__(self, name):
+    def __init__(self, name, type=None):
         self.name = name
+        self.type = type
 
 
 class CallIR(IR):
-    def __init__(self, target, args):
+    def __init__(self, target, args, type=None):
         self.target = target
         self.args = args
-        self.val_type = None
+        self.type = type
 
         self.imported_func_call = False
 

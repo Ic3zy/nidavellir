@@ -11,6 +11,11 @@ class CTVoid(CType):
         return "void"
 
 
+class CTNone(CType):
+    def str(self):
+        return "void *"
+
+
 class CTInt(CType):
     def __init__(self, signed=False, byte_size=None):
         self.signed = signed

@@ -258,6 +258,8 @@ class AutoTypeDefEngine:
         if sym.type is None:
             self.error(sym, f"Cannot infer type of variable '{sym.name}'")
 
+        sym.set_type_to_AST()
+
         return sym
 
     def eval_StringSymbol(self, sym):
@@ -337,7 +339,12 @@ class AutoTypeDefEngine:
         if func_return_type is None:
             self.error(sym, f"Cannot infer return type of call '{sym.name}'")
 
+        args = sym.args
+        for arg in args:
+            self.process_eval(arg)
+
         sym.type = func_return_type
+        sym.set_type_to_AST()
         return sym
 
     def stmt_ReturnSymbol(self, sym):

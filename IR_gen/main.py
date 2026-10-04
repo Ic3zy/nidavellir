@@ -1,6 +1,7 @@
 from .irs import *
 from .ir_passer import IRPasser
 from nida_ast.base import *
+from semantic import INTRINSIC_HANDLERS
 
 
 class IRGen:
@@ -48,13 +49,18 @@ class IRGen:
     def gen_CallAST(self, ast):
         target = ast.target
         args = ast.args
+        type = ast.type
 
         args_irs = []
         for arg in args:
             args_irs.append(self.gen(arg))
 
-        ir = CallIR(target, args_irs)
+        ir = CallIR(target, args_irs, type)
         ir.imported_func_call = ast.imported_func_call
+        if target in INTRINSIC_HANDLERS:
+            handler = INTRINSIC_HANDLERS[target]["handler"]
+            ir = handler(ir)
+
         return ir
 
     def gen_StringAST(self, ast):
@@ -65,7 +71,8 @@ class IRGen:
 
     def gen_VariableAST(self, ast):
         name = ast.name
-        return VariableIR(name)
+        type = ast.type
+        return VariableIR(name, type)
 
     def gen_BinaryOpAST(self, ast):
         left = ast.left

@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <locale.h>
+#include "Nida_core.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -45,7 +46,9 @@ typedef enum
   NIDA_TYPE_DOUBLE,
   NIDA_TYPE_STR,
   NIDA_TYPE_BOOL,
-  NIDA_TYPE_CHAR
+  NIDA_TYPE_CHAR,
+  NIDA_TYPE_PTR,
+  NIDA_TYPE_NONE
 } NidaType;
 
 typedef struct
@@ -58,6 +61,7 @@ typedef struct
     const char *str;
     bool boolean;
     char ch;
+    const void *ptr;
   } value;
 } NidaVal;
 
@@ -66,6 +70,15 @@ static inline NidaVal _Nida_make_dbl(double v) { return (NidaVal){.type = NIDA_T
 static inline NidaVal _Nida_make_str(const char *v) { return (NidaVal){.type = NIDA_TYPE_STR, .value.str = v}; }
 static inline NidaVal _Nida_make_bool(bool v) { return (NidaVal){.type = NIDA_TYPE_BOOL, .value.boolean = v}; }
 static inline NidaVal _Nida_make_char(char v) { return (NidaVal){.type = NIDA_TYPE_CHAR, .value.ch = v}; }
+
+static inline NidaVal _Nida_make_ptr_or_none(const void *v)
+{
+  if (v == NIDA_NONE_ADDR)
+  {
+    return (NidaVal){.type = NIDA_TYPE_NONE};
+  }
+  return (NidaVal){.type = NIDA_TYPE_PTR, .value.ptr = v};
+}
 
 #define NIDA_VAL(x) _Generic((x),       \
     bool: _Nida_make_bool,              \
@@ -83,7 +96,9 @@ static inline NidaVal _Nida_make_char(char v) { return (NidaVal){.type = NIDA_TY
     float: _Nida_make_dbl,              \
     double: _Nida_make_dbl,             \
     char *: _Nida_make_str,             \
-    const char *: _Nida_make_str)(x)
+    const char *: _Nida_make_str,       \
+    void *: _Nida_make_ptr_or_none,     \
+    const void *: _Nida_make_ptr_or_none)(x)
 
 static inline void _Nida_print_chunk(size_t count, const NidaVal args[], bool is_last)
 {
@@ -99,13 +114,19 @@ static inline void _Nida_print_chunk(size_t count, const NidaVal args[], bool is
       printf("%g", args[i].value.dbl);
       break;
     case NIDA_TYPE_STR:
-      printf("%s", args[i].value.str ? args[i].value.str : "null");
+      printf("%s", args[i].value.str ? args[i].value.str : "None");
       break;
     case NIDA_TYPE_BOOL:
       printf("%s", args[i].value.boolean ? "true" : "false");
       break;
     case NIDA_TYPE_CHAR:
       printf("%c", args[i].value.ch);
+      break;
+    case NIDA_TYPE_PTR:
+      printf("%p", args[i].value.ptr);
+      break;
+    case NIDA_TYPE_NONE:
+      printf("None");
       break;
     }
 
@@ -140,6 +161,6 @@ static inline void _Nida_print_chunk(size_t count, const NidaVal args[], bool is
 #define Nida_print_a1(a) _Nida_print_a1(a, true)
 #define Nida_print_a2(a, b) _Nida_print_a2(a, b, true)
 #define Nida_print_a3(a, b, c) _Nida_print_a3(a, b, c, true)
-#define Nida_p4rint_a(a, b, c, d) _Nida_print_a4(a, b, c, d, true)
+#define Nida_print_a4(a, b, c, d) _Nida_print_a4(a, b, c, d, true)
 
 #endif
