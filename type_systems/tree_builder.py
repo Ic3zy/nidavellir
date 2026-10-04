@@ -65,7 +65,7 @@ class SymbolTreeBuilder:
 
         final_sym = AssignSymbol(ast.target, ast.type, val_sym, ast)
 
-        target_lookup = self.stm.lookup(ast.target)
+        target_lookup = self.stm.current_scope.symbols.get(ast.target)
         if target_lookup is not None:
             final_sym.parent_assign = target_lookup
             target_lookup.uses.append(final_sym)

@@ -38,10 +38,7 @@ class IRLowerer:
         self.value_id = Value_Id()
 
     def enter_new_value_scope(self):
-        parrent = (
-            self.value_id if self.value_id.parrent is None else self.value_id.parrent
-        )
-        self.value_id = Value_Id(parrent)
+        self.value_id = Value_Id(self.value_id)
 
     def exit_value_scope(self):
         if self.value_id.parrent is None:

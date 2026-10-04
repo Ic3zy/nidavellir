@@ -333,7 +333,7 @@ class AutoTypeDefEngine:
     def stmt_CallSymbol(self, sym):
         func_return_type = sym.lookup.type
         if func_return_type is None:
-            self.process_eval(sym.lookup)
+            self.process_stmt(sym.lookup)
             func_return_type = sym.lookup.type
 
         if func_return_type is None:
@@ -564,5 +564,3 @@ class AutoTypeDefEngine:
     def run(self):
         for sym in self.sym_tree:
             self.process_stmt(sym)
-
-        # raise Exception(self.stb.print_scopes(st=self.sym_tree))
