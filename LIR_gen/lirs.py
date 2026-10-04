@@ -107,3 +107,9 @@ class CallLIR(LIR):
         self.type = type
         self.func_name = func_name
         self.args = args
+
+
+class ArgLIR(LIR):
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type

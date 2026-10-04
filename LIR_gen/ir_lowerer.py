@@ -108,19 +108,37 @@ class IRLowerer:
         lirs.append(StoreLIR(target, type_str, const_id))
         return lirs
 
+    def process_args(self, args):
+        args_lir = LIRs()
+        arg_loads = LIRs()
+
+        for arg in args:
+            value_id = self.get_value_id()
+            type_str = str(arg.type)
+
+            args_lir.append(ArgLIR(value_id, type_str))
+
+            arg_loads.append(LoadLIR(arg.target, value_id, type_str))
+
+        return args_lir, arg_loads
+
     def process_FunctionIR(self, hir):
+        self.enter_new_value_scope()
+
         name = hir.name
         args = hir.args
         type = hir.type
         type_str = str(type)
         body = hir.body_irs
-        body_lir = LIRs()
-        for hir in body:
-            res = self.process(hir)
-            if res is not None:
-                body_lir.append(res)
 
-        return FunctionLIR(name, args, type_str, body_lir)
+        args_lir, arg_load = self.process_args(args)
+        body_lir = arg_load
+
+        body_lir.append(self.process_from_list(body))
+
+        self.exit_value_scope()
+
+        return FunctionLIR(name, args_lir, type_str, body_lir)
 
     def process_IntrinsicIR(self, hir):
         return self.process_CallIR(hir)

@@ -115,6 +115,15 @@ class CVariable(CNode):
         return self.name
 
 
+class CArg(CNode):
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
+
+    def __str__(self):
+        return f"{self.type} {self.name}"
+
+
 class CBinaryOp(CNode):
     def __init__(self, left, right, op):
         self.left = left

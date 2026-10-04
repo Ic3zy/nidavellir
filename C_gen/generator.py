@@ -61,9 +61,17 @@ class C_Gen:
         self.c_nodes = []
 
     def name_maper(self, name):
+        if name is None:
+            return None
+
         if name[0] == "%":
             name = "v" + name[1:]
         return name
+
+    def process_ArgLIR(self, lir):
+        name = self.name_maper(lir.name)
+        type = CTypeTranslator.translate(lir.type)
+        return CArg(name, type)
 
     def process_FunctionLIR(self, lir):
         name = lir.name
@@ -73,7 +81,7 @@ class C_Gen:
 
         args_nodes = []
         for arg in args:
-            args_nodes.append(CVariable(arg.name))
+            args_nodes.append(self.process(arg))
 
         body_nodes = []
         for b in body:
@@ -163,7 +171,7 @@ class C_Gen:
         return CAssign(name, var, CTypeTranslator.translate(lir.type))
 
     def process_CallLIR(self, lir):
-        name = lir.name
+        name = self.name_maper(lir.name)
         target = lir.func_name
         args = lir.args
 
