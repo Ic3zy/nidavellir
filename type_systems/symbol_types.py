@@ -54,7 +54,7 @@ class NoneSymbol(Symbol):
 class FunctionSymbol(Symbol):
     def __init__(self, name, return_type, args, ast_node, is_variadic=False):
         self.name = name
-        self.return_type = return_type
+        self.type = return_type
         self.args = args
         self.ast_node = ast_node
         self.is_variadic = is_variadic

@@ -77,7 +77,7 @@ class TypeLowering:
         self.process(value)
         type = ast.type_annotation
         if type is None:
-            raise SyntaxError(f"Cannot infer type of {ast.name}")
+            raise SyntaxError(f"Cannot infer type of {ast}")
 
         ast.type_annotation = type_lowering(type)
 

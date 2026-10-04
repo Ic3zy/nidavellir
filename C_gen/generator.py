@@ -1,4 +1,5 @@
 from IR_gen.irs import *
+from LIR_gen.lirs import *
 from .c_nodes import *
 from .header_generator import HeaderGenerator
 from .c_types import *
@@ -90,7 +91,24 @@ class C_Gen:
         type = CTypeTranslator.translate(lir.type)
         return CAssign(lir_name, val, type)
 
-    def process_AddLIR(self, lir):
+    def _lir_to_op(self, lir_node):
+        match type(lir_node):
+            case _ if isinstance(lir_node, AddLIR):
+                return "+"
+            case _ if isinstance(lir_node, SubLIR):
+                return "-"
+            case _ if isinstance(lir_node, MulLIR):
+                return "*"
+            case _ if isinstance(lir_node, DivLIR):
+                return "/"
+            case _ if isinstance(lir_node, ModLIR):
+                return "%"
+            case _:
+                raise Exception(
+                    f"No operator string for LIR node {type(lir_node).__name__}"
+                )
+
+    def _bin_ops(self, lir):
         name = self.name_maper(lir.name)
         type = CTypeTranslator.translate(lir.type)
         left = lir.left_id
@@ -101,9 +119,17 @@ class C_Gen:
         right_val = self.name_maper(right)
         right = CVariable(right_val)
 
-        bin_op = CBinaryOp(left, right, "+")
+        op = self._lir_to_op(lir)
+
+        bin_op = CBinaryOp(left, right, op)
 
         return CAssign(name, bin_op, type)
+
+    def process_AddLIR(self, lir):
+        return self._bin_ops(lir)
+
+    def process_MulLIR(self, lir):
+        return self._bin_ops(lir)
 
     def process_StoreLIR(self, lir):
         name = lir.name

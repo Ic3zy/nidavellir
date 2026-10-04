@@ -47,6 +47,10 @@ class SymbolTreeBuilder:
     def eval_CallAST(self, ast):
         return self.stmt_CallAST(ast)
 
+    def eval_IntrinsicAST(self, ast):
+        self.stmt_intrinsic(ast.name, ast.type, ast.args)
+        return self.stmt_CallAST(ast)
+
     def stmt_PassAST(self, ast):
         pass
 
@@ -105,7 +109,7 @@ class SymbolTreeBuilder:
         return ReturnSymbol(val, ast)
 
     def stmt_CallAST(self, ast):
-        func_name = ast.target
+        func_name = ast.target if hasattr(ast, "target") else ast.name
         # TODO: impl intrinsic
 
         is_intrinsic = func_name in INTRINSICS

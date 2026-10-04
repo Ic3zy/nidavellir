@@ -63,6 +63,15 @@ class IRGen:
 
         return ir
 
+    def gen_IntrinsicAST(self, ast):
+        args_irs = []
+        for arg in ast.args:
+            args_irs.append(self.gen(arg))
+        handler = ast.handler
+        intrinsic_ir = IntrinsicIR(ast.name, args_irs, ast.type, handler)
+        hir = handler(intrinsic_ir)
+        return hir
+
     def gen_StringAST(self, ast):
         return StringLiteralIR(ast.value)
 

@@ -179,3 +179,11 @@ class BooleanIR(IR):
 class NoneIR(IR):
     def __init__(self, air=True):
         self.air = air
+
+
+class IntrinsicIR(IR):
+    def __init__(self, name, args, type, handler):
+        self.target = name
+        self.args = args
+        self.type = None
+        self.handler = handler

@@ -135,7 +135,4 @@ class SymbolTableManager:
         self.current_scope.modules[alias_or_name] = real_module_name
 
     def lookup_func(self, name):
-        if name in INTRINSIC_HANDLERS:
-            return INTRINSIC_HANDLERS[name]
-
         return self.global_scope.lookup_func(name)

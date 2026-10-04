@@ -123,6 +123,9 @@ class IRLowerer:
 
         return FunctionLIR(name, args, type_str, body_lir)
 
+    def process_IntrinsicIR(self, hir):
+        return self.process_CallIR(hir)
+
     def process_CallIR(self, hir):
         is_not_return = isinstance(hir.type, NoneType) or hir.type is None
 

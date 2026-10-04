@@ -323,18 +323,18 @@ class AutoTypeDefEngine:
                     )
 
         if inferred_return_type is not None:
-            sym.return_type = inferred_return_type
-        elif sym.return_type is None:
-            sym.return_type = "None"
+            sym.type = inferred_return_type
+        elif sym.type is None:
+            sym.type = "None"
 
         sym.set_type_to_AST()
         return sym
 
     def stmt_CallSymbol(self, sym):
-        func_return_type = sym.lookup.return_type
+        func_return_type = sym.lookup.type
         if func_return_type is None:
             self.process_eval(sym.lookup)
-            func_return_type = sym.lookup.return_type
+            func_return_type = sym.lookup.type
 
         if func_return_type is None:
             self.error(sym, f"Cannot infer return type of call '{sym.name}'")

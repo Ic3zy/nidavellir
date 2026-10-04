@@ -123,7 +123,10 @@ class SimpleASTVisitor:
         if bpwf is not None:
             self.body_parse_waiter_funcs.remove(bpwf)
             self._parse_body(bpwf[0], bpwf[1], bpwf[2], bpwf[3])
+
         is_chain = node.chain
+        is_intrinsic = False
+
         if is_chain:
             if (
                 self.current_class_name is None
@@ -135,7 +138,13 @@ class SimpleASTVisitor:
             is_class = False
             is_import = False
             imp = None
-            func = self.stm.lookup_func(target)
+
+            if target in INTRINSIC_HANDLERS:
+                is_intrinsic = True
+                func = INTRINSIC_HANDLERS[target]
+            else:
+                func = self.stm.lookup_func(target)
+
             if func is None:
                 func = self.stm.lookup_class(target)
                 is_class = True
@@ -150,15 +159,23 @@ class SimpleASTVisitor:
                 self.error(node, f"Function '{target}' not defined")
 
         args = node.args
+
         if not is_chain:
-            if (
-                not is_import
-                and not func.get("is_variadic", False)
-                and len(args) != len(func["params"])
-            ):
+            is_variadic = (
+                func.get("is_variadic", False)
+                if isinstance(func, dict)
+                else getattr(func, "is_variadic", False)
+            )
+            params = (
+                func.get("params", [])
+                if isinstance(func, dict)
+                else func.get("params", [])
+            )
+
+            if not is_import and not is_variadic and len(args) != len(params):
                 self.error(
                     node,
-                    f"{'Function' if not is_class else 'Class'} '{target}' takes {len(func['params'])} arguments",
+                    f"{'Intrinsic' if is_intrinsic else 'Function' if not is_class else 'Class'} '{target}' takes {len(params)} arguments ({len(args)} given)",
                 )
 
         if is_import:
@@ -168,8 +185,24 @@ class SimpleASTVisitor:
 
             node.imported_func_call = True
 
+        analyzed_args = []
         for arg in args:
-            self.visit_expression(arg)
+            res = self.visit_expression(arg)
+            analyzed_args.append(res if res is not None else arg)
+
+        if is_intrinsic:
+            intrinsic_node = IntrinsicAST(
+                target,
+                func["return_type"],
+                node.args,
+                func["handler"],
+            )
+
+            node.__dict__ = intrinsic_node.__dict__
+            node.__class__ = IntrinsicAST
+            return node
+
+        return node
 
     def eval_GroupAST(self, node):
         expr = node.expr
@@ -489,3 +522,5 @@ class SimpleAnalyzer:
         while self.sav.body_parse_waiter_funcs:
             func = self.sav.body_parse_waiter_funcs.pop(0)
             self.sav._parse_body(func[0], func[1], func[2], func[3])
+
+        # raise Exception(self.ast_tree)
