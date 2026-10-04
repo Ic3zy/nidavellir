@@ -74,9 +74,9 @@ class IfAST(AST):
 
 
 class NumberAST(AST):
-    def __init__(self, value, data_type=None):
+    def __init__(self, value, type=None):
         self.value = value
-        self.data_type = data_type
+        self.type = type
 
 
 class StringAST(AST):
@@ -112,10 +112,10 @@ class ReturnAST(AST):
 
 
 class AssignAST(AST):
-    def __init__(self, target, chain, type_annotation, value):
+    def __init__(self, target, chain, type, value):
         self.target = target
         self.chain = chain
-        self.type_annotation = type_annotation
+        self.type = type
         self.value = value
 
         self.is_re_assign = None
@@ -171,7 +171,7 @@ class ClassAST(AST):
 class SelfAST(AST):
     def __init__(self):
         self.target = "self"
-        self.type_annotation = None
+        self.type
 
 
 class UnaryOpAST(AST):
@@ -198,9 +198,9 @@ class ListLiteralAST(AST):
 
 
 class IntrinsicAST(AST):
-    def __init__(self, name, return_type, params, handler, is_variadic=False):
+    def __init__(self, name, type, params, handler, is_variadic=False):
         self.name = name
-        self.type = return_type
+        self.type = type
         self.args = params
         self.handler = handler
         self.is_variadic = is_variadic

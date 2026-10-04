@@ -5,6 +5,7 @@ from .intrinsics import INTRINSIC_HANDLERS
 from .symbol_table import SymbolTableManager
 from nida_ast.base import *
 from .c_header_analyze import GCCHeaderScraper
+from type_systems.types import resolve_type
 
 VALID_RETURN_EXPRESSIONS = (
     VariableAST,
@@ -44,7 +45,7 @@ class SimpleASTVisitor:
         self.current_class_name = class_name
 
         for arg in args:
-            self.stm.define_var(arg.target, arg.type_annotation)
+            self.stm.define_var(arg.target, arg.type)
 
         for node in body:
             self.visit_statement(node)
@@ -246,18 +247,12 @@ class SimpleASTVisitor:
                 self.stm.define_field(
                     class_name=class_name,
                     field_name=chain[0],
-                    field_type=node.type_annotation,
+                    field_type=node.type,
                     ast_node=node,
                 )
 
             elif node.target != "self" and not self.stm.current_scope.is_func:
-                self.stm.define_var(node.target, node.type_annotation)
-                # self.stm.define_field(
-                #     class_name=class_name,
-                #     field_name=node.target,
-                #     field_type=node.type_annotation,
-                #     ast_node=node,
-                # )
+                self.stm.define_var(node.target, node.type)
 
             elif node.target == "self" and len(chain) > 1:
                 last_class = self.stm.lookup_class(class_name)
@@ -271,7 +266,7 @@ class SimpleASTVisitor:
 
                         if not is_last_in_chain:
                             if not isinstance(value, CallAST):
-                                type_str = getattr(ast, "type_annotation", "primitive")
+                                type_str = getattr(ast, "type", "primitive")
                                 self.error(
                                     node,
                                     f"Cannot perform member chain access '{'.'.join(chain)}': "
@@ -296,14 +291,14 @@ class SimpleASTVisitor:
                         break
 
             else:
-                self.stm.define_var(node.target, node.type_annotation)
+                self.stm.define_var(node.target, node.type)
 
         else:
             lookups = self.stm.lookup_var(node.target)
             if lookups:
                 node.is_re_assign = True
 
-            self.stm.define_var(node.target, node.type_annotation)
+            self.stm.define_var(node.target, node.type)
 
         if node.value is not None:
             self.visit_expression(node.value)
@@ -346,7 +341,6 @@ class SimpleASTVisitor:
             in_self = None
 
             if args and isinstance(args[0], SelfAST):
-                # in_self = args[0]
                 in_self = args.pop(0)
 
             if in_self is None:
@@ -432,7 +426,7 @@ class SimpleASTVisitor:
                 node=node.target,
             )
 
-        self.stm.define_var(node.target.target, node.target.type_annotation)
+        self.stm.define_var(node.target.target, node.target.type)
 
         self.visit_expression(node.source)
 
@@ -508,6 +502,27 @@ class SimpleASTVisitor:
         return visitor(node)
 
 
+def normalize_ast_types(node):
+    if node is None:
+        return
+
+    if hasattr(node, "type") and node.type is not None:
+        node.type = resolve_type(node.type)
+
+    for attr in ("body", "args", "elifs"):
+        val = getattr(node, attr, None)
+        if isinstance(val, list):
+            for item in val:
+                normalize_ast_types(item)
+        elif val is not None and not isinstance(val, (str, int, float, bool)):
+            normalize_ast_types(val)
+
+    for attr in ("value", "target", "cond", "left", "right", "expr", "else_body"):
+        val = getattr(node, attr, None)
+        if val is not None and not isinstance(val, (str, int, float, bool)):
+            normalize_ast_types(val)
+
+
 class SimpleAnalyzer:
     def __init__(self, ast_tree, imports=None):
         self.ast_tree = ast_tree
@@ -523,4 +538,5 @@ class SimpleAnalyzer:
             func = self.sav.body_parse_waiter_funcs.pop(0)
             self.sav._parse_body(func[0], func[1], func[2], func[3])
 
-        # raise Exception(self.ast_tree)
+        for node in self.ast_tree:
+            normalize_ast_types(node)

@@ -1,18 +1,22 @@
 from .extra_c_includes import EXTRA_C_INCLUDES
-from type_systems.integer_systems import Infinity
+from type_systems.types import Infinity
 
 
 class CType:
-    pass
+    def __str__(self):
+        raise NotImplementedError
+
+    def str(self):
+        return str(self)
 
 
 class CTVoid(CType):
-    def str(self):
+    def __str__(self):
         return "void"
 
 
 class CTNone(CType):
-    def str(self):
+    def __str__(self):
         return "void *"
 
 
@@ -21,7 +25,7 @@ class CTInt(CType):
         self.signed = signed
         self.byte_size = byte_size
 
-    def str(self):
+    def __str__(self):
         if self.byte_size is None:
             return "int"
 
@@ -49,7 +53,7 @@ class CTFloat(CType):
     def __init__(self, byte_size=None):
         self.byte_size = byte_size
 
-    def str(self):
+    def __str__(self):
         if self.byte_size is None:
             return "float"
 
@@ -62,5 +66,5 @@ class CTFloat(CType):
 
 
 class CTString(CType):
-    def str(self):
+    def __str__(self):
         return "Nida_Str"

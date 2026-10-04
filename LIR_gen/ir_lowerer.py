@@ -97,7 +97,7 @@ class IRLowerer:
 
         target = hir.target
         value = hir.value
-        type = hir.val_type
+        type = hir.type
 
         type_str = str(type)
 
@@ -112,7 +112,7 @@ class IRLowerer:
     def process_FunctionIR(self, hir):
         name = hir.name
         args = hir.args
-        type = hir.return_type
+        type = hir.type
         type_str = str(type)
         body = hir.body_irs
         body_lir = LIRs()

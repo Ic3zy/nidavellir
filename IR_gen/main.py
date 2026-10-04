@@ -17,7 +17,7 @@ class IRGen:
     def gen_AssignAST(self, ast):
         target = ast.target
         value = ast.value
-        type_annotation = ast.type_annotation
+        var_type = ast.type
 
         if isinstance(value, UnaryOpAST):
             val_res = self._gen_unary_op(target, value)
@@ -27,9 +27,9 @@ class IRGen:
             val_res = self.gen(value)
 
         if hasattr(val_res, "type") and val_res.type is None:
-            val_res.type = type_annotation
+            val_res.type = var_type
 
-        return AssignIR(target, val_res, type_annotation, re_assign=ast.is_re_assign)
+        return AssignIR(target, val_res, var_type, re_assign=ast.is_re_assign)
 
     def gen_ReturnAST(self, ast):
         value = ast.value
@@ -76,7 +76,7 @@ class IRGen:
         return StringLiteralIR(ast.value)
 
     def gen_NumberAST(self, ast):
-        return NumberIR(ast.value, ast.data_type)
+        return NumberIR(ast.value, ast.type)
 
     def gen_VariableAST(self, ast):
         name = ast.name

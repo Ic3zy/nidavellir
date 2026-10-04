@@ -60,7 +60,7 @@ class SymbolTreeBuilder:
         if val is not None:
             val_sym = self.process_eval(ast.value)
 
-        final_sym = AssignSymbol(ast.target, ast.type_annotation, val_sym, ast)
+        final_sym = AssignSymbol(ast.target, ast.type, val_sym, ast)
 
         target_lookup = self.stm.lookup(ast.target)
         if target_lookup is not None:
@@ -72,9 +72,15 @@ class SymbolTreeBuilder:
         return final_sym
 
     def stmt_intrinsic(self, name, type, args, is_variadic=False):
+        lk = self.stm.lookup(name)
+        if lk is not None:
+            return lk
         fn_sym = FunctionSymbol(name, type, args, None, is_variadic)
         self.stm.add_symbol(fn_sym)
         return fn_sym
+
+    def stmt_IntrinsicAST(self, ast):
+        return self.eval_IntrinsicAST(ast)
 
     def stmt_FunctionAST(self, ast):
         lookup = self.stm.lookup(ast.name)

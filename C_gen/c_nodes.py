@@ -1,6 +1,9 @@
 class CNode:
-    def str(self):
+    def __str__(self):
         raise NotImplementedError
+
+    def str(self):
+        return str(self)
 
     def _format_item(self, item, indent=0):
         if isinstance(item, CNode):
@@ -31,19 +34,19 @@ class CNode:
 
 
 class CAssign(CNode):
-    def __init__(self, target, value, val_type, re_assign=False):
+    def __init__(self, target, value, type, re_assign=False):
         self.target = target
         self.value = value
         self.re_assign = re_assign
-        self.val_type = val_type
+        self.type = type
 
-    def str(self):
+    def __str__(self):
         if isinstance(self.value, CNone) and not self.value.is_str:
             val_str = ""
         else:
-            val_str = self.value.str()
+            val_str = str(self.value)
 
-        type_prefix = f"{self.val_type.str()} " if not self.re_assign else ""
+        type_prefix = f"{str(self.type)} " if not self.re_assign else ""
         eq_sign = " = " if val_str else ""
         return f"{type_prefix}{self.target}{eq_sign}{val_str}".strip()
 
@@ -52,7 +55,7 @@ class CNumber(CNode):
     def __init__(self, value):
         self.value = value
 
-    def str(self):
+    def __str__(self):
         return str(self.value)
 
 
@@ -61,38 +64,38 @@ class CCall(CNode):
         self.target = target
         self.args = args
 
-    def str(self):
-        args_str = ", ".join(a.str() for a in self.args)
+    def __str__(self):
+        args_str = ", ".join(str(a) for a in self.args)
         return f"{self.target}({args_str})"
 
 
 class CFunction(CNode):
-    def __init__(self, name, c_name, args, body, return_type):
+    def __init__(self, name, c_name, args, body, type):
         self.name = name
         self.c_name = c_name
         self.args = args
         self.body = body
-        self.return_type = return_type
+        self.type = type
 
-    def str(self):
-        body_str = "".join(f"{b.str()};\n" for b in self.body)
-        args_str = ", ".join(a.str() for a in self.args)
-        return f"{self.return_type.str()} {self.c_name}({args_str}) {{\n{body_str}}}"
+    def __str__(self):
+        body_str = "".join(f"{str(b)};\n" for b in self.body)
+        args_str = ", ".join(str(a) for a in self.args)
+        return f"{str(self.type)} {self.c_name}({args_str}) {{\n{body_str}}}"
 
 
 class CReturn(CNode):
     def __init__(self, value):
         self.value = value
 
-    def str(self):
-        return f"return {self.value.str()}"
+    def __str__(self):
+        return f"return {str(self.value)}"
 
 
 class CImport(CNode):
     def __init__(self, module):
         self.module = module
 
-    def str(self):
+    def __str__(self):
         return f'#include "{self.module}.h"'
 
 
@@ -100,7 +103,7 @@ class CString(CNode):
     def __init__(self, value):
         self.value = value
 
-    def str(self):
+    def __str__(self):
         return f'"{self.value}"'
 
 
@@ -108,7 +111,7 @@ class CVariable(CNode):
     def __init__(self, name):
         self.name = name
 
-    def str(self):
+    def __str__(self):
         return self.name
 
 
@@ -125,10 +128,10 @@ class CBinaryOp(CNode):
             return "||"
         return op
 
-    def str(self):
+    def __str__(self):
         formatted_op = self.format_op(self.op)
-        left_str = self.left.str()
-        right_str = self.right.str()
+        left_str = str(self.left)
+        right_str = str(self.right)
 
         if formatted_op == "is":
             return f"((void*)({left_str}) == (void*)({right_str}))"
@@ -143,9 +146,9 @@ class CElif(CNode):
         self.cond = cond
         self.body = body
 
-    def str(self):
-        body_str = "".join(f"{b.str()};\n" for b in self.body)
-        return f"else if ({self.cond.str()}) {{\n{body_str}}}"
+    def __str__(self):
+        body_str = "".join(f"{str(b)};\n" for b in self.body)
+        return f"else if ({str(self.cond)}) {{\n{body_str}}}"
 
 
 class CIf(CNode):
@@ -155,16 +158,16 @@ class CIf(CNode):
         self.elifs = elifs
         self.else_body = else_body
 
-    def str(self):
+    def __str__(self):
         def format_stmt(stmt):
-            s = stmt.str()
+            s = str(stmt)
             return f"{s}\n" if s.endswith(";") else f"{s};\n"
 
         body_str = "".join(format_stmt(b) for b in self.body)
-        parts = [f"if ({self.cond.str()}) {{\n{body_str}}}"]
+        parts = [f"if ({str(self.cond)}) {{\n{body_str}}}"]
 
         if self.elifs:
-            parts.append("\n".join(e.str() for e in self.elifs))
+            parts.append("\n".join(str(e) for e in self.elifs))
 
         if self.else_body:
             else_body_str = "".join(format_stmt(b) for b in self.else_body)
@@ -177,18 +180,18 @@ class CGroup(CNode):
     def __init__(self, expr):
         self.expr = expr
 
-    def str(self):
-        return f"({self.expr.str()})"
+    def __str__(self):
+        return f"({str(self.expr)})"
 
 
 class CBlock(CNode):
     def __init__(self, body):
         self.body = body
 
-    def str(self):
+    def __str__(self):
         total = len(self.body)
         return "".join(
-            f"{stmt.str()};\n" if i < total - 1 else stmt.str()
+            f"{str(stmt)};\n" if i < total - 1 else str(stmt)
             for i, stmt in enumerate(self.body)
         )
 
@@ -199,8 +202,8 @@ class CFor(CNode):
         self.range = range
         self.body = body
 
-    def str(self):
-        body_str = "".join(f"{b.str()};\n" for b in self.body)
+    def __str__(self):
+        body_str = "".join(f"{str(b)};\n" for b in self.body)
         return f"for (int {self.target} = 0; {self.target} < {self.range}; {self.target}++) {{\n{body_str}}}"
 
 
@@ -209,16 +212,16 @@ class CWhile(CNode):
         self.cond = cond
         self.body = body
 
-    def str(self):
-        body_str = "".join(f"{b.str()};\n" for b in self.body)
-        return f"while ({self.cond.str()}) {{\n{body_str}}}"
+    def __str__(self):
+        body_str = "".join(f"{str(b)};\n" for b in self.body)
+        return f"while ({str(self.cond)}) {{\n{body_str}}}"
 
 
 class CBoolean(CNode):
     def __init__(self, value):
         self.value = value
 
-    def str(self):
+    def __str__(self):
         return "true" if self.value else "false"
 
 
@@ -226,5 +229,5 @@ class CNone(CNode):
     def __init__(self, is_str=True):
         self.is_str = is_str
 
-    def str(self):
+    def __str__(self):
         return "Nida_None" if self.is_str else ""

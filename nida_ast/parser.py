@@ -81,7 +81,7 @@ class Parser:
     def parse_number(self, data_type=None):
         token_value = self.advance()
 
-        return NumberAST(value=token_value[1], data_type=data_type)
+        return NumberAST(value=token_value[1], type=data_type)
 
     def check_index_access(self):
         start_index = self.index
@@ -523,7 +523,7 @@ class Parser:
                     left=VariableAST(name=target_name), op=comp, right=value_ast
                 )
         return AssignAST(
-            target=target_name, chain=chain, type_annotation=data_type, value=value_ast
+            target=target_name, chain=chain, type=data_type, value=value_ast
         )
 
     def parse_args(self):

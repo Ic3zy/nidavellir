@@ -10,7 +10,7 @@ class IR:
 
         children = []
         for k, v in self.__dict__.items():
-            if k in ("decs", "val_type", "body") and not v:
+            if k in ("decs", "type", "body") and not v:
                 continue
             if k == "body":
                 continue
@@ -58,18 +58,18 @@ class AssignIR(IR):
     def __init__(self, target, value, type=None, re_assign=False):
         self.target = target
         self.value = value
-        self.val_type = type
+        self.type = type
 
         self.re_assign = re_assign
 
 
 class FunctionIR(IR):
-    def __init__(self, decs, name, args, body, return_type=None, is_main_func=False):
+    def __init__(self, decs, name, args, body, type=None, is_main_func=False):
         self.decs = decs
         self.name = name
         self.args = args
         self.body = body
-        self.return_type = return_type
+        self.type = type
 
         self.is_main_func = is_main_func
 
@@ -77,9 +77,9 @@ class FunctionIR(IR):
 
 
 class ReturnIR(IR):
-    def __init__(self, value, val_type=None):
+    def __init__(self, value, type=None):
         self.value = value
-        self.val_type = None
+        self.type = None
 
 
 class BinaryOpIR(IR):

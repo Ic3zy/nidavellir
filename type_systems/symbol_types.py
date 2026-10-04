@@ -1,3 +1,6 @@
+from .types import resolve_type, StringType, NoneType
+
+
 class Symbol:
     pass
 
@@ -8,7 +11,7 @@ class Symbol:
 class AssignSymbol(Symbol):
     def __init__(self, name, type, value, ast_node):
         self.name = name
-        self.type = type
+        self.type = resolve_type(type)
         self.value = value
 
         self.ast_node = ast_node
@@ -18,7 +21,7 @@ class AssignSymbol(Symbol):
         self.uses = []
 
     def set_type_to_AST(self):
-        self.ast_node.type_annotation = self.type
+        self.ast_node.type = self.type
         if self.parent_assign is not None:
             self.parent_assign.type = self.type
             if hasattr(self.parent_assign, "set_type_to_AST"):
@@ -33,7 +36,7 @@ class NumberSymbol(Symbol):
         self.type = None
 
     def set_type_to_AST(self):
-        self.ast_node.data_type = self.type
+        self.ast_node.type = self.type
 
 
 class StringSymbol(Symbol):
@@ -41,20 +44,26 @@ class StringSymbol(Symbol):
         self.value = value
         self.ast_node = ast_node
 
-        self.type = "str"
+        self.type = StringType()
+
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type
 
 
 class NoneSymbol(Symbol):
     def __init__(self, ast_node):
         self.ast_node = ast_node
 
-        self.type = "None"
+        self.type = NoneType()
+
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type
 
 
 class FunctionSymbol(Symbol):
-    def __init__(self, name, return_type, args, ast_node, is_variadic=False):
+    def __init__(self, name, type, args, ast_node, is_variadic=False):
         self.name = name
-        self.type = return_type
+        self.type = resolve_type(type)
         self.args = args
         self.ast_node = ast_node
         self.is_variadic = is_variadic
@@ -65,7 +74,7 @@ class FunctionSymbol(Symbol):
         self.returned = []
 
     def set_type_to_AST(self):
-        self.ast_node.type = self.return_type
+        self.ast_node.type = self.type
 
 
 class ReturnSymbol(Symbol):

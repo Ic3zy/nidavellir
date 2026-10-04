@@ -25,14 +25,14 @@ class IRPasser:
         if top_level_stmts:
             num = NumberIR("0")
             num.type = IntType(byte_size=4, signed=True)
-            top_level_stmts.append(ReturnIR(num, val_type=num.type))
+            top_level_stmts.append(ReturnIR(num, type=num.type))
             name = f"Nida_Func_By_{self.module_name}_main" if self.is_module else "main"
             main_fn = FunctionIR(
                 decs=[],
                 name=name,
                 args=[],
                 body=[],
-                return_type=IntType(byte_size=4, signed=True),
+                type=IntType(byte_size=4, signed=True),
                 is_main_func=True,
             )
             main_fn.body_irs = top_level_stmts

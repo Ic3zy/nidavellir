@@ -1,7 +1,6 @@
-from .integer_systems import int_type
+from .types import IntType
 from .symbol_types import *
 from .tree_builder import SymbolTreeBuilder
-from .type_lowering import TypeLowering
 
 
 class TypeDefHelper:
@@ -222,7 +221,7 @@ class AutoTypeDefEngine:
 
     def eval_NumberSymbol(self, sym):
         val = int(sym.value, 0) if isinstance(sym.value, str) else int(sym.value)
-        sym.type = int_type(val, val)
+        sym.type = IntType(val, val)
         sym.set_type_to_AST()
         return sym
 
@@ -242,7 +241,7 @@ class AutoTypeDefEngine:
         if res_min is None or res_max is None:
             self.error(sym, f"Cannot infer type of binary operation '{sym.op}'")
 
-        inferred_type = int_type(res_min, res_max)
+        inferred_type = IntType(res_min, res_max)
 
         sym.type = inferred_type
         sym.max_val = res_max
@@ -298,8 +297,8 @@ class AutoTypeDefEngine:
                         )
 
         for idx, arg_type in enumerate(inferred_args_types):
-            if isinstance(arg_type, int_type) and idx in int_ranges:
-                arg_type = int_type(int_ranges[idx][0], int_ranges[idx][1])
+            if isinstance(arg_type, IntType) and idx in int_ranges:
+                arg_type = IntType(int_ranges[idx][0], int_ranges[idx][1])
 
             sym.args[idx].type = arg_type
             sym.args[idx].set_type_to_AST()
@@ -366,14 +365,14 @@ class AutoTypeDefEngine:
                 self.process_stmt_or_eval(use)
                 use_type = use.type
 
-                if isinstance(use_type, int_type):
+                if isinstance(use_type, IntType):
                     is_int = True
-                elif is_int and not isinstance(use_type, int_type):
+                elif is_int and not isinstance(use_type, IntType):
                     self.error(use, f"Cannot infer type of '{use.name}'")
 
             if is_int:
                 min_val, max_val = TypeDefHelper.infer_int_range(sym)
-                val_type = int_type(min_val, max_val)
+                val_type = IntType(min_val, max_val)
 
         if val_type is None and val is not None:
             val_type = val.type
@@ -403,7 +402,7 @@ class AutoTypeDefEngine:
 
         target_min = 0
         target_max = max(0, N - 1)
-        target.type = int_type(target_min, target_max)
+        target.type = IntType(target_min, target_max)
         target.set_type_to_AST()
 
         if sym.body:
@@ -526,7 +525,7 @@ class AutoTypeDefEngine:
                             new_min = min(c1, c2, c3, c4)
                             new_max = max(c1, c2, c3, c4)
 
-                new_type = int_type(new_min, new_max)
+                new_type = IntType(new_min, new_max)
                 var_sym.type = new_type
                 stmt.type = new_type
                 if hasattr(var_sym, "set_type_to_AST"):
@@ -561,14 +560,6 @@ class AutoTypeDefEngine:
 
         return visitor(sym)
 
-    def lower_types(self):
-        self.tl = TypeLowering(self.stb.ast_tree)
-        self.tl.run()
-
     def run(self):
         for sym in self.sym_tree:
             self.process_stmt(sym)
-
-        # raise Exception(self.stb.print_scopes(st=self.sym_tree))
-
-        self.lower_types()

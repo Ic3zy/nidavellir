@@ -10,8 +10,8 @@ class HeaderGenerator:
     def gen_CFunction(self, node):
         name = node.name
         args = node.args
-        return_type = node.return_type
-        return HFunction(name, args, return_type)
+        type = node.type
+        return HFunction(name, args, type)
 
     def gen(self, node):
         name = node.__class__.__name__

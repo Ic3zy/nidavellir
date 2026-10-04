@@ -96,7 +96,7 @@ class SysArgs:
             help="Disables invocation of the underlying C compiler (GCC/Clang) and skips binary generation",
         )
 
-        parsed = parser.parse_args(args)
+        parsed, _ = parser.parse_known_args(args)
 
         temp_dir = Path(tempfile.gettempdir())
 
