@@ -211,6 +211,7 @@ class AutoTypeDefEngine:
     def __init__(self, ast_tree):
         self.stb = SymbolTreeBuilder(ast_tree)
         self.sym_tree = self.stb.st
+        self.visiting = set()
         self.run()
 
     def error(self, sym, message):
@@ -533,33 +534,51 @@ class AutoTypeDefEngine:
                     var_sym.set_type_to_AST()
 
     def process_stmt(self, sym):
-        method_name = f"stmt_{type(sym).__name__}"
-        visitor = getattr(self, method_name, None)
-        if visitor is None:
-            self.error(sym, f"No visitor method '{method_name}' for symbol")
+        if sym is None or id(sym) in self.visiting:
+            return sym
+        self.visiting.add(id(sym))
+        try:
+            method_name = f"stmt_{type(sym).__name__}"
+            visitor = getattr(self, method_name, None)
+            if visitor is None:
+                self.error(sym, f"No visitor method '{method_name}' for symbol")
 
-        return visitor(sym)
+            return visitor(sym)
+        finally:
+            self.visiting.remove(id(sym))
 
     def process_eval(self, sym):
-        method_name = f"eval_{type(sym).__name__}"
-        visitor = getattr(self, method_name, None)
-        if visitor is None:
-            self.error(sym, f"No evaluator method '{method_name}' for symbol")
+        if sym is None or id(sym) in self.visiting:
+            return sym
+        self.visiting.add(id(sym))
+        try:
+            method_name = f"eval_{type(sym).__name__}"
+            visitor = getattr(self, method_name, None)
+            if visitor is None:
+                self.error(sym, f"No evaluator method '{method_name}' for symbol")
 
-        return visitor(sym)
+            return visitor(sym)
+        finally:
+            self.visiting.remove(id(sym))
 
     def process_stmt_or_eval(self, sym):
-        method_stmt_name = f"stmt_{type(sym).__name__}"
-        method_eval_name = f"eval_{type(sym).__name__}"
-        visitor = getattr(self, method_stmt_name, None)
-        if visitor is None:
-            visitor = getattr(self, method_eval_name, None)
+        if sym is None or id(sym) in self.visiting:
+            return sym
+        self.visiting.add(id(sym))
+        try:
+            method_stmt_name = f"stmt_{type(sym).__name__}"
+            method_eval_name = f"eval_{type(sym).__name__}"
+            visitor = getattr(self, method_stmt_name, None)
             if visitor is None:
-                self.error(
-                    sym, f"No evaluator method '{sym.__class__.__name__}' for symbol"
-                )
+                visitor = getattr(self, method_eval_name, None)
+                if visitor is None:
+                    self.error(
+                        sym, f"No evaluator method '{sym.__class__.__name__}' for symbol"
+                    )
 
-        return visitor(sym)
+            return visitor(sym)
+        finally:
+            self.visiting.remove(id(sym))
 
     def run(self):
         for sym in self.sym_tree:

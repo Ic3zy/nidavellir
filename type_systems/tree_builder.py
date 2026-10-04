@@ -164,10 +164,11 @@ class SymbolTreeBuilder:
         target = self.process_stmt(ast.target)
         source = ast.source
         loop_count = None
-        if isinstance(source, CallAST):
-            target_fn = source.target
-            if target_fn == "range" and isinstance(source.args[0], NumberAST):
-                loop_count = source.args[0].value
+        if isinstance(source, (CallAST, IntrinsicAST)):
+            target_fn = getattr(source, "target", getattr(source, "name", None))
+            args = getattr(source, "args", [])
+            if target_fn == "range" and args and isinstance(args[0], NumberAST):
+                loop_count = args[0].value
                 loop_count = int(loop_count)
             else:
                 raise NotImplementedError(
