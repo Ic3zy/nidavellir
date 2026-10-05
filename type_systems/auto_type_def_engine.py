@@ -9,22 +9,43 @@ class TypeDefHelper:
         return int(val, 0) if isinstance(val, str) else int(val)
 
     @classmethod
-    def _resolve_sym_range(cls, sym):
+    def _resolve_sym_range(cls, sym, visited=None):
+        if sym is None:
+            return None
+        if visited is None:
+            visited = set()
+        if id(sym) in visited:
+            return None
+        visited.add(id(sym))
+
+        if (
+            hasattr(sym, "type")
+            and isinstance(sym.type, IntType)
+            and sym.type.min_val is not None
+            and sym.type.max_val is not None
+        ):
+            return (sym.type.min_val, sym.type.max_val)
+
         if isinstance(sym, NumberSymbol):
             val = cls._to_int(sym.value)
             return (val, val)
+
+        if isinstance(sym, AssignSymbol):
+            if sym.value is not None:
+                return cls._resolve_sym_range(sym.value, visited)
+            return cls.infer_int_range(sym, visited)
 
         if isinstance(sym, BinaryOpSymbol):
             if sym.min_val is not None and sym.max_val is not None:
                 return (sym.min_val, sym.max_val)
 
-            min_val, max_val = cls.infer_int_range_from_binaryop(sym)
-            if min_val is not None and max_val is not None:
-                return (min_val, max_val)
+            res = cls.infer_int_range_from_binaryop(sym, visited)
+            if res is not None and res[0] is not None and res[1] is not None:
+                return (res[0], res[1])
 
         if isinstance(sym, VariableSymbol):
             if hasattr(sym, "lookup") and sym.lookup is not None:
-                return cls.infer_int_range(sym.lookup)
+                return cls.infer_int_range(sym.lookup, visited)
             return None
 
         if isinstance(sym, CallSymbol):
@@ -49,7 +70,7 @@ class TypeDefHelper:
                         top_ranges.append(mins)
                         top_ranges.append(maxs)
                 else:
-                    res = cls.infer_int_range(ret)
+                    res = cls.infer_int_range(ret, visited)
                     if res is not None:
                         top_ranges.append(res[0])
                         top_ranges.append(res[1])
@@ -64,16 +85,25 @@ class TypeDefHelper:
         return None
 
     @classmethod
-    def infer_int_range(cls, sym):
+    def infer_int_range(cls, sym, visited=None):
+        if sym is None:
+            return None
+        if visited is None:
+            visited = set()
+        if id(sym) in visited:
+            return None
+        visited.add(id(sym))
+
         uses = getattr(sym, "uses", None)
         if not uses:
-            sym_val_range = cls._resolve_sym_range(sym.value)
-            if sym_val_range is not None:
-                return sym_val_range
+            if hasattr(sym, "value") and sym.value is not None:
+                sym_val_range = cls._resolve_sym_range(sym.value, visited)
+                if sym_val_range is not None:
+                    return sym_val_range
             return None
 
         range_list = []
-        if isinstance(sym.value, NumberSymbol):
+        if hasattr(sym, "value") and isinstance(sym.value, NumberSymbol):
             range_list.append(cls._to_int(sym.value.value))
 
         for use in uses:
@@ -81,7 +111,9 @@ class TypeDefHelper:
                 range_list.append(cls._to_int(use.value))
             elif isinstance(use, VariableSymbol):
                 if hasattr(use, "lookup") and use.lookup is not None:
-                    return cls.infer_int_range(use.lookup)
+                    res = cls.infer_int_range(use.lookup, visited)
+                    if res is not None:
+                        range_list.extend(res)
             else:
                 val_node = use.value if hasattr(use, "value") else use
                 if isinstance(val_node, NumberSymbol):
@@ -93,11 +125,13 @@ class TypeDefHelper:
         return (min(range_list), max(range_list))
 
     @classmethod
-    def infer_int_range_from_binaryop(cls, binaryop):
+    def infer_int_range_from_binaryop(cls, binaryop, visited=None):
+        if visited is None:
+            visited = set()
         left = binaryop.left_sym
         right = binaryop.right_sym
-        left_range = cls._resolve_sym_range(binaryop.left_sym)
-        right_range = cls._resolve_sym_range(binaryop.right_sym)
+        left_range = cls._resolve_sym_range(binaryop.left_sym, visited)
+        right_range = cls._resolve_sym_range(binaryop.right_sym, visited)
 
         if (
             left_range is None
@@ -235,7 +269,6 @@ class AutoTypeDefEngine:
 
         range = TypeDefHelper.infer_int_range_from_binaryop(sym)
         if range is None:
-            self.stb.print_scopes()
             self.error(sym, f"Cannot infer type of binary operation '{sym.op}'")
 
         res_min, res_max = range
@@ -256,10 +289,8 @@ class AutoTypeDefEngine:
             self.process_stmt_or_eval(sym.lookup)
             sym.type = sym.lookup.type
 
-        if sym.type is None:
-            self.error(sym, f"Cannot infer type of variable '{sym.name}'")
-
-        sym.set_type_to_AST()
+        if sym.type is not None:
+            sym.set_type_to_AST()
 
         return sym
 
@@ -279,21 +310,31 @@ class AutoTypeDefEngine:
 
         if uses:
             for use in uses:
+                if isinstance(use, AssignSymbol):
+                    use = use.value
+
                 if not use.args:
                     continue
 
+                valid_use = True
+                use_arg_types = []
                 for idx, arg in enumerate(use.args):
                     self.process_eval(arg)
                     arg_type = arg.type
-
                     if arg_type is None:
-                        self.error(arg, f"Cannot infer type of argument '{arg.name}'")
+                        valid_use = False
+                        break
+                    use_arg_types.append(arg_type)
 
+                if not valid_use:
+                    continue
+
+                for idx, arg_type in enumerate(use_arg_types):
                     if idx >= len(inferred_args_types):
                         inferred_args_types.append(arg_type)
                     elif inferred_args_types[idx] != arg_type:
                         self.error(
-                            arg,
+                            use.args[idx],
                             f"Type mismatch in '{use.name}' at arg #{idx}: "
                             f"Expected {inferred_args_types[idx]}, got {arg_type}.",
                         )
@@ -305,7 +346,8 @@ class AutoTypeDefEngine:
             sym.args[idx].type = arg_type
             sym.args[idx].set_type_to_AST()
 
-        returns = TypeDefHelper.infer_returns(sym)
+        has_untyped_args = any(arg.type is None for arg in sym.args)
+        returns = TypeDefHelper.infer_returns(sym) if not has_untyped_args else []
         inferred_return_type = None
 
         if returns:
@@ -333,12 +375,12 @@ class AutoTypeDefEngine:
 
     def stmt_CallSymbol(self, sym):
         func_return_type = sym.lookup.type
-        if func_return_type is None:
+        if func_return_type is None and id(sym.lookup) not in self.visiting:
             self.process_stmt(sym.lookup)
             func_return_type = sym.lookup.type
 
         if func_return_type is None:
-            self.error(sym, f"Cannot infer return type of call '{sym.name}'")
+            return sym
 
         args = sym.args
         for arg in args:
@@ -364,17 +406,25 @@ class AutoTypeDefEngine:
         if sym.uses:
             is_int = False
             for use in sym.uses:
+                if id(use) in self.visiting:
+                    continue
                 self.process_stmt_or_eval(use)
                 use_type = use.type
 
                 if isinstance(use_type, IntType):
                     is_int = True
-                elif is_int and not isinstance(use_type, IntType):
+                elif (
+                    is_int
+                    and use_type is not None
+                    and not isinstance(use_type, IntType)
+                ):
                     self.error(use, f"Cannot infer type of '{use.name}'")
 
             if is_int:
-                min_val, max_val = TypeDefHelper.infer_int_range(sym)
-                val_type = IntType(min_val, max_val)
+                r = TypeDefHelper.infer_int_range(sym)
+                if r is not None and r[0] is not None and r[1] is not None:
+                    min_val, max_val = r
+                    val_type = IntType(min_val, max_val)
 
         if val_type is None and val is not None:
             val_type = val.type
@@ -573,7 +623,8 @@ class AutoTypeDefEngine:
                 visitor = getattr(self, method_eval_name, None)
                 if visitor is None:
                     self.error(
-                        sym, f"No evaluator method '{sym.__class__.__name__}' for symbol"
+                        sym,
+                        f"No evaluator method '{sym.__class__.__name__}' for symbol",
                     )
 
             return visitor(sym)

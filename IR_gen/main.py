@@ -221,7 +221,7 @@ class IRGen:
             res = self.gen(ast)
             self.IRs.append(res)
 
-        print(self.IRs)
+        # print(self.IRs)
 
         ir_passer = IRPasser(self.IRs, module_name=self.module_name)
         self.IRs = ir_passer.run()

@@ -13,7 +13,7 @@ class Parser:
         self.last_decorators = []
         self.keywords = create_keywords(self)
 
-        print(self.tokens)
+        # print(self.tokens)
 
     def get_token(self, index):
         if 0 <= index < len(self.tokens):

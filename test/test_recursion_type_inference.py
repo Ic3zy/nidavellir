@@ -75,10 +75,14 @@ ans = parent(2)
 def add(a, b):
     return a + b
 
-def helper(m, n):
-    return add(m, n)
+def compute(x, y, z):
+    t1 = add(x, y)
+    t2 = add(t1, z)
+    def helper(m, n):
+        return add(m, n)
+    return helper(t1, t2)
 
-val = helper(1, 2)
+val = compute(1, 2, 3)
 """
         asts = self._run_type_inference(code)
         self.assertIsNotNone(asts)
@@ -97,6 +101,115 @@ def top(val):
     return y * 2
 
 final = top(10)
+"""
+        asts = self._run_type_inference(code)
+        self.assertIsNotNone(asts)
+
+    def test_ultra_deep_call_chain_15_levels(self):
+        code = """
+def f1(x):
+    return x + 1
+def f2(x):
+    return f1(x) + 2
+def f3(x):
+    return f2(x) + 3
+def f4(x):
+    return f3(x) + 4
+def f5(x):
+    return f4(x) + 5
+def f6(x):
+    return f5(x) + 6
+def f7(x):
+    return f6(x) + 7
+def f8(x):
+    return f7(x) + 8
+def f9(x):
+    return f8(x) + 9
+def f10(x):
+    return f9(x) + 10
+def f11(x):
+    return f10(x) + 11
+def f12(x):
+    return f11(x) + 12
+def f13(x):
+    return f12(x) + 13
+def f14(x):
+    return f13(x) + 14
+def f15(x):
+    return f14(x) + 15
+
+total = f15(1)
+"""
+        asts = self._run_type_inference(code)
+        self.assertIsNotNone(asts)
+
+    def test_diamond_call_graph(self):
+        code = """
+def leaf(val):
+    return val + 1
+
+def branch_a(x):
+    return leaf(x) * 2
+
+def branch_b(x):
+    return leaf(x) * 3
+
+def root(x):
+    return branch_a(x) + branch_b(x)
+
+res = root(5)
+"""
+        asts = self._run_type_inference(code)
+        self.assertIsNotNone(asts)
+
+    def test_deeply_nested_4_level_closures(self):
+        code = """
+def lvl1(a):
+    b = a + 1
+    def lvl2(c):
+        d = b + c
+        def lvl3(e):
+            f = d + e
+            def lvl4(g):
+                return a + b + c + d + e + f + g
+            return lvl4(f)
+        return lvl3(d)
+    return lvl2(b)
+
+ans = lvl1(1)
+"""
+        asts = self._run_type_inference(code)
+        self.assertIsNotNone(asts)
+
+    def test_interleaved_multi_param_calls(self):
+        code = """
+def sub(a, b):
+    return a - b
+
+def mul(a, b):
+    return a * b
+
+def combine(w, x, y, z):
+    p1 = sub(w, x)
+    p2 = mul(y, z)
+    p3 = sub(p2, p1)
+    return mul(p3, p1)
+
+res = combine(10, 2, 3, 4)
+"""
+        asts = self._run_type_inference(code)
+        self.assertIsNotNone(asts)
+
+    def test_many_call_sites_same_func(self):
+        code = """
+def add(a, b):
+    return a + b
+
+v1 = add(1, 2)
+v2 = add(v1, 3)
+v3 = add(v2, v1)
+v4 = add(v3, v2)
+v5 = add(v4, v3)
 """
         asts = self._run_type_inference(code)
         self.assertIsNotNone(asts)

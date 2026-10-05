@@ -172,7 +172,7 @@ class ClassAST(AST):
 class SelfAST(AST):
     def __init__(self):
         self.target = "self"
-        self.type
+        self.type = None
 
 
 class UnaryOpAST(AST):

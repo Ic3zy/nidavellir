@@ -239,6 +239,6 @@ class IRLowerer:
         lirs = self.process_from_list(self.hir)
         self.lir = lirs
 
-        print(self.lir)
+        # print(self.lir)
 
         return self.lir
