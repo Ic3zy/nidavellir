@@ -111,6 +111,10 @@ class C_Gen:
                 return "/"
             case _ if isinstance(lir_node, ModLIR):
                 return "%"
+            case _ if isinstance(lir_node, GtLIR):
+                return ">"
+            case _ if isinstance(lir_node, LtLIR):
+                return "<"
             case _:
                 raise Exception(
                     f"No operator string for LIR node {type(lir_node).__name__}"
@@ -146,6 +150,12 @@ class C_Gen:
         return self._bin_ops(lir)
 
     def process_ModLIR(self, lir):
+        return self._bin_ops(lir)
+
+    def process_GtLIR(self, lir):
+        return self._bin_ops(lir)
+
+    def process_LtLIR(self, lir):
         return self._bin_ops(lir)
 
     def process_StoreLIR(self, lir):
@@ -186,6 +196,29 @@ class C_Gen:
         else:
             assign = CAssign(name, call, CTypeTranslator.translate(lir.type))
             return assign
+
+    def process_BlockLIR(self, lir):
+        name = lir.name
+        body = lir.body
+
+        body_nodes = []
+        for b in body:
+            body_nodes.append(self.process(b))
+
+        return CBlock(name, body_nodes)
+
+    def process_JumpLIR(self, lir):
+        target = lir.target_block
+        return CGoto(target)
+
+    def process_BranchLIR(self, lir):
+        cond = lir.condition
+        true_block = lir.true_block
+        false_block = lir.false_block
+
+        cond_id = self.name_maper(cond)
+        else_body = [CGoto(false_block)] if false_block else None
+        return CIf(cond_id, [CGoto(true_block)], None, else_body)
 
     def process(self, lir):
         name = lir.__class__.__name__

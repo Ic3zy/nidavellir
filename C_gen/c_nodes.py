@@ -240,3 +240,21 @@ class CNone(CNode):
 
     def __str__(self):
         return "Nida_None" if self.is_str else ""
+
+
+class CBlock(CNode):
+    def __init__(self, name, body):
+        self.name = name
+        self.body = body
+
+    def __str__(self):
+        body_str = "".join(f"{str(b)};\n" for b in self.body)
+        return f"{self.name}:\n{body_str}"
+
+
+class CGoto(CNode):
+    def __init__(self, block):
+        self.block = block
+
+    def __str__(self):
+        return f"goto {self.block}"

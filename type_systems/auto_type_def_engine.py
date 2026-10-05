@@ -438,6 +438,35 @@ class AutoTypeDefEngine:
 
         return sym
 
+    def stmt_ElifSymbol(self, sym):
+        cond = sym.cond
+        body = sym.body
+
+        self.process_eval(cond)
+        for b in body:
+            self.process_stmt(b)
+
+        return sym
+
+    def stmt_IfSymbol(self, sym):
+        cond = sym.cond
+        body = sym.body
+        elifs = sym.elifs
+        else_body = sym.else_body
+
+        self.process_eval(cond)
+        for b in body:
+            self.process_stmt(b)
+
+        for elif_sym in elifs:
+            self.process_stmt(elif_sym)
+
+        if else_body is not None:
+            for b in else_body:
+                self.process_stmt(b)
+
+        return sym
+
     def stmt_ForSymbol(self, sym):
         target = sym.target
         source = sym.source
@@ -586,7 +615,9 @@ class AutoTypeDefEngine:
     def process_stmt(self, sym):
         if sym is None or id(sym) in self.visiting:
             return sym
+
         self.visiting.add(id(sym))
+
         try:
             method_name = f"stmt_{type(sym).__name__}"
             visitor = getattr(self, method_name, None)
@@ -600,7 +631,9 @@ class AutoTypeDefEngine:
     def process_eval(self, sym):
         if sym is None or id(sym) in self.visiting:
             return sym
+
         self.visiting.add(id(sym))
+
         try:
             method_name = f"eval_{type(sym).__name__}"
             visitor = getattr(self, method_name, None)
@@ -634,3 +667,5 @@ class AutoTypeDefEngine:
     def run(self):
         for sym in self.sym_tree:
             self.process_stmt(sym)
+
+        # raise Exception(self.stb.print_scopes(st=self.sym_tree))

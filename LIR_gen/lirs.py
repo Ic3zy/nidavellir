@@ -101,6 +101,22 @@ class ModLIR(LIR):
         self.right_id = right_id
 
 
+class GtLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
+class LtLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
 class CallLIR(LIR):
     def __init__(self, name, type, func_name, args):
         self.name = name
@@ -113,3 +129,22 @@ class ArgLIR(LIR):
     def __init__(self, name, type):
         self.name = name
         self.type = type
+
+
+class BlockLIR(LIR):
+    def __init__(self, name):
+        self.name = name
+        self.body = []
+        self.terminator = None
+
+
+class JumpLIR(LIR):
+    def __init__(self, target_block):
+        self.target_block = target_block
+
+
+class BranchLIR(LIR):
+    def __init__(self, condition, true_block, false_block=None):
+        self.condition = condition
+        self.true_block = true_block
+        self.false_block = false_block

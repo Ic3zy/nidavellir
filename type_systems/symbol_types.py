@@ -133,3 +133,21 @@ class ForSymbol(Symbol):
         self.loop_count = loop_count
 
         self.type = None
+
+
+class IfSymbol(Symbol):
+    def __init__(self, cond, body, elifs, else_body, ast_node):
+        self.cond = cond
+        self.body = body
+
+        self.elifs = elifs
+        self.else_body = else_body
+
+        self.ast_node = ast_node
+
+
+class ElifSymbol(Symbol):
+    def __init__(self, cond, body, ast_node):
+        self.cond = cond
+        self.body = body
+        self.ast_node = ast_node

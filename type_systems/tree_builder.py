@@ -191,6 +191,31 @@ class SymbolTreeBuilder:
         # raise Exception(ast)
         return ForSymbol(target, source, body, loop_count, ast)
 
+    def stmt_ElifAST(self, ast):
+        cond = ast.cond
+        body = ast.body
+
+        cond_sym = self.process_eval(cond)
+        body_sym = self.process_from_list(body)
+
+        return ElifSymbol(cond_sym, body_sym, ast)
+
+    def stmt_IfAST(self, ast):
+        cond = ast.cond
+        body = ast.body
+
+        elifs = ast.elifs
+        else_body = ast.else_body
+
+        cond_sym = self.process_eval(cond)
+        body_sym = self.process_from_list(body)
+        elifs_sym = self.process_from_list(elifs)
+
+        if else_body is not None:
+            else_body = self.process_from_list(else_body.body)
+
+        return IfSymbol(cond_sym, body_sym, elifs_sym, else_body, ast)
+
     def process_eval(self, ast):
         method_name = f"eval_{type(ast).__name__}"
         visitor = getattr(self, method_name, None)
