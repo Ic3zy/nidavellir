@@ -1,11 +1,10 @@
-# Nidavellir
+# Nidavellir Programming Language
 
 **Nidavellir** is a statically-typed programming language designed to provide low-overhead syntax while maintaining native execution and explicit compiler control.
 
 The compiler driver for Nidavellir is **`nidac`**.
 
 ---
-
 ## Identity & Core Philosophy
 
 - **Language vs. Driver**: **Nidavellir** is the programming language (source files use the `.nida` extension). **`nidac`** is the compiler driver.
