@@ -18,6 +18,17 @@ class TypeDefHelper:
             return None
         visited.add(id(sym))
 
+        if isinstance(sym, VariableSymbol):
+            if hasattr(sym, "lookup") and sym.lookup is not None:
+                if (
+                    isinstance(sym.lookup.type, IntType)
+                    and sym.lookup.type.min_val is not None
+                    and sym.lookup.type.max_val is not None
+                ):
+                    return (sym.lookup.type.min_val, sym.lookup.type.max_val)
+                return cls.infer_int_range(sym.lookup, visited)
+            return None
+
         if (
             hasattr(sym, "type")
             and isinstance(sym.type, IntType)
@@ -45,6 +56,12 @@ class TypeDefHelper:
 
         if isinstance(sym, VariableSymbol):
             if hasattr(sym, "lookup") and sym.lookup is not None:
+                if (
+                    isinstance(sym.lookup.type, IntType)
+                    and sym.lookup.type.min_val is not None
+                    and sym.lookup.type.max_val is not None
+                ):
+                    return (sym.lookup.type.min_val, sym.lookup.type.max_val)
                 return cls.infer_int_range(sym.lookup, visited)
             return None
 
@@ -285,12 +302,20 @@ class AutoTypeDefEngine:
         return sym
 
     def eval_VariableSymbol(self, sym):
-        if sym.type is None:
-            self.process_stmt_or_eval(sym.lookup)
-            sym.type = sym.lookup.type
+        if sym.type is None or (
+            sym.lookup is not None
+            and sym.lookup.type is not None
+            and sym.type != sym.lookup.type
+        ):
+            if sym.lookup is not None and sym.lookup.type is None:
+                self.process_stmt_or_eval(sym.lookup)
+            if sym.lookup is not None:
+                sym.type = sym.lookup.type
 
         if sym.type is not None:
             sym.set_type_to_AST()
+
+        # raise Exception(f"Cannot infer type of {self.stb.print_scopes(sym)}")
 
         return sym
 
@@ -302,6 +327,9 @@ class AutoTypeDefEngine:
 
     def eval_CallSymbol(self, sym):
         return self.stmt_CallSymbol(sym)
+
+    def eval_BooleanSymbol(self, sym):
+        return sym
 
     def stmt_FunctionSymbol(self, sym):
         inferred_args_types = []
@@ -398,7 +426,7 @@ class AutoTypeDefEngine:
     def stmt_AssignSymbol(self, sym):
         val = sym.value
 
-        if val is not None and val.type is None:
+        if val is not None:
             self.process_eval(val)
 
         val_type = None
@@ -433,6 +461,18 @@ class AutoTypeDefEngine:
             val_type = val.type
 
         if val_type is not None:
+            target = sym.parent_assign if sym.parent_assign else sym
+            if (
+                target.type is not None
+                and isinstance(target.type, IntType)
+                and target.type.min_val is not None
+                and isinstance(val_type, IntType)
+                and val_type.min_val is not None
+            ):
+                new_min = min(target.type.min_val, val_type.min_val)
+                new_max = max(target.type.max_val, val_type.max_val)
+                val_type = IntType(new_min, new_max)
+
             sym.type = val_type
             sym.set_type_to_AST()
 
@@ -611,6 +651,109 @@ class AutoTypeDefEngine:
                 stmt.type = new_type
                 if hasattr(var_sym, "set_type_to_AST"):
                     var_sym.set_type_to_AST()
+
+    def _simulate_loop_body(self, body_stmts, iterations):
+        curr_val = {}
+        max_range = {}
+
+        def get_sym_range(sym):
+            if isinstance(sym, NumberSymbol):
+                v = TypeDefHelper._to_int(sym.value)
+                return (v, v)
+            elif isinstance(sym, VariableSymbol):
+                name = sym.lookup.name if sym.lookup else sym.name
+                if name in curr_val:
+                    return (curr_val[name][0], curr_val[name][1])
+                return TypeDefHelper._resolve_sym_range(sym)
+            elif isinstance(sym, BinaryOpSymbol):
+                left_r = get_sym_range(sym.left_sym)
+                right_r = get_sym_range(sym.right_sym)
+                if left_r and right_r:
+                    op = sym.op
+                    if op == "+":
+                        return (left_r[0] + right_r[0], left_r[1] + right_r[1])
+                    elif op == "-":
+                        return (left_r[0] - right_r[1], left_r[1] - right_r[0])
+                    elif op == "*":
+                        p1, p2, p3, p4 = (
+                            left_r[0] * right_r[0],
+                            left_r[0] * right_r[1],
+                            left_r[1] * right_r[0],
+                            left_r[1] * right_r[1],
+                        )
+                        return (min(p1, p2, p3, p4), max(p1, p2, p3, p4))
+            return TypeDefHelper._resolve_sym_range(sym)
+
+        def _sim_stmt_list(stmts):
+            for stmt in stmts:
+                if isinstance(stmt, AssignSymbol):
+                    target_var = stmt.parent_assign if stmt.parent_assign else stmt
+                    name = target_var.name
+
+                    if name not in curr_val:
+                        init_r = TypeDefHelper.infer_int_range(target_var)
+                        if init_r is not None:
+                            curr_val[name] = [init_r[0], init_r[1]]
+                            max_range[name] = [init_r[0], init_r[1]]
+
+                    val_r = get_sym_range(stmt.value)
+                    if val_r is not None:
+                        curr_val[name] = [val_r[0], val_r[1]]
+                        if name not in max_range:
+                            max_range[name] = [val_r[0], val_r[1]]
+                        else:
+                            max_range[name][0] = min(max_range[name][0], val_r[0])
+                            max_range[name][1] = max(max_range[name][1], val_r[1])
+
+                elif isinstance(stmt, IfSymbol):
+                    cond_possible = True
+                    if isinstance(stmt.cond, BinaryOpSymbol):
+                        c_left = get_sym_range(stmt.cond.left_sym)
+                        c_right = get_sym_range(stmt.cond.right_sym)
+                        c_op = stmt.cond.op
+                        if c_left and c_right:
+                            if c_op == ">" and c_left[1] <= c_right[0]:
+                                cond_possible = False
+                            elif c_op == "<" and c_left[0] >= c_right[1]:
+                                cond_possible = False
+
+                    if cond_possible:
+                        _sim_stmt_list(stmt.body)
+                    if stmt.else_body:
+                        _sim_stmt_list(stmt.else_body)
+
+        for _ in range(iterations):
+            _sim_stmt_list(body_stmts)
+
+        for name, (vmin, vmax) in max_range.items():
+            lk = self.stb.stm.lookup(name)
+            if lk is not None:
+                new_type = IntType(vmin, vmax)
+                lk.type = new_type
+                lk.set_type_to_AST()
+
+    def stmt_WhileSymbol(self, sym):
+        cond = sym.cond
+        self.process_eval(cond)
+
+        iterations = 10
+        if isinstance(cond, BinaryOpSymbol):
+            left = cond.left_sym
+            right = cond.right_sym
+            op = cond.op
+
+            limit_sym = right if isinstance(left, VariableSymbol) else left
+            limit_range = TypeDefHelper._resolve_sym_range(limit_sym)
+            if limit_range is not None and limit_range[1] is not None:
+                iterations = max(1, min(1000, limit_range[1]))
+
+        if sym.body:
+            self._simulate_loop_body(sym.body, iterations)
+
+        for b in sym.body:
+            self.process_stmt(b)
+
+        return sym
 
     def process_stmt(self, sym):
         if sym is None or id(sym) in self.visiting:

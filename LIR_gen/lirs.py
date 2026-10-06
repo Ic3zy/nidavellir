@@ -34,6 +34,13 @@ class ConstLIR(LIR):
         self.value = value
 
 
+class DeclareLIR(LIR):
+    def __init__(self, name, type, value):
+        self.name = name
+        self.type = type
+        self.value = value
+
+
 class StoreLIR(LIR):
     def __init__(self, name, type, value):
         self.name = name

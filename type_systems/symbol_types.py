@@ -151,3 +151,16 @@ class ElifSymbol(Symbol):
         self.cond = cond
         self.body = body
         self.ast_node = ast_node
+
+
+class WhileSymbol(Symbol):
+    def __init__(self, cond, body, ast_node):
+        self.cond = cond
+        self.body = body
+        self.ast_node = ast_node
+
+
+class BooleanSymbol(Symbol):
+    def __init__(self, value, ast_node):
+        self.value = value
+        self.ast_node = ast_node

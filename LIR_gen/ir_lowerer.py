@@ -179,15 +179,25 @@ class IRLowerer:
         target = hir.target
         value = hir.value
         type_str = str(hir.type)
+        is_reassign = hir.re_assign
 
         value_lirs = self.process(value)
 
-        const_id = self.get_current_value_id()
-        store_lir = StoreLIR(target, type_str, const_id)
-        self.blocks.emit(store_lir)
+        as_lir = None
+
+        if is_reassign:
+            const_id = self.get_current_value_id()
+            store_lir = StoreLIR(target, type_str, const_id)
+            self.blocks.emit(store_lir)
+            as_lir = store_lir
+        else:
+            const_id = self.get_current_value_id()
+            declare_lir = DeclareLIR(target, type_str, const_id)
+            self.blocks.emit(declare_lir)
+            as_lir = declare_lir
 
         lirs.append(value_lirs)
-        lirs.append(store_lir)
+        lirs.append(as_lir)
         return lirs
 
     def process_args(self, args):
@@ -338,6 +348,39 @@ class IRLowerer:
 
         self.blocks.switch_to(merge_block)
 
+    def process_WhileIR(self, hir):
+        is_always_true = isinstance(hir.cond, BooleanIR) and hir.cond.value
+
+        cond_block = self.blocks.create_block()
+        loop_block = self.blocks.create_block()
+        merge_block = self.blocks.create_block()
+
+        self.blocks.jump(cond_block)
+
+        self.blocks.switch_to(cond_block)
+
+        self.process(hir.cond)
+
+        if not is_always_true:
+            cond_id = self.get_current_value_id()
+
+            self.blocks.branch(
+                cond_id,
+                loop_block,
+                merge_block,
+            )
+        else:
+            self.blocks.jump(loop_block)
+
+        self.blocks.switch_to(loop_block)
+
+        self.process_from_list(hir.body)
+
+        if not self.blocks.is_terminated():
+            self.blocks.jump(cond_block)
+
+        self.blocks.switch_to(merge_block)
+
     def _lower_branch_body(self, body, merge_block):
         if isinstance(body, BlockIR):
             body = body.body
@@ -404,5 +447,7 @@ class IRLowerer:
             if box.parent is None or box.parent.block in self.lir:
                 if box.block not in self.lir and box.block.body:
                     self.lir.append(box.block)
+
+        # raise Exception(self.lir)
 
         return self.lir

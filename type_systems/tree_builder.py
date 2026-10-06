@@ -54,6 +54,9 @@ class SymbolTreeBuilder:
         self.stmt_intrinsic(ast.name, ast.type, ast.args)
         return self.stmt_CallAST(ast)
 
+    def eval_BooleanAST(self, ast):
+        return BooleanSymbol(ast.value, ast)
+
     def stmt_PassAST(self, ast):
         pass
 
@@ -215,6 +218,15 @@ class SymbolTreeBuilder:
             else_body = self.process_from_list(else_body.body)
 
         return IfSymbol(cond_sym, body_sym, elifs_sym, else_body, ast)
+
+    def stmt_WhileAST(self, ast):
+        cond = ast.cond
+        body = ast.body
+
+        cond_sym = self.process_eval(cond)
+        body_sym = self.process_from_list(body)
+
+        return WhileSymbol(cond_sym, body_sym, ast)
 
     def process_eval(self, ast):
         method_name = f"eval_{type(ast).__name__}"

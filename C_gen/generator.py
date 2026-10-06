@@ -158,12 +158,19 @@ class C_Gen:
     def process_LtLIR(self, lir):
         return self._bin_ops(lir)
 
-    def process_StoreLIR(self, lir):
+    def process_DeclareLIR(self, lir):
         name = lir.name
         type = CTypeTranslator.translate(lir.type)
         val_name = self.name_maper(lir.value)
         value = CVariable(val_name)
         return CAssign(name, value, type)
+
+    def process_StoreLIR(self, lir):
+        name = lir.name
+        type = CTypeTranslator.translate(lir.type)
+        val_name = self.name_maper(lir.value)
+        value = CVariable(val_name)
+        return CAssign(name, value, type, re_assign=True)
 
     def process_ReturnLIR(self, lir):
         value = lir.value
