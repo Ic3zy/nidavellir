@@ -1,3 +1,23 @@
+PRIMITIVE_TYPE_FACTORIES = {
+    "bool": lambda: BoolType(),
+    "u8": lambda: IntType(signed=False, byte_size=1),
+    "i8": lambda: IntType(signed=True, byte_size=1),
+    "u16": lambda: IntType(signed=False, byte_size=2),
+    "i16": lambda: IntType(signed=True, byte_size=2),
+    "u32": lambda: IntType(signed=False, byte_size=4),
+    "i32": lambda: IntType(signed=True, byte_size=4),
+    "u64": lambda: IntType(signed=False, byte_size=8),
+    "i64": lambda: IntType(signed=True, byte_size=8),
+    "dyn_int": lambda: IntType(signed=True),
+    "f32": lambda: FloatType(byte_size=4),
+    "f64": lambda: FloatType(byte_size=8),
+    "dyn_float": lambda: FloatType(),
+    "str": lambda: StringType(),
+    "None": lambda: NoneType(),
+    "void": lambda: NoneType(),
+    "dynamic": lambda: DynamicType(),
+}
+
 TYPE_RANK = {
     "bool": 0,
     "u8": 1,
@@ -23,41 +43,9 @@ def resolve_type(type_val):
         return type_val
 
     if isinstance(type_val, str):
-        match type_val:
-            case "bool":
-                return BoolType()
-            case "u8":
-                return IntType(signed=False, byte_size=1)
-            case "i8":
-                return IntType(signed=True, byte_size=1)
-            case "u16":
-                return IntType(signed=False, byte_size=2)
-            case "i16":
-                return IntType(signed=True, byte_size=2)
-            case "u32":
-                return IntType(signed=False, byte_size=4)
-            case "i32":
-                return IntType(signed=True, byte_size=4)
-            case "u64":
-                return IntType(signed=False, byte_size=8)
-            case "i64":
-                return IntType(signed=True, byte_size=8)
-            case "dyn_int":
-                return IntType(signed=True)
-            case "f32":
-                return FloatType(byte_size=4)
-            case "f64":
-                return FloatType(byte_size=8)
-            case "dyn_float":
-                return FloatType()
-            case "str":
-                return StringType()
-            case "None" | "void":
-                return NoneType()
-            case "dynamic":
-                return DynamicType()
-            case _:
-                return type_val
+        fn = PRIMITIVE_TYPE_FACTORIES.get(type_val, None)
+        if fn is not None:
+            return fn()
 
     return type_val
 
@@ -106,8 +94,12 @@ class IntType(Type):
         else:
             self.min_val = min_val
             self.max_val = max_val
-            self.signed = arg1 if (arg1 is not None and not isinstance(arg1, int)) else signed
-            self.byte_size = arg2 if (arg2 is not None and not isinstance(arg2, int)) else byte_size
+            self.signed = (
+                arg1 if (arg1 is not None and not isinstance(arg1, int)) else signed
+            )
+            self.byte_size = (
+                arg2 if (arg2 is not None and not isinstance(arg2, int)) else byte_size
+            )
 
         self.is_dynamic = (
             self.byte_size == DynamicType

@@ -80,6 +80,8 @@ static inline NidaVal _Nida_make_ptr_or_none(const void *v)
   return (NidaVal){.type = NIDA_TYPE_PTR, .value.ptr = v};
 }
 
+static inline NidaVal _Nida_make_Nida_str(Nida_Str v) { return (NidaVal){.type = NIDA_TYPE_STR, .value.str = v.data}; }
+
 #define NIDA_VAL(x) _Generic((x),       \
     bool: _Nida_make_bool,              \
     char: _Nida_make_char,              \
@@ -98,6 +100,7 @@ static inline NidaVal _Nida_make_ptr_or_none(const void *v)
     char *: _Nida_make_str,             \
     const char *: _Nida_make_str,       \
     void *: _Nida_make_ptr_or_none,     \
+    Nida_Str: _Nida_make_Nida_str,      \
     const void *: _Nida_make_ptr_or_none)(x)
 
 static inline void _Nida_print_chunk(size_t count, const NidaVal args[], bool is_last)

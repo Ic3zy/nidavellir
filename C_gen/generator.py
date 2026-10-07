@@ -97,6 +97,9 @@ class C_Gen:
             val = CExprTranslator.translate(lir.value)
 
         type = CTypeTranslator.translate(lir.type)
+        if isinstance(val, CString):
+            val = CCall("Nida_str_new", [val])
+
         return CAssign(lir_name, val, type)
 
     def _lir_to_op(self, lir_node):

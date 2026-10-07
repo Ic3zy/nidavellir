@@ -132,6 +132,13 @@ class IRLowerer:
     def get_current_block_id(self):
         return f"B{self.value_id.current()}"
 
+    def process_StringLiteralIR(self, hir):
+        lirs = LIRs()
+        const_lir = ConstLIR(self.get_value_id(), "str", hir.value)
+        self.blocks.emit(const_lir)
+        lirs.append(const_lir)
+        return lirs
+
     def process_VariableIR(self, hir):
         name = hir.name
         type_str = str(hir.type)
