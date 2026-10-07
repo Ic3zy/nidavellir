@@ -54,6 +54,34 @@ def print_intrinsic(Hir):
     return BlockIR(chunks)
 
 
+def range_intrinsic(Hir):
+    from IR_gen.irs import RangeIR, NumberIR
+
+    args = Hir.args
+    arg_c = len(args)
+
+    start = None
+    end = None
+    step = None
+
+    if arg_c == 1:
+        start = NumberIR(0)
+        end = args[0]
+        step = NumberIR(1)
+    elif arg_c == 2:
+        start = args[0]
+        end = args[1]
+        step = NumberIR(1)
+    elif arg_c == 3:
+        start = args[0]
+        end = args[1]
+        step = args[2]
+    else:
+        raise Exception("Range intrinsic takes 1, 2 or 3 arguments")
+
+    return RangeIR(start, end, step)
+
+
 INTRINSIC_HANDLERS = {
     "list": {
         "name": "list",
@@ -73,8 +101,8 @@ INTRINSIC_HANDLERS = {
     "range": {
         "name": "range",
         "return_type": "List",
-        "params": [("size", "Any_int")],
-        "handler": not_implemented,
-        "is_variadic": False,
+        "params": [],
+        "handler": range_intrinsic,
+        "is_variadic": True,
     },
 }

@@ -10,9 +10,7 @@ class IR:
 
         children = []
         for k, v in self.__dict__.items():
-            if k in ("decs", "type", "body") and not v:
-                continue
-            if k == "body":
+            if k in ("decs") and not v:
                 continue
             children.append((k, v))
 
@@ -187,3 +185,10 @@ class IntrinsicIR(IR):
         self.args = args
         self.type = None
         self.handler = handler
+
+
+class RangeIR(IR):
+    def __init__(self, start, end, step):
+        self.start = start
+        self.end = end
+        self.step = step

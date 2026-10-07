@@ -315,8 +315,6 @@ class AutoTypeDefEngine:
         if sym.type is not None:
             sym.set_type_to_AST()
 
-        # raise Exception(f"Cannot infer type of {self.stb.print_scopes(sym)}")
-
         return sym
 
     def eval_StringSymbol(self, sym):
@@ -652,6 +650,9 @@ class AutoTypeDefEngine:
                 if hasattr(var_sym, "set_type_to_AST"):
                     var_sym.set_type_to_AST()
 
+        else:
+            self.process_stmt(stmt)
+
     def _simulate_loop_body(self, body_stmts, iterations):
         curr_val = {}
         max_range = {}
@@ -812,3 +813,4 @@ class AutoTypeDefEngine:
             self.process_stmt(sym)
 
         # raise Exception(self.stb.print_scopes(st=self.sym_tree))
+        # raise Exception(self.stb.ast_tree)

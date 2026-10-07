@@ -388,6 +388,59 @@ class IRLowerer:
 
         self.blocks.switch_to(merge_block)
 
+    def process_ForIR(self, hir):
+        # The First block
+        target = hir.target.target
+        target_reassign = hir.target.re_assign
+        target_type = str(hir.target.type)
+        source = hir.source
+
+        source.start.type = hir.target.type
+        source.end.type = hir.target.type
+        source.step.type = hir.target.type
+
+        if not isinstance(source, RangeIR):
+            raise NotImplementedError("Only range-based for loops are supported")
+
+        condition_block = self.blocks.create_block()
+        loop_block = self.blocks.create_block()
+        merge_block = self.blocks.create_block()
+
+        self.process(source.start)
+        if target_reassign:
+            self.blocks.emit(StoreLIR(target, target_type, self.get_current_value_id()))
+        else:
+            self.blocks.emit(
+                DeclareLIR(target, target_type, self.get_current_value_id())
+            )
+        self.blocks.jump(condition_block)
+
+        # The condition block
+
+        self.blocks.switch_to(condition_block)
+        self.blocks.emit(LoadLIR(self.get_value_id(), target, target_type))
+        loaded_id = self.get_current_value_id()
+        self.process(source.end)
+        end_id = self.get_current_value_id()
+        self.blocks.emit(LtLIR(self.get_value_id(), target_type, loaded_id, end_id))
+        self.blocks.branch(self.get_current_value_id(), loop_block, merge_block)
+
+        # The loop block
+        self.blocks.switch_to(loop_block)
+
+        self.process_from_list(hir.body)
+
+        self.process(source.step)
+        step_id = self.get_current_value_id()
+        self.blocks.emit(LoadLIR(self.get_value_id(), target, target_type))
+
+        loaded_id = self.get_current_value_id()
+        self.blocks.emit(AddLIR(self.get_value_id(), target_type, loaded_id, step_id))
+        self.blocks.emit(StoreLIR(target, target_type, self.get_current_value_id()))
+        self.blocks.jump(condition_block)
+
+        self.blocks.switch_to(merge_block)
+
     def _lower_branch_body(self, body, merge_block):
         if isinstance(body, BlockIR):
             body = body.body

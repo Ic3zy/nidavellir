@@ -171,7 +171,7 @@ class IRGen:
         source = ast.source
         body = ast.body
 
-        target_ir = VariableIR(target.target)
+        target_ir = self.gen(target)
         source_ir = self.gen(source)
         body_irs = []
         for n in body:

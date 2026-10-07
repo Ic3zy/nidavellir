@@ -191,17 +191,17 @@ class SimpleASTVisitor:
             res = self.visit_expression(arg)
             analyzed_args.append(res if res is not None else arg)
 
-        if is_intrinsic:
-            intrinsic_node = IntrinsicAST(
-                target,
-                func["return_type"],
-                node.args,
-                func["handler"],
-            )
+        # if is_intrinsic:
+        #     intrinsic_node = IntrinsicAST(
+        #         target,
+        #         func["return_type"],
+        #         node.args,
+        #         func["handler"],
+        #     )
 
-            node.__dict__ = intrinsic_node.__dict__
-            node.__class__ = IntrinsicAST
-            return node
+        #     node.__dict__ = intrinsic_node.__dict__
+        #     node.__class__ = IntrinsicAST
+        #     return node
 
         return node
 
@@ -239,10 +239,8 @@ class SimpleASTVisitor:
         chain = getattr(node, "chain", [])
         class_name = self.get_current_class_name()
 
-        if node.target == "damage":
-            pass
-
         if class_name is not None:
+            raise Exception(node)
             if node.target == "self" and len(chain) == 1:
                 self.stm.define_field(
                     class_name=class_name,
@@ -410,7 +408,6 @@ class SimpleASTVisitor:
         self.stm.exit_scope()
 
     def stmt_ForAST(self, node):
-        self.stm.enter_scope(scope_name="for", is_func=False)
 
         if not isinstance(node.target, AssignAST):
             self.error(
@@ -426,7 +423,8 @@ class SimpleASTVisitor:
                 node=node.target,
             )
 
-        self.stm.define_var(node.target.target, node.target.type)
+        self.visit_statement(node.target)
+        self.stm.enter_scope(scope_name="for", is_func=False)
 
         self.visit_expression(node.source)
 
