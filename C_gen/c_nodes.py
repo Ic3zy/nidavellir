@@ -78,7 +78,9 @@ class CFunction(CNode):
         self.type = type
 
     def __str__(self):
-        body_str = "".join(f"{str(b)};\n" for b in self.body)
+        body_str = "".join(
+            f"{str(b)}{';' if not isinstance(b, CBlock) else ''}\n" for b in self.body
+        )
         args_str = ", ".join(str(a) for a in self.args)
         return f"{str(self.type)} {self.c_name}({args_str}) {{\n{body_str}}}"
 

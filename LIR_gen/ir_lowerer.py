@@ -292,29 +292,53 @@ class IRLowerer:
 
     def _op_to_lir(self, typex, left_id, right_id, op):
         type_str = str(typex)
+        result_id = self.get_value_id()
+
         match op:
             case "+":
                 if isinstance(typex, StringType):
                     return CallLIR(
-                        self.get_value_id(),
+                        result_id,
                         type_str,
                         "Nida_str_concat",
                         [left_id, right_id],
                     )
-                else:
-                    return AddLIR(self.get_value_id(), type_str, left_id, right_id)
+                return AddLIR(result_id, type_str, left_id, right_id)
+
             case "-":
-                return SubLIR(self.get_value_id(), type_str, left_id, right_id)
+                return SubLIR(result_id, type_str, left_id, right_id)
             case "*":
-                return MulLIR(self.get_value_id(), type_str, left_id, right_id)
+                return MulLIR(result_id, type_str, left_id, right_id)
             case "/":
-                return DivLIR(self.get_value_id(), type_str, left_id, right_id)
+                return DivLIR(result_id, type_str, left_id, right_id)
             case "%":
-                return ModLIR(self.get_value_id(), type_str, left_id, right_id)
+                return ModLIR(result_id, type_str, left_id, right_id)
+
+            case "==":
+                if isinstance(typex, StringType):
+                    return CallLIR(
+                        result_id,
+                        "bool",
+                        "Nida_str_eq",
+                        [left_id, right_id],
+                    )
+                return EqLIR(result_id, "bool", left_id, right_id)
+            case "!=":
+                return NeLIR(result_id, "bool", left_id, right_id)
             case ">":
-                return GtLIR(self.get_value_id(), type_str, left_id, right_id)
+                return GtLIR(result_id, "bool", left_id, right_id)
             case "<":
-                return LtLIR(self.get_value_id(), type_str, left_id, right_id)
+                return LtLIR(result_id, "bool", left_id, right_id)
+            case ">=":
+                return GeLIR(result_id, "bool", left_id, right_id)
+            case "<=":
+                return LeLIR(result_id, "bool", left_id, right_id)
+
+            case "is":
+                return IsLIR(result_id, "bool", left_id, right_id)
+            case "is not":
+                return IsNotLIR(result_id, "bool", left_id, right_id)
+
             case _:
                 raise Exception(f"No LIR for op {op}")
 

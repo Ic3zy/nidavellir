@@ -120,6 +120,14 @@ class C_Gen:
                 return ">"
             case _ if isinstance(lir_node, LtLIR):
                 return "<"
+            case _ if isinstance(lir_node, GeLIR):
+                return ">="
+            case _ if isinstance(lir_node, LeLIR):
+                return "<="
+            case _ if isinstance(lir_node, EqLIR):
+                return "=="
+            case _ if isinstance(lir_node, NeLIR):
+                return "!="
             case _:
                 raise Exception(
                     f"No operator string for LIR node {type(lir_node).__name__}"
@@ -161,6 +169,18 @@ class C_Gen:
         return self._bin_ops(lir)
 
     def process_LtLIR(self, lir):
+        return self._bin_ops(lir)
+
+    def process_GeLIR(self, lir):
+        return self._bin_ops(lir)
+
+    def process_LeLIR(self, lir):
+        return self._bin_ops(lir)
+
+    def process_EqLIR(self, lir):
+        return self._bin_ops(lir)
+
+    def process_NeLIR(self, lir):
         return self._bin_ops(lir)
 
     def process_DeclareLIR(self, lir):

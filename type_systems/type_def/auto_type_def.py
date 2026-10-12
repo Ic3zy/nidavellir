@@ -18,6 +18,9 @@ class AutoTypeDefEngine:
     def __init__(self, sym_tree):
         self.sym_tree = sym_tree
 
+    def process_BooleanSymbol(self, sym):
+        pass
+
     def process_NumberSymbol(self, sym):
         val = detect_type(sym.value)
 
@@ -82,6 +85,8 @@ class AutoTypeDefEngine:
         for node in body:
             if isinstance(node, ReturnSymbol):
                 returns.append(node)
+            elif hasattr(node, "body"):
+                returns.extend(self._infer_returns(node.body))
 
         return returns
 
@@ -126,12 +131,14 @@ class AutoTypeDefEngine:
         self.process_from_list(sym.body)
 
         inferred_type = None
-
         for node in self._infer_returns(sym.body):
-            if inferred_type is not None and node.type != inferred_type:
+            if inferred_type is None:
+                inferred_type = node.type
+                continue
+
+            if type(node.type) != type(inferred_type):
                 raise Exception(
-                    sym,
-                    f"Incompatible return types in function {sym.name}: "
+                    f"Incompatible return types in function '{sym.name}': "
                     f"{inferred_type} and {node.type}",
                 )
             inferred_type = node.type
@@ -166,6 +173,22 @@ class AutoTypeDefEngine:
 
         for arg in sym.args:
             self.process(arg)
+
+    def process_IfSymbol(self, sym):
+        self.process(sym.cond)
+
+        for stmt in sym.body:
+            self.process(stmt)
+
+        for elif_sym in sym.elifs:
+            self.process(elif_sym.cond)
+
+            for stmt in elif_sym.body:
+                self.process(stmt)
+
+        if sym.else_body is not None:
+            for stmt in sym.else_body.body:
+                self.process(stmt)
 
     def process(self, sym):
         method_name = f"process_{type(sym).__name__}"

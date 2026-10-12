@@ -124,6 +124,54 @@ class LtLIR(LIR):
         self.right_id = right_id
 
 
+class GeLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
+class LeLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
+class IsLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
+class IsNotLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
+class EqLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
+class NeLIR(LIR):
+    def __init__(self, name, type, left_id, right_id):
+        self.name = name
+        self.type = type
+        self.left_id = left_id
+        self.right_id = right_id
+
+
 class CallLIR(LIR):
     def __init__(self, name, type, func_name, args):
         self.name = name
