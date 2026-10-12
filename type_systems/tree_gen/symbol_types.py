@@ -1,4 +1,4 @@
-from .types import resolve_type, StringType, NoneType
+from ..types import resolve_type, StringType, NoneType
 
 
 class Symbol:
@@ -24,8 +24,7 @@ class AssignSymbol(Symbol):
         self.ast_node.type = self.type
         if self.parent_assign is not None:
             self.parent_assign.type = self.type
-            if hasattr(self.parent_assign, "set_type_to_AST"):
-                self.parent_assign.set_type_to_AST()
+            self.parent_assign.set_type_to_AST()
 
 
 class NumberSymbol(Symbol):

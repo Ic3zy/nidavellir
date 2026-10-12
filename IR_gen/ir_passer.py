@@ -81,6 +81,15 @@ class IRPasser:
 
         return ir
 
+    def stmt_WhileIR(self, ir):
+        for stmt_WhileIR in ir.body:
+            self.run_stmt(stmt_WhileIR)
+
+        if ir.cond:
+            ir.cond = self.run_expr(ir.cond)
+
+        return ir
+
     def expr_BinaryOpIR(self, ir):
         ir.left = self.run_expr(ir.left)
         ir.right = self.run_expr(ir.right)

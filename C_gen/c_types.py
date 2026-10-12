@@ -35,7 +35,7 @@ class CTInt(CType):
         int_str = "uint" if not self.signed else "int"
 
         if self.byte_size == Infinity:
-            return f"dyn_int"
+            return f"idyn"
 
         if self.byte_size == 1:
             return f"{int_str}8_t"

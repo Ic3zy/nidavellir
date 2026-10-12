@@ -8,10 +8,12 @@ PRIMITIVE_TYPE_FACTORIES = {
     "i32": lambda: IntType(signed=True, byte_size=4),
     "u64": lambda: IntType(signed=False, byte_size=8),
     "i64": lambda: IntType(signed=True, byte_size=8),
-    "dyn_int": lambda: IntType(signed=True),
+    # dynamic integer
+    "idyn": lambda: IntType(signed=True),
     "f32": lambda: FloatType(byte_size=4),
     "f64": lambda: FloatType(byte_size=8),
-    "dyn_float": lambda: FloatType(),
+    # dynamic float
+    "fdyn": lambda: FloatType(),
     "str": lambda: StringType(),
     "None": lambda: NoneType(),
     "void": lambda: NoneType(),
@@ -30,7 +32,7 @@ TYPE_RANK = {
     "i64": 8,
     "f32": 9,
     "f64": 10,
-    "dyn_int": 11,
+    "idyn": 11,
 }
 
 
@@ -47,7 +49,7 @@ def resolve_type(type_val):
         if fn is not None:
             return fn()
 
-    return type_val
+    return None
 
 
 class Infinity:
@@ -56,6 +58,9 @@ class Infinity:
 
 
 class Type:
+    def __repr__(self):
+        return f"<Nida Type: {self.__class__.__name__}>"
+
     def __str__(self):
         return self.__class__.__name__
 
@@ -136,7 +141,7 @@ class IntType(Type):
 
     def __str__(self):
         if self.is_dynamic:
-            return "dyn_int"
+            return "idyn"
 
         prefix = "i" if self.signed else "u"
         return f"{prefix}{self.byte_size * 8}"
@@ -159,7 +164,7 @@ class FloatType(Type):
 
     def __str__(self):
         if self.is_dynamic:
-            return "dyn_float"
+            return "fdyn"
 
         return f"f{self.byte_size * 8}"
 

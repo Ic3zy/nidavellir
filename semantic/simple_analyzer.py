@@ -505,7 +505,13 @@ def normalize_ast_types(node):
         return
 
     if hasattr(node, "type") and node.type is not None:
-        node.type = resolve_type(node.type)
+        new_type = resolve_type(node.type)
+        if new_type is None:
+            raise TypeError(
+                f"Unknown type '{node.type}'. The type is not defined or imported."
+            )
+
+        node.type = new_type
 
     for attr in ("body", "args", "elifs"):
         val = getattr(node, attr, None)

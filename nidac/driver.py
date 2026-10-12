@@ -4,7 +4,8 @@ from nida_ast import Parser
 from semantic import SimpleAnalyzer
 from import_systems import ImportSystem
 
-from type_systems import AutoTypeDefEngine
+# from type_systems import AutoTypeDefEngine
+from type_systems import TypeSystem
 from IR_gen import IRGen
 from LIR_gen import IRLowerer
 from C_gen import C_Gen
@@ -151,7 +152,9 @@ class Nidac:
         if not self.symbol_table:
             self.analyze()
 
-        type_def_engine = AutoTypeDefEngine(self.asts)
+        # type_def_engine = AutoTypeDefEngine(self.asts)
+        # SymbolTreeBuilder(self.asts).run()
+        TypeSystem(self.asts)
         # type_def_engine.run()
 
 

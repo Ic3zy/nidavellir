@@ -153,8 +153,14 @@ class IRLowerer:
 
     def process_NumberIR(self, hir):
         val = hir.value
+        types = hir.type
         if val is not None and isinstance(val, str):
-            val = int(val)
+            if isinstance(types, FloatType):
+                val = float(val)
+            elif isinstance(types, IntType):
+                val = int(val)
+            else:
+                raise Exception(f"Invalid number type: {types}")
 
         const_id = self.get_value_id()
         type_str = str(hir.type)
