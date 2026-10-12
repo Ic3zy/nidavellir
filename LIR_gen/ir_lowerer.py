@@ -503,6 +503,9 @@ class IRLowerer:
             self.blocks.switch_to(current_false_block)
             self._lower_branch_body(else_body, merge_block)
 
+    def process_IRImport(self, hir):
+        pass
+
     def process(self, hir):
         name = hir.__class__.__name__
         func = getattr(self, f"process_{name}", None)

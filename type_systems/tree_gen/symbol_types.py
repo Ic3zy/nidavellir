@@ -2,8 +2,6 @@ from ..types import resolve_type, StringType, NoneType
 
 
 class Symbol:
-    pass
-
     def set_type_to_AST(self):
         pass
 

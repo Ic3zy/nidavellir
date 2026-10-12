@@ -121,7 +121,7 @@ class SymbolTreeBuilder:
         return ReturnSymbol(val, ast)
 
     def stmt_CallAST(self, ast):
-        func_name = ast.target if hasattr(ast, "target") else ast.name
+        func_name = ast.target_function
         # TODO: impl intrinsic
 
         is_intrinsic = func_name in INTRINSICS
@@ -227,6 +227,11 @@ class SymbolTreeBuilder:
         body_sym = self.process_from_list(body)
 
         return WhileSymbol(cond_sym, body_sym, ast)
+
+    def stmt_ImportAST(self, ast):
+        imported_asts = ast.imported_asts
+        st = self.process_from_list(imported_asts)
+        self.st.extend(st)
 
     def process_eval(self, ast):
         method_name = f"eval_{type(ast).__name__}"

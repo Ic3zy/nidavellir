@@ -55,11 +55,12 @@ class IRGen:
         for arg in args:
             args_irs.append(self.gen(arg))
 
-        ir = CallIR(target, args_irs, type)
-        ir.imported_func_call = ast.imported_func_call
         if target in INTRINSIC_HANDLERS:
             handler = INTRINSIC_HANDLERS[target]["handler"]
             ir = handler(ir)
+        else:
+            target = ast.target_function
+            ir = CallIR(target, args_irs, type)
 
         return ir
 
@@ -116,10 +117,15 @@ class IRGen:
         symbols = ast.symbols
         alias = ast.alias
 
+        body = []
+        for n in ast.imported_asts:
+            body.append(self.gen(n))
+
         return IRImport(
             module=module_name,
             symbols=symbols,
             alias=alias,
+            imported_IRs=body,
         )
 
     def gen_BlockAST(self, ast):

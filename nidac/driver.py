@@ -49,23 +49,22 @@ class Nidac:
     def compile(self):
         self.lex()
         self.parse()
+
         self.import_systems()
-        # self.imported_modules = []
+
         self.analyze()
-        self.type_def()  # TODO: impl
+        self.type_def()
         # self.check_types()  # TODO: HardAnalyzer
         self.IRGen()
-        self.emit_c11()  # TODO: CodeGen
+
+        self.emit_c11()
 
         if not SysArgs.no_binary_compile:
             self.compile_binary()
-        return self
 
     def import_systems(self):
         root_path = Path.cwd()
         self.module_scanner = ImportSystem(root_path, self.asts)
-        modules = self.module_scanner.modules
-        self.imported_modules = modules
 
     def run_binary(self, binary_path: str, args: list[str] = None):
         if self.final_c_code is None:
@@ -73,27 +72,11 @@ class Nidac:
 
         run_compiled_file(binary_path, args)
 
-    def create_header(self, path):
-        if self.c_gen is None:
-            self.emit_c11()
-
-        header_str = self.c_gen.create_header()
-        with open(path, "w") as f:
-            f.write(header_str)
-
     def compile_binary(self):
         if self.final_c_code is None:
             self.emit_c11()
 
         c_path = SysArgs.emit_c
-        if self.is_module:
-            cache_dir = self.current_path / "__nidacache__"
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            c_path = cache_dir / f"{self.module_name}.c"
-            header_path = cache_dir / f"{self.module_name}.h"
-            self.create_header(header_path)
-            SysArgs.add_include_path(header_path.parent)
-            SysArgs.add_c_file(c_path)
 
         with open(c_path, "w") as f:
             f.write(self.final_c_code)
@@ -139,11 +122,18 @@ class Nidac:
         # print(self.asts)
         return self.asts
 
+    @staticmethod
+    def parse_from_source_code(source_code):
+        lexer_obj = Lexer(source_code)
+        parser = Parser(lexer_obj)
+        parser.parse_all()
+        return parser.asts
+
     def analyze(self):
         if not self.asts:
             self.parse()
 
-        analyzer = SimpleAnalyzer(self.asts, self.imported_modules)
+        analyzer = SimpleAnalyzer(self.asts)
         analyzer.analyze_all()
         self.symbol_table = analyzer.stm
         return self.symbol_table
@@ -152,10 +142,7 @@ class Nidac:
         if not self.symbol_table:
             self.analyze()
 
-        # type_def_engine = AutoTypeDefEngine(self.asts)
-        # SymbolTreeBuilder(self.asts).run()
         TypeSystem(self.asts)
-        # type_def_engine.run()
 
 
 SysArgs.nidac_ptr = Nidac

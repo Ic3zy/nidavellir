@@ -13,104 +13,82 @@ def get_nidac():
 
 
 class ModuleOBJ:
-    def __init__(
-        self, name, path, alias, source_code=None, is_c_import=False, Nidac=None
-    ):
-        self.name = name
+    def __init__(self, ast_node, path, source_code=None, is_c_import=False):
+        self.ast_node = ast_node
+
+        self.name = ast_node.module
         self.path = path
-        self.alias = alias
+        self.alias = ast_node.alias
         self.source_code = source_code
+        # TODO: impl c imp
         self.is_c_import = is_c_import
-        self.is_core = False
-
-        self.importable_names = []
-
-        self.nidac = None
-        self.is_compiled = False
 
     def __repr__(self):
         kind = "C Header" if self.is_c_import else "Nidavellir"
-
         path_str = self.path.name if self.path else "NoPath"
-
         alias_str = f" as {self.alias}" if self.alias else ""
-
-        exports_count = len(self.importable_names)
-
-        return f"<Module '{self.name}'{alias_str} [{kind}] path='{path_str}' exports={exports_count} importable_names={self.importable_names}>"
+        return f"<Module '{self.name}'{alias_str} [{kind}] path='{path_str}'>"
 
 
 class ImportSystem:
     def __init__(self, root_path, root_asts):
         self.root_path = root_path
         self.root_asts = root_asts
-        self.modules = {}
+        self.modules = []
 
-        self.scan_for_ast(root_asts)
+        self.run()
+
+    def run(self):
+        self.scan_for_ast(self.root_asts)
         self.scan_for_imported_modules()
-        self.compile_all()
 
-        self.init_core_imports()
+    def add_module(self, ast_node, path, source_code=None, is_c_import=False):
+        imp_obj = ModuleOBJ(ast_node, path, source_code, is_c_import)
+        self.modules.append(imp_obj)
 
-    def init_core_imports(self):
-        runtime_path = Path(__file__).parent.parent / "runtime"
-        SysArgs.add_include_path(runtime_path)
-
-        sc = GCCHeaderScraper()
-        signatures = sc.extract_signatures("Nida_core.h")
-
-        core_symbols = list(signatures.keys())
-
-        core_module = ModuleOBJ(
-            name="Nida_core",
-            path=runtime_path / "Nida_core.h",
-            alias=None,
-            is_c_import=True,
-        )
-        core_module.importable_names = core_symbols
-        core_module.is_compiled = True
-        core_module.is_core = True
-
-        self.modules["Nida_core"] = core_module
-
-    def add_module(
-        self, name, path, alias, symbols, source_code=None, is_c_import=False
-    ):
-        self.modules[name] = ModuleOBJ(name, path, alias, source_code, is_c_import)
-
-    def get_module(self, name):
-        return self.modules.get(name)
-
-    def name_mapper(self, name):
-        return f"{name}.nida"
-
-    def name_mapper_reverse(self, name):
-        return name.replace(".nida", "")
-
-    def get_source_code(self, name):
-        module_path = self.root_path / name
-        if module_path.is_file():
-            with open(module_path, "r") as f:
+    def get_source_code(self, path):
+        if path.is_file():
+            with open(path, "r") as f:
                 return f.read()
 
         return None
 
     def scan_for_ast(self, ast):
         for node in ast:
-            if isinstance(node, ImportAST):
-                name = node.module
-                if check_header_exists(name):
-                    continue
+            if isinstance(node, FunctionAST):
+                node.is_imported = True
 
-                name = self.name_mapper(name)
-                alias = node.alias
-                symbols = node.symbols
+            if not isinstance(node, ImportAST):
+                continue
 
-                source_code = self.get_source_code(name)
-                if source_code is None:
-                    raise Exception(f"No source code for module '{name}'")
+            name = node.module
+            if check_header_exists(name):
+                continue
 
-                self.add_module(name, Path(name), alias, symbols, source_code)
+            name = self.name_mapper(name)
+            path = self.get_path_from_name(name)
+
+            source_code = self.get_source_code(path)
+            if source_code is None:
+                raise Exception(f"No source code for module '{name}'")
+
+            self.add_module(node, path, source_code)
+
+    def execute_module(self, module):
+        if module.source_code is None:
+            raise Exception(f"No source code for module '{module.name}'")
+
+        asts = get_nidac().parse_from_source_code(module.source_code)
+
+        ast_node = module.ast_node
+
+        ast_node.imported_asts = asts
+
+    def scan_for_imported_modules(self):
+        for module in self.modules:
+            self.execute_module(module)
+
+        # raise Exception(self.modules[0].ast_node)
 
     def scan_importable_names(self, ast):
         importable_names = []
@@ -124,33 +102,11 @@ class ImportSystem:
 
         return importable_names
 
-    def scan_for_imported_modules(self):
-        for name, module in self.modules.items():
-            if module.source_code is None:
-                raise Exception(f"No source code for module '{module.name}'")
+    def name_mapper(self, name):
+        return f"{name}.nida"
 
-            Nidac = get_nidac()(
-                source=module.source_code, module_name=self.name_mapper_reverse(name)
-            )
-            ast = Nidac.parse()
-            importable_names = self.scan_importable_names(ast)
+    def name_mapper_reverse(self, name):
+        return name.replace(".nida", "")
 
-            module.importable_names = importable_names
-            module.nidac = Nidac
-
-        print(self.modules)
-
-    def compile_module(self, module):
-        if module.is_c_import:
-            return
-
-        Nidac = module.nidac
-        Nidac.compile()
-        module.is_compiled = True
-        print("COMPILED: ", module.name)
-
-    def compile_all(self):
-        for module in self.modules.values():
-            self.compile_module(module)
-
-        print(self.modules)
+    def get_path_from_name(self, name):
+        return self.root_path / name

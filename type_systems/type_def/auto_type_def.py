@@ -49,7 +49,7 @@ class AutoTypeDefEngine:
         pass
 
     def process_AssignSymbol(self, sym):
-        if sym.type is None:
+        if sym.type is None and sym.value is not None:
             self.process(sym.value)
             with TypeUpdate(sym):
                 sym.type = sym.value.type
@@ -92,7 +92,6 @@ class AutoTypeDefEngine:
 
     def process_FunctionSymbol(self, sym):
         arg_types = {}
-
         for call in sym.uses:
             if not isinstance(call, CallSymbol):
                 continue

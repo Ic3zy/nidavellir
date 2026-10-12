@@ -26,7 +26,7 @@ class IRPasser:
             num = NumberIR("0")
             num.type = IntType(byte_size=4, signed=True)
             top_level_stmts.append(ReturnIR(num, type=num.type))
-            name = f"Nida_Func_By_{self.module_name}_main" if self.is_module else "main"
+            name = "main"
             main_fn = FunctionIR(
                 decs=[],
                 name=name,
@@ -71,11 +71,6 @@ class IRPasser:
             new_body.append(self.run_stmt(body_ir))
         ir.body_irs = new_body
 
-        if self.is_module:
-            ir.name = f"Nida_Func_By_{self.module_name}_{ir.name}"
-        elif not ir.is_main_func and not self.is_module:
-            ir.name = f"Nida_Func_{ir.name}"
-
         for arg in ir.args:
             self.run_stmt(arg)
 
@@ -102,15 +97,5 @@ class IRPasser:
         return ir
 
     def expr_CallIR(self, ir):
-        target = ir.target
-        if target not in INTRINSIC_HANDLERS and not ir.imported_func_call:
-            if self.is_module:
-                target = f"Nida_Func_By_{self.module_name}_{target}"
-            elif not self.is_module:
-                target = f"Nida_Func_{target}"
-
-        ir.target = target
-
         ir.args = [self.run_expr(arg) for arg in ir.args]
-
         return ir

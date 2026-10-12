@@ -53,6 +53,8 @@ class FunctionAST(AST):
         self.body = body
         self.type = type
 
+        self.is_imported = False
+
 
 class BlockAST(AST):
     def __init__(self, body):
@@ -102,8 +104,11 @@ class CallAST(AST):
         self.chain = chain
         self.args = args
 
-        self.imported_func_call = False
-        self.type = None
+        self.target_function_ast = None
+
+    @property
+    def target_function(self):
+        return self.target_function_ast.name
 
 
 class ReturnAST(AST):

@@ -126,10 +126,13 @@ class IRImport:
         module: str,
         symbols: list[str] = None,
         alias: str = None,
+        imported_IRs: list[IR] = None,
     ):
         self.module = module
         self.symbols = symbols or []
         self.alias = alias
+
+        self.imported_IRs = imported_IRs
 
 
 class IfIR(IR):
