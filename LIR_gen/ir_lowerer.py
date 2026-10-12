@@ -1,6 +1,7 @@
 from IR_gen.irs import *
 from .lirs import *
 from type_systems.types import *
+from .operator_rules import *
 
 
 class LIRs(list):
@@ -290,57 +291,43 @@ class IRLowerer:
 
         return lirs
 
+    def _get_operator_rules(self, typex):
+        if isinstance(typex, StringType):
+            return STR_OPS
+
+        # TODO: impl dynamic int/float
+        # if isinstance(typex, IntType) and typex.is_dynamic:
+        #     return IDYN_OPS
+
+        # if isinstance(typex, FloatType) and typex.is_dynamic:
+        #     return FDYN_OPS
+
+        return INT_OPS
+
     def _op_to_lir(self, typex, left_id, right_id, op):
-        type_str = str(typex)
+        rules = self._get_operator_rules(typex)
+        rule = rules.get(op)
+
+        if rule is None:
+            raise Exception(f"Unsupported operator: {typex} {op}")
+
         result_id = self.get_value_id()
+        result_type = rule.result_type or str(typex)
 
-        match op:
-            case "+":
-                if isinstance(typex, StringType):
-                    return CallLIR(
-                        result_id,
-                        type_str,
-                        "Nida_str_concat",
-                        [left_id, right_id],
-                    )
-                return AddLIR(result_id, type_str, left_id, right_id)
+        if rule.runtime is not None:
+            return CallLIR(
+                result_id,
+                result_type,
+                rule.runtime,
+                [left_id, right_id],
+            )
 
-            case "-":
-                return SubLIR(result_id, type_str, left_id, right_id)
-            case "*":
-                return MulLIR(result_id, type_str, left_id, right_id)
-            case "/":
-                return DivLIR(result_id, type_str, left_id, right_id)
-            case "%":
-                return ModLIR(result_id, type_str, left_id, right_id)
-
-            case "==":
-                if isinstance(typex, StringType):
-                    return CallLIR(
-                        result_id,
-                        "bool",
-                        "Nida_str_eq",
-                        [left_id, right_id],
-                    )
-                return EqLIR(result_id, "bool", left_id, right_id)
-            case "!=":
-                return NeLIR(result_id, "bool", left_id, right_id)
-            case ">":
-                return GtLIR(result_id, "bool", left_id, right_id)
-            case "<":
-                return LtLIR(result_id, "bool", left_id, right_id)
-            case ">=":
-                return GeLIR(result_id, "bool", left_id, right_id)
-            case "<=":
-                return LeLIR(result_id, "bool", left_id, right_id)
-
-            case "is":
-                return IsLIR(result_id, "bool", left_id, right_id)
-            case "is not":
-                return IsNotLIR(result_id, "bool", left_id, right_id)
-
-            case _:
-                raise Exception(f"No LIR for op {op}")
+        return rule.instruction(
+            result_id,
+            result_type,
+            left_id,
+            right_id,
+        )
 
     def process_BinaryOpIR(self, hir):
         left = hir.left
