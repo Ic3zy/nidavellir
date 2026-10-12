@@ -18,10 +18,9 @@ class TypeSystem:
             raise Exception("No AST tree provided")
 
         self.stb = SymbolTreeBuilder(self.ast_tree)
-        self.stb.run()
 
     def type_def(self):
-        if not self.stb:
+        if self.stb is None:
             self.tree_gen()
 
         self.tde = AutoTypeDefEngine(self.stb.st)

@@ -32,11 +32,13 @@ class CTypeTranslator:
         "i32": CTInt(True, 4),
         "u64": CTInt(False, 8),
         "i64": CTInt(True, 8),
+        "idyn": CTInt(True, 8),  # TODO: impl real dynamic int
     }
 
     FLOAT_TYPES = {
         "f32": CTFloat(4),
         "f64": CTFloat(8),
+        "fdyn": CTFloat(8),  # TODO: impl real dynamic float
     }
 
     TYPES = {

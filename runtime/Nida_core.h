@@ -42,6 +42,20 @@ static inline void Nida_str_free(Nida_Str *s)
   }
 }
 
+static inline Nida_Str Nida_str_concat(Nida_Str a, Nida_Str b)
+{
+  Nida_Str s;
+  s.length = a.length + b.length;
+  s.data = malloc(s.length + 1);
+  if (s.data)
+  {
+    memcpy(s.data, a.data, a.length);
+    memcpy(s.data + a.length, b.data, b.length);
+    s.data[s.length] = '\0';
+  }
+  return s;
+}
+
 static inline bool Nida_str_eq(Nida_Str a, Nida_Str b)
 {
   if (a.length != b.length)

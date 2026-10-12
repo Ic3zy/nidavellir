@@ -65,6 +65,19 @@ class Type:
         return self.__class__.__name__
 
 
+class TypeUpdate:
+    def __init__(self, sym):
+        self.sym = sym
+
+    def __enter__(self):
+        return self.sym
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            self.sym.set_type_to_AST()
+        return False
+
+
 class DynamicType(Type):
     def __str__(self):
         return "dynamic"

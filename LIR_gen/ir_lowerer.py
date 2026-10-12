@@ -290,10 +290,19 @@ class IRLowerer:
 
         return lirs
 
-    def _op_to_lir(self, type_str, left_id, right_id, op):
+    def _op_to_lir(self, typex, left_id, right_id, op):
+        type_str = str(typex)
         match op:
             case "+":
-                return AddLIR(self.get_value_id(), type_str, left_id, right_id)
+                if isinstance(typex, StringType):
+                    return CallLIR(
+                        self.get_value_id(),
+                        type_str,
+                        "Nida_str_concat",
+                        [left_id, right_id],
+                    )
+                else:
+                    return AddLIR(self.get_value_id(), type_str, left_id, right_id)
             case "-":
                 return SubLIR(self.get_value_id(), type_str, left_id, right_id)
             case "*":
@@ -322,7 +331,7 @@ class IRLowerer:
         right_lir = self.process(right)
         right_id = self.get_current_value_id()
 
-        op_lir = self._op_to_lir(type_str, left_id, right_id, op)
+        op_lir = self._op_to_lir(hir.type, left_id, right_id, op)
         self.blocks.emit(op_lir)
 
         lirs.append(left_lir)
