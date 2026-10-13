@@ -9,6 +9,7 @@ from type_systems import TypeSystem
 from IR_gen import IRGen
 from LIR_gen import IRLowerer
 from C_gen import C_Gen
+from C_gen import HeaderGenerator
 from utils import SysArgs
 from .gcc import compile_c_file, run_compiled_file
 
@@ -34,13 +35,13 @@ class Nidac:
 
         self.tokens = []
         self.asts = []
+        self.imported_modules = []
         self.symbol_table = None
 
         self.hir = None
         self.lir = None
         self.final_c_code = None
         self.c_gen = None
-        # compile_c_file("output.c", "output_bin")
 
     @property
     def is_module(self):
@@ -64,7 +65,8 @@ class Nidac:
 
     def import_systems(self):
         root_path = Path.cwd()
-        self.module_scanner = ImportSystem(root_path, self.asts)
+        module_scanner = ImportSystem(root_path, self.asts)
+        self.imported_modules = module_scanner.ordered_modules
 
     def run_binary(self, binary_path: str, args: list[str] = None):
         if self.final_c_code is None:
@@ -85,15 +87,51 @@ class Nidac:
             compile_c_file(c_path, SysArgs.output)
             self.run_binary(SysArgs.output)
 
+    def generate_dependencies_c_code(self):
+        for module in self.imported_modules:
+            if not module.lirs:
+                continue
+
+            extra_include = []
+            if module.dependencies:
+                for dep in module.dependencies:
+                    if not dep.include_path:
+                        raise Exception(f"No include path for module '{dep.name}'")
+                    extra_include.append(dep.include_path.name)
+
+            c_gen = C_Gen(module.lirs, extra_include=extra_include)
+            module.c_code = c_gen.gen_from_list(module.lirs)
+            c_nodes = c_gen.c_nodes
+
+            h_gen = HeaderGenerator(module.name, c_nodes)
+            module.header_code = h_gen.gen_Header()
+
+            c_path = module.path.parent / "__nidacache__" / f"{module.name}.c"
+            c_header_path = module.path.parent / "__nidacache__" / f"{module.name}.h"
+
+            module.include_path = c_header_path
+
+            with open(c_path, "w") as f:
+                f.write(module.c_code)
+
+            with open(c_header_path, "w") as f:
+                f.write(module.header_code)
+
+            SysArgs.add_include_path(c_header_path.parent)
+            SysArgs.add_extra_c_include(c_header_path.name)
+            SysArgs.add_c_file(c_path)
+
     def emit_c11(self):
         if self.lir is None:
             self.IRGen()
 
-        self.c_gen = C_Gen(self.lir, module_name=self.module_name)
+        self.generate_dependencies_c_code()
+
+        self.c_gen = C_Gen(self.lir)
         self.final_c_code = self.c_gen.gen_from_list(self.lir)
 
     def IRGen(self):
-        ir = IRGen(self.asts, module_name=self.module_name)
+        ir = IRGen(self.asts)
         self.hir = ir.gen_from_list(self.asts)
         lir = IRLowerer(self.hir)
         self.lir = lir.run()

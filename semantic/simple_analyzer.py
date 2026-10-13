@@ -404,8 +404,12 @@ class SimpleASTVisitor:
         self.stm.exit_scope()
 
     def stmt_ImportAST(self, node):
-        imported_asts = node.imported_asts
-        for ast in imported_asts:
+        module = node.resolved_module
+
+        if module is None:
+            return
+
+        for ast in module.asts:
             self.visit_statement(ast)
 
     def visit_statement(self, node):

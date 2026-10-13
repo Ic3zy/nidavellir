@@ -1,104 +1,145 @@
 from pathlib import Path
+
 from nida_ast.base import *
-from semantic.c_header_analyze import GCCHeaderScraper
 from .analyzer import check_header_exists
 from utils import SysArgs
 
 
 def get_nidac():
-    if (Nidac := SysArgs.nidac_ptr) is not None:
-        return Nidac
-    else:
-        raise Exception("No Nidac instance")
+    if (nidac := SysArgs.nidac_ptr) is not None:
+        return nidac
+
+    raise RuntimeError("No Nidac instance")
 
 
 class ModuleOBJ:
-    def __init__(self, ast_node, path, source_code=None, is_c_import=False):
-        self.ast_node = ast_node
+    def __init__(self, name, path):
+        self.name = name
+        self.path = Path(path).resolve()
 
-        self.name = ast_node.module
-        self.path = path
-        self.alias = ast_node.alias
-        self.source_code = source_code
-        # TODO: impl c imp
-        self.is_c_import = is_c_import
+        self.asts = []
+        self.hirs = []
+        self.lirs = []
+        self.c_code = None
+        self.header_code = None
+        self.include_path = None
+        self.dependencies = []
+
+        self.state = "new"
 
     def __repr__(self):
-        kind = "C Header" if self.is_c_import else "Nidavellir"
-        path_str = self.path.name if self.path else "NoPath"
-        alias_str = f" as {self.alias}" if self.alias else ""
-        return f"<Module '{self.name}'{alias_str} [{kind}] path='{path_str}'>"
+        return f"<Module '{self.name}' path='{self.path.name}'>"
 
 
 class ImportSystem:
     def __init__(self, root_path, root_asts):
-        self.root_path = root_path
+        self.root_path = Path(root_path).resolve()
         self.root_asts = root_asts
-        self.modules = []
+
+        self.modules = {}
+
+        self.root_dependencies = []
+
+        self.ordered_modules = []
 
         self.run()
 
     def run(self):
-        self.scan_for_ast(self.root_asts)
-        self.scan_for_imported_modules()
-
-    def add_module(self, ast_node, path, source_code=None, is_c_import=False):
-        imp_obj = ModuleOBJ(ast_node, path, source_code, is_c_import)
-        self.modules.append(imp_obj)
+        self.root_dependencies = self.scan_imports(self.root_asts)
+        self.order_modules()
 
     def get_source_code(self, path):
-        if path.is_file():
-            with open(path, "r") as f:
-                return f.read()
+        if not path.is_file():
+            return None
 
-        return None
+        return path.read_text(encoding="utf-8")
 
-    def scan_for_ast(self, ast):
-        for node in ast:
-            if isinstance(node, FunctionAST):
-                node.is_imported = True
+    def scan_imports(self, asts, owner=None):
+        dependencies = []
 
+        for node in asts:
             if not isinstance(node, ImportAST):
                 continue
 
             name = node.module
+
             if check_header_exists(name):
                 continue
 
-            name = self.name_mapper(name)
-            path = self.get_path_from_name(name)
+            path = self.get_path_from_name(self.name_mapper(name))
+            dependency = self.load_module(name, path)
 
-            source_code = self.get_source_code(path)
-            if source_code is None:
-                raise Exception(f"No source code for module '{name}'")
+            node.resolved_module = dependency
 
-            self.add_module(node, path, source_code)
+            if dependency not in dependencies:
+                dependencies.append(dependency)
 
-    def execute_module(self, module):
-        if module.source_code is None:
-            raise Exception(f"No source code for module '{module.name}'")
+            if owner is not None and dependency not in owner.dependencies:
+                owner.dependencies.append(dependency)
 
-        asts = get_nidac().parse_from_source_code(module.source_code)
+        return dependencies
 
-        ast_node = module.ast_node
+    def load_module(self, name, path):
+        path = Path(path).resolve()
 
-        ast_node.imported_asts = asts
+        module = self.modules.get(path)
+        if module is not None:
+            return module
 
-    def scan_for_imported_modules(self):
-        for module in self.modules:
-            self.execute_module(module)
+        source_code = self.get_source_code(path)
+        if source_code is None:
+            raise FileNotFoundError(f"Cannot find module '{name}': {path}")
 
-        # raise Exception(self.modules[0].ast_node)
+        module = ModuleOBJ(name, path)
 
-    def scan_importable_names(self, ast):
+        self.modules[path] = module
+        module.state = "loading"
+
+        module.asts = get_nidac().parse_from_source_code(source_code)
+
+        for node in module.asts:
+            if isinstance(node, FunctionAST):
+                node.is_imported = True
+
+        self.scan_imports(module.asts, owner=module)
+
+        module.state = "loaded"
+        return module
+
+    def order_modules(self):
+        visiting = set()
+        visited = set()
+        ordered = []
+
+        def visit(module):
+            path = module.path
+
+            if path in visited:
+                return
+
+            if path in visiting:
+                raise SyntaxError(f"Circular import detected: {module.name} ({path})")
+
+            visiting.add(path)
+
+            for dependency in module.dependencies:
+                visit(dependency)
+
+            visiting.remove(path)
+            visited.add(path)
+            ordered.append(module)
+
+        for module in self.root_dependencies:
+            visit(module)
+
+        self.ordered_modules = ordered
+
+    def scan_importable_names(self, asts):
         importable_names = []
-        for node in ast:
-            if isinstance(node, ClassAST):
-                name = node.name
-                importable_names.append(name)
-            elif isinstance(node, FunctionAST):
-                name = node.name
-                importable_names.append(name)
+
+        for node in asts:
+            if isinstance(node, (ClassAST, FunctionAST)):
+                importable_names.append(node.name)
 
         return importable_names
 
@@ -106,7 +147,7 @@ class ImportSystem:
         return f"{name}.nida"
 
     def name_mapper_reverse(self, name):
-        return name.replace(".nida", "")
+        return name.removesuffix(".nida")
 
     def get_path_from_name(self, name):
         return self.root_path / name

@@ -1,4 +1,4 @@
-from nida_ast.base import IntrinsicAST
+from nida_ast.base import *
 from utils import SysArgs
 
 
@@ -97,6 +97,13 @@ INTRINSIC_HANDLERS = {
         "handler": print_intrinsic,
         "is_variadic": True,
         "is_default_function": True,
+        "ast": FunctionAST(
+            decorators=[],
+            name="print",
+            args=[],
+            body=[],
+            type="None",
+        ),
     },
     "range": {
         "name": "range",

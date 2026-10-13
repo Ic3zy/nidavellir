@@ -58,8 +58,9 @@ class CTypeTranslator:
 
 
 class C_Gen:
-    def __init__(self, LIRs, module_name=None):
+    def __init__(self, LIRs, extra_include=[]):
         self.LIRs = LIRs
+        self.extra_include = extra_include
         self.c_nodes = []
 
     def name_maper(self, name):
@@ -260,10 +261,23 @@ class C_Gen:
 
         return func(lir)
 
+    def include_name_map(self, name):
+        if name.startswith('"'):
+            return name
+        elif name.startswith("<"):
+            return name
+        return f'"{name}"'
+
     def get_code_string(self):
         includes = ["#include <Nida_core.h>"]
         for include in EXTRA_C_INCLUDES:
-            includes.append(f"#include {include}")
+            includes.append(f"#include {self.include_name_map(include)}")
+
+        for include in self.extra_include:
+            incl = f"#include {self.include_name_map(include)}"
+            if incl not in includes:
+                includes.append(incl)
+
         includes_str = "\n".join(includes)
 
         c_code = includes_str + "\n"

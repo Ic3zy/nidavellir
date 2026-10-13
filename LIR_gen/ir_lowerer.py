@@ -504,7 +504,14 @@ class IRLowerer:
             self._lower_branch_body(else_body, merge_block)
 
     def process_IRImport(self, hir):
-        pass
+        module = hir.resolved_module
+        if module is None:
+            return
+
+        hirs = module.hirs
+        lirs = IRLowerer(hirs).run()
+        module.lirs = lirs
+        return
 
     def process(self, hir):
         name = hir.__class__.__name__

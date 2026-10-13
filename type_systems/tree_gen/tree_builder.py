@@ -11,6 +11,8 @@ class SymbolTreeBuilder:
         self.stm = SymbolTableManager()
         self.st = []
 
+        self.visited_imports = set()
+
         self.run()
 
     def error(self, node, message):
@@ -229,8 +231,17 @@ class SymbolTreeBuilder:
         return WhileSymbol(cond_sym, body_sym, ast)
 
     def stmt_ImportAST(self, ast):
-        imported_asts = ast.imported_asts
-        st = self.process_from_list(imported_asts)
+        module = ast.resolved_module
+
+        if module is None:
+            return
+
+        if module in self.visited_imports:
+            return
+
+        self.visited_imports.add(module)
+
+        st = self.process_from_list(module.asts)
         self.st.extend(st)
 
     def process_eval(self, ast):
