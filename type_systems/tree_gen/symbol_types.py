@@ -2,8 +2,6 @@ from ..types import resolve_type, StringType, NoneType
 
 
 class Symbol:
-    pass
-
     def set_type_to_AST(self):
         pass
 
@@ -93,6 +91,16 @@ class CallSymbol(Symbol):
 
     def set_type_to_AST(self):
         self.ast_node.type = self.type
+
+
+class IntrinsicCallSymbol(Symbol):
+    def __init__(self, intrinsic, name, args, ast_node):
+        self.intrinsic = intrinsic
+        self.name = name
+        self.args = args
+        self.ast_node = ast_node
+
+        self.type = None
 
 
 class VariableSymbol(Symbol):

@@ -1,10 +1,9 @@
 # NOTE: Technical debt has accumulated on this analyzer layer.
 # The current priority is to build a working prototype (MVP), not perfect architecture.
 
-from .intrinsics import INTRINSIC_HANDLERS
+from .intrinsics import INTRINSICS
 from .symbol_table import SymbolTableManager
 from nida_ast.base import *
-from .c_header_analyze import GCCHeaderScraper
 from type_systems.types import resolve_type
 
 VALID_RETURN_EXPRESSIONS = (
@@ -22,9 +21,8 @@ VALID_RETURN_EXPRESSIONS = (
 
 
 class SimpleASTVisitor:
-    def __init__(self, stm, imports):
+    def __init__(self, stm):
         self.stm = stm
-        self.imports = imports
         self.body_parse_waiter_funcs = []
         self.current_class_name = None
 
@@ -110,12 +108,30 @@ class SimpleASTVisitor:
 
         return None
 
-    def search_import(self, target):
-        for name, imp in self.imports.items():
-            if target in imp.importable_names:
-                return name, imp
+    def process_intrinsic_call(self, node):
+        name = node.target
+        args = node.args
+        intrinsic = INTRINSICS[name]
 
-        return False, False
+        intr_call = IntrinsicCallAST(intrinsic, name, args)
+        node.__class__ = intr_call.__class__
+        node.__dict__.clear()
+        node.__dict__.update(intr_call.__dict__)
+
+        return self.visit_expression(node)
+
+    def eval_IntrinsicCallAST(self, node):
+        args = node.args
+
+        if not node.intrinsic.params.check_arg_count(len(args)):
+            self.error(
+                node,
+                f"Invalid arguments for intrinsic '{node.intrinsic.name}': "
+                f"{[arg.type for arg in args]}",
+            )
+
+    def stmt_IntrinsicCallAST(self, node):
+        return self.eval_IntrinsicCallAST(node)
 
     def eval_CallAST(self, node):
         target = node.target
@@ -137,27 +153,24 @@ class SimpleASTVisitor:
                 self.error(node, f"Variable '{target}' is not defined")
         else:
             is_class = False
-            is_import = False
-            imp = None
 
-            if target in INTRINSIC_HANDLERS:
-                is_intrinsic = True
-                func = INTRINSIC_HANDLERS[target]
-            else:
-                func = self.stm.lookup_func(target)
+            if target in INTRINSICS:
+                return self.process_intrinsic_call(node)
+
+            func = self.stm.lookup_func(target)
 
             if func is None:
                 func = self.stm.lookup_class(target)
                 is_class = True
 
             if func is None:
-                fn_name, imp = self.search_import(target)
-                if fn_name:
-                    func = fn_name
-                    is_import = True
-
-            if func is None:
                 self.error(node, f"Function '{target}' not defined")
+
+            node.target_function_ast = (
+                func["ast"]
+                if isinstance(func, dict) and func.get("ast") is not None
+                else func
+            )
 
         args = node.args
 
@@ -173,35 +186,16 @@ class SimpleASTVisitor:
                 else func.get("params", [])
             )
 
-            if not is_import and not is_variadic and len(args) != len(params):
+            if not is_variadic and len(args) != len(params):
                 self.error(
                     node,
                     f"{'Intrinsic' if is_intrinsic else 'Function' if not is_class else 'Class'} '{target}' takes {len(params)} arguments ({len(args)} given)",
                 )
 
-        if is_import:
-            if not imp.is_core:
-                new_target = f"Nida_Func_By_{func.split('.')[0]}_{target}"
-                node.target = new_target
-
-            node.imported_func_call = True
-
         analyzed_args = []
         for arg in args:
             res = self.visit_expression(arg)
             analyzed_args.append(res if res is not None else arg)
-
-        # if is_intrinsic:
-        #     intrinsic_node = IntrinsicAST(
-        #         target,
-        #         func["return_type"],
-        #         node.args,
-        #         func["handler"],
-        #     )
-
-        #     node.__dict__ = intrinsic_node.__dict__
-        #     node.__class__ = IntrinsicAST
-        #     return node
 
         return node
 
@@ -240,7 +234,6 @@ class SimpleASTVisitor:
         class_name = self.get_current_class_name()
 
         if class_name is not None:
-            raise Exception(node)
             if node.target == "self" and len(chain) == 1:
                 self.stm.define_field(
                     class_name=class_name,
@@ -322,11 +315,11 @@ class SimpleASTVisitor:
         self.visit_expression(node.value)
 
     def stmt_FunctionAST(self, node):
-        is_intrinsic = node.name in INTRINSIC_HANDLERS
-        if is_intrinsic:
-            self.error(
-                node, f"Cannot redefine built-in intrinsic function '{node.name}'"
-            )
+        # is_intrinsic = node.name in INTRINSIC_HANDLERS
+        # if is_intrinsic:
+        #     self.error(
+        #         node, f"Cannot redefine built-in intrinsic function '{node.name}'"
+        #     )
 
         self.stm.enter_scope(scope_name=f"func_{node.name}", is_func=True)
         self.stm.define_func(node.name, node.type, node.args, node)
@@ -434,53 +427,13 @@ class SimpleASTVisitor:
         self.stm.exit_scope()
 
     def stmt_ImportAST(self, node):
-        return  # TODO: impl
-        module_name = node.module
-        header_file = f"{module_name}.h"
+        module = node.resolved_module
 
-        scraper = GCCHeaderScraper()
-        signatures = scraper.extract_signatures(header_file)
+        if module is None:
+            return
 
-        symbols = getattr(node, "symbols", None)
-        alias = getattr(node, "alias", None)
-
-        if symbols:
-            for sym_name in symbols:
-                if sym_name in signatures:
-                    sig = signatures[sym_name]
-                    is_variadic = "..." in sig["args"]
-                    clean_args = [a for a in sig["args"] if a != "..."]
-
-                    self.stm.define_imported_func(
-                        name=sym_name,
-                        return_type=sig["return"],
-                        params=clean_args,
-                        module_name=module_name,
-                        is_variadic=is_variadic,
-                    )
-                else:
-                    raise Exception(
-                        f"Semantic Error: '{sym_name}' sembolü '{header_file}' içinde bulunamadı."
-                    )
-
-        else:
-            mod_key = alias if alias else module_name
-            self.stm.define_module(mod_key, module_name)
-
-            prefix = f"{mod_key}." if alias else ""
-
-            for fn_name, sig in signatures.items():
-                target_name = f"{prefix}{fn_name}"
-                is_variadic = "..." in sig["args"]
-                clean_args = [a for a in sig["args"] if a != "..."]
-
-                self.stm.define_imported_func(
-                    name=target_name,
-                    return_type=sig["return"],
-                    params=clean_args,
-                    module_name=module_name,
-                    is_variadic=is_variadic,
-                )
+        for ast in module.asts:
+            self.visit_statement(ast)
 
     def visit_statement(self, node):
         method_name = f"stmt_{type(node).__name__}"
@@ -528,11 +481,10 @@ def normalize_ast_types(node):
 
 
 class SimpleAnalyzer:
-    def __init__(self, ast_tree, imports=None):
+    def __init__(self, ast_tree):
         self.ast_tree = ast_tree
-        self.imports = imports
         self.stm = SymbolTableManager()
-        self.sav = SimpleASTVisitor(self.stm, imports)
+        self.sav = SimpleASTVisitor(self.stm)
 
     def analyze_all(self):
         for node in self.ast_tree:

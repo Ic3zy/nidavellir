@@ -40,6 +40,7 @@ class AutoTypeDefEngine:
                 lk_type = sym.lookup.type
 
             if lk_type is None:
+                raise Exception(sym.lookup)
                 raise Exception(sym, "Cannot determine type of variable")
 
             with TypeUpdate(sym):
@@ -49,7 +50,7 @@ class AutoTypeDefEngine:
         pass
 
     def process_AssignSymbol(self, sym):
-        if sym.type is None:
+        if sym.type is None and sym.value is not None:
             self.process(sym.value)
             with TypeUpdate(sym):
                 sym.type = sym.value.type
@@ -90,8 +91,13 @@ class AutoTypeDefEngine:
 
         return returns
 
-    def process_FunctionSymbol(self, sym):
+    def process_FunctionSymbol(self, sym: FunctionSymbol):
+        pass
+
+    def _process_FunctionSymbol(self, sym):
         arg_types = {}
+        if not sym.uses:
+            return
 
         for call in sym.uses:
             if not isinstance(call, CallSymbol):
@@ -118,7 +124,6 @@ class AutoTypeDefEngine:
                         )
 
                 arg_types[idx] = arg_type
-
         for idx, arg in enumerate(sym.args):
             if arg.type is None:
                 arg_type = arg_types.get(idx)
@@ -161,6 +166,9 @@ class AutoTypeDefEngine:
             sym.type = sym.value.type
 
     def process_CallSymbol(self, sym):
+        lk = sym.lookup
+        self._process_FunctionSymbol(lk)
+
         if sym.type is None:
             if sym.lookup.type is None:
                 self.process(sym.lookup)
@@ -173,6 +181,20 @@ class AutoTypeDefEngine:
 
         for arg in sym.args:
             self.process(arg)
+
+    def process_IntrinsicCallSymbol(self, sym):
+        args = sym.args
+        intrinsic = sym.intrinsic
+        self.process_from_list(args)
+        if sym.type is None:
+            if intrinsic.type is None:
+                raise Exception(sym, "Cannot determine type of intrinsic call")
+
+            with TypeUpdate(sym):
+                sym.type = intrinsic.type
+
+        if not intrinsic.params.check(args):
+            raise Exception(f"Invalid arguments for intrinsic '{intrinsic.name}'")
 
     def process_IfSymbol(self, sym):
         self.process(sym.cond)
@@ -187,7 +209,7 @@ class AutoTypeDefEngine:
                 self.process(stmt)
 
         if sym.else_body is not None:
-            for stmt in sym.else_body.body:
+            for stmt in sym.else_body:
                 self.process(stmt)
 
     def process(self, sym):

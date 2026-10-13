@@ -1,23 +1,13 @@
-from nida_ast.base import IntrinsicAST
 from utils import SysArgs
+from IR_gen.irs import *
 
 
-def not_implemented(*a, **k):
-    raise NotImplementedError("Intrinsic not implemented", a, k)
-
-
-# TODO: Move intrinsic implementation out of semantic and into HIR generation.
-# Semantic should only validate/resolve the intrinsic and produce IntrinsicAST.
-# HIR generator should invoke the intrinsic implementer and receive HIR nodes.
 def print_intrinsic(Hir):
-    from IR_gen.irs import CallIR, BooleanIR, BlockIR
 
     if SysArgs.no_print:
         return []
 
-    # TODO: impl
-    # self.used_intrinsics.append("print")
-    SysArgs.add_extra_c_include("<print.h>")
+    SysArgs.add_extra_c_include("print.h")
     args = Hir.args
 
     chunks = []
@@ -55,8 +45,6 @@ def print_intrinsic(Hir):
 
 
 def range_intrinsic(Hir):
-    from IR_gen.irs import RangeIR, NumberIR
-
     args = Hir.args
     arg_c = len(args)
 
@@ -82,27 +70,6 @@ def range_intrinsic(Hir):
     return RangeIR(start, end, step)
 
 
-INTRINSIC_HANDLERS = {
-    "list": {
-        "name": "list",
-        "return_type": "List",
-        "params": [("size", "Any_int"), ("type", "type")],
-        "handler": not_implemented,
-        "is_variadic": False,
-    },
-    "print": {
-        "name": "print",
-        "return_type": "None",
-        "params": [],
-        "handler": print_intrinsic,
-        "is_variadic": True,
-        "is_default_function": True,
-    },
-    "range": {
-        "name": "range",
-        "return_type": "List",
-        "params": [],
-        "handler": range_intrinsic,
-        "is_variadic": True,
-    },
-}
+def input_intrinsic(Hir):
+    SysArgs.add_extra_c_include("input.h")
+    return CallIR("Nida_input", Hir.args)

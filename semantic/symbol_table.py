@@ -1,4 +1,4 @@
-from .intrinsics import INTRINSIC_HANDLERS
+# from .intrinsics import INTRINSIC_HANDLERS
 
 
 class Scope:

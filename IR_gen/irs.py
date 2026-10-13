@@ -126,10 +126,12 @@ class IRImport:
         module: str,
         symbols: list[str] = None,
         alias: str = None,
+        resolved_module=None,
     ):
         self.module = module
         self.symbols = symbols or []
         self.alias = alias
+        self.resolved_module = resolved_module
 
 
 class IfIR(IR):
@@ -179,12 +181,12 @@ class NoneIR(IR):
         self.air = air
 
 
-class IntrinsicIR(IR):
-    def __init__(self, name, args, type, handler):
-        self.target = name
+class IntrinsicCallIR(IR):
+    def __init__(self, intrinsic, name, args, type):
+        self.intrinsic = intrinsic
+        self.name = name
         self.args = args
-        self.type = None
-        self.handler = handler
+        self.type = type
 
 
 class RangeIR(IR):

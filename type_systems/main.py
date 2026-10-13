@@ -26,5 +26,7 @@ class TypeSystem:
         self.tde = AutoTypeDefEngine(self.stb.st)
         self.tde.run()
 
+        # raise Exception(self.ast_tree)
+
     def optimize(self):
         raise NotImplementedError
