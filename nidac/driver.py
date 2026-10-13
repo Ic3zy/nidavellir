@@ -5,7 +5,7 @@ from semantic import SimpleAnalyzer
 from import_systems import ImportSystem
 
 # from type_systems import AutoTypeDefEngine
-from type_systems import TypeSystem
+from type_systems.main import TypeSystem
 from IR_gen import IRGen
 from LIR_gen import IRLowerer
 from C_gen import C_Gen

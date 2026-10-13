@@ -2,7 +2,6 @@ from .symbol_table import SymbolTableManager
 from .tree_printer import render_node
 from .symbol_types import *
 from nida_ast.base import *
-from semantic import INTRINSIC_HANDLERS as INTRINSICS
 
 
 class SymbolTreeBuilder:
@@ -79,16 +78,20 @@ class SymbolTreeBuilder:
 
         return final_sym
 
-    def stmt_intrinsic(self, name, type, args, is_variadic=False):
-        lk = self.stm.lookup(name)
-        if lk is not None:
-            return lk
-        fn_sym = FunctionSymbol(name, type, args, None, is_variadic)
-        self.stm.add_symbol(fn_sym)
-        return fn_sym
-
     def stmt_IntrinsicAST(self, ast):
-        return self.eval_IntrinsicAST(ast)
+        pass
+
+    def stmt_IntrinsicCallAST(self, ast):
+        name = ast.intrinsic.name
+        args = ast.args
+        intrinsic = ast.intrinsic
+
+        n_args = self.process_call_args(args, intrinsic, name, is_intrinsic=True)
+
+        return IntrinsicCallSymbol(intrinsic, name, n_args, ast)
+
+    def eval_IntrinsicCallAST(self, ast):
+        return self.stmt_IntrinsicCallAST(ast)
 
     def stmt_FunctionAST(self, ast):
         lookup = self.stm.lookup(ast.name)
@@ -122,42 +125,34 @@ class SymbolTreeBuilder:
 
         return ReturnSymbol(val, ast)
 
-    def stmt_CallAST(self, ast):
-        func_name = ast.target_function
-        # TODO: impl intrinsic
-
-        is_intrinsic = func_name in INTRINSICS
-
-        lookup = self.stm.lookup(func_name)
-        if lookup is None and is_intrinsic:
-            intrinsic = INTRINSICS[func_name]
-            ret = self.stmt_intrinsic(
-                func_name,
-                intrinsic["return_type"],
-                intrinsic["params"],
-                intrinsic["is_variadic"],
-            )
-            lookup = ret
-        if lookup is None:
-            self.error(ast, f"Function '{func_name}' is not defined")
-
+    def process_call_args(self, args, lookup, func_name, is_intrinsic=False):
         params = []
-        for idx, arg in enumerate(ast.args):
+        for idx, arg in enumerate(args):
             res = self.process_eval(arg)
-            if is_intrinsic:
-                params.append(res)
-                continue
 
-            if idx >= len(lookup.args):
-                self.error(arg, f"Too many arguments for function '{func_name}'")
+            lookup_func_arg = None
+            if not is_intrinsic:
+                if idx >= len(lookup.args):
+                    self.error(arg, f"Too many arguments for function '{func_name}'")
 
-            lookup_func_arg = lookup.args[idx]
+                lookup_func_arg = lookup.args[idx]
 
             if res is not None:
                 params.append(res)
 
-            if lookup_func_arg is not None and res is not None:
+            if lookup_func_arg is not None and res is not None and not is_intrinsic:
                 lookup_func_arg.uses.append(res)
+
+        return params
+
+    def stmt_CallAST(self, ast):
+        func_name = ast.target_function
+        lookup = self.stm.lookup(func_name)
+
+        if lookup is None:
+            self.error(ast, f"Function '{func_name}' is not defined")
+
+        params = self.process_call_args(ast.args, lookup, func_name)
 
         sym = CallSymbol(func_name, params, lookup, ast)
         lookup.uses.append(sym)

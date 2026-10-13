@@ -1,10 +1,9 @@
 # NOTE: Technical debt has accumulated on this analyzer layer.
 # The current priority is to build a working prototype (MVP), not perfect architecture.
 
-from .intrinsics import INTRINSIC_HANDLERS
+from .intrinsics import INTRINSICS
 from .symbol_table import SymbolTableManager
 from nida_ast.base import *
-from .c_header_analyze import GCCHeaderScraper
 from type_systems.types import resolve_type
 
 VALID_RETURN_EXPRESSIONS = (
@@ -109,6 +108,31 @@ class SimpleASTVisitor:
 
         return None
 
+    def process_intrinsic_call(self, node):
+        name = node.target
+        args = node.args
+        intrinsic = INTRINSICS[name]
+
+        intr_call = IntrinsicCallAST(intrinsic, name, args)
+        node.__class__ = intr_call.__class__
+        node.__dict__.clear()
+        node.__dict__.update(intr_call.__dict__)
+
+        return self.visit_expression(node)
+
+    def eval_IntrinsicCallAST(self, node):
+        args = node.args
+
+        if not node.intrinsic.params.check_arg_count(len(args)):
+            self.error(
+                node,
+                f"Invalid arguments for intrinsic '{node.intrinsic.name}': "
+                f"{[arg.type for arg in args]}",
+            )
+
+    def stmt_IntrinsicCallAST(self, node):
+        return self.eval_IntrinsicCallAST(node)
+
     def eval_CallAST(self, node):
         target = node.target
 
@@ -130,11 +154,10 @@ class SimpleASTVisitor:
         else:
             is_class = False
 
-            if target in INTRINSIC_HANDLERS:
-                is_intrinsic = True
-                func = INTRINSIC_HANDLERS[target]
-            else:
-                func = self.stm.lookup_func(target)
+            if target in INTRINSICS:
+                return self.process_intrinsic_call(node)
+
+            func = self.stm.lookup_func(target)
 
             if func is None:
                 func = self.stm.lookup_class(target)
@@ -292,11 +315,11 @@ class SimpleASTVisitor:
         self.visit_expression(node.value)
 
     def stmt_FunctionAST(self, node):
-        is_intrinsic = node.name in INTRINSIC_HANDLERS
-        if is_intrinsic:
-            self.error(
-                node, f"Cannot redefine built-in intrinsic function '{node.name}'"
-            )
+        # is_intrinsic = node.name in INTRINSIC_HANDLERS
+        # if is_intrinsic:
+        #     self.error(
+        #         node, f"Cannot redefine built-in intrinsic function '{node.name}'"
+        #     )
 
         self.stm.enter_scope(scope_name=f"func_{node.name}", is_func=True)
         self.stm.define_func(node.name, node.type, node.args, node)

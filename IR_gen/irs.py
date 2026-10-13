@@ -181,12 +181,12 @@ class NoneIR(IR):
         self.air = air
 
 
-class IntrinsicIR(IR):
-    def __init__(self, name, args, type, handler):
-        self.target = name
+class IntrinsicCallIR(IR):
+    def __init__(self, intrinsic, name, args, type):
+        self.intrinsic = intrinsic
+        self.name = name
         self.args = args
-        self.type = None
-        self.handler = handler
+        self.type = type
 
 
 class RangeIR(IR):

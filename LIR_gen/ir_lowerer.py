@@ -256,8 +256,36 @@ class IRLowerer:
 
         return FunctionLIR(name, args_lir, type_str, fn_blocks)
 
-    def process_IntrinsicIR(self, hir):
-        return self.process_CallIR(hir)
+    # def process_IntrinsicCallIR(self, hir):
+    #     lirs = LIRs()
+
+    #     name = hir.name
+    #     args = hir.args
+    #     intrinsic = hir.intrinsic
+    #     is_not_return = isinstance(hir.type, NoneType) or hir.type is None
+    #     type_str = str(hir.type)
+
+    #     lirs = LIRs()
+    #     arg_ids = []
+
+    #     for arg in args:
+    #         lir = self.process(arg)
+    #         arg_ids.append(self.get_current_value_id())
+
+    #     if is_not_return:
+    #         nonetype = str(NoneType())
+    #         const_lir = ConstLIR(self.get_value_id(), nonetype, None)
+    #         self.blocks.emit(const_lir)
+    #         lirs.append(const_lir)
+
+    #         call_lir = CallLIR(None, type_str, name, arg_ids)
+    #     else:
+    #         call_lir = CallLIR(self.get_value_id(), type_str, name, arg_ids)
+
+    #     self.blocks.emit(call_lir)
+    #     lirs.append(call_lir)
+
+    #     return lirs
 
     def process_GroupIR(self, hir):
         return self.process(hir.expr)

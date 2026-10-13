@@ -1,6 +1,5 @@
 from .irs import *
 from type_systems.types import IntType
-from semantic.intrinsics import INTRINSIC_HANDLERS
 
 
 class IRPasser:

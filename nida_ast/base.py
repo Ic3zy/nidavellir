@@ -76,14 +76,15 @@ class IfAST(AST):
 
 
 class NumberAST(AST):
-    def __init__(self, value, type=None):
+    def __init__(self, value):
         self.value = value
-        self.type = type
+        self.type = "idyn"
 
 
 class StringAST(AST):
     def __init__(self, value):
         self.value = value
+        self.type = "str"
 
 
 class VariableAST(AST):
@@ -204,12 +205,19 @@ class ListLiteralAST(AST):
 
 
 class IntrinsicAST(AST):
-    def __init__(self, name, type, params, handler, is_variadic=False):
+    def __init__(self, name, type, params, handler):
         self.name = name
         self.type = type
-        self.args = params
+        self.params = params
         self.handler = handler
-        self.is_variadic = is_variadic
+
+
+class IntrinsicCallAST(AST):
+    def __init__(self, intrinsic: IntrinsicAST, name, args):
+        self.intrinsic = intrinsic
+        self.name = name
+        self.args = args
+        self.type = None
 
 
 class ImportAST(AST):

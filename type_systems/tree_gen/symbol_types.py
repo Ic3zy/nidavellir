@@ -93,6 +93,16 @@ class CallSymbol(Symbol):
         self.ast_node.type = self.type
 
 
+class IntrinsicCallSymbol(Symbol):
+    def __init__(self, intrinsic, name, args, ast_node):
+        self.intrinsic = intrinsic
+        self.name = name
+        self.args = args
+        self.ast_node = ast_node
+
+        self.type = None
+
+
 class VariableSymbol(Symbol):
     def __init__(self, name, lookup, ast_node):
         self.name = name
