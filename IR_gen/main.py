@@ -6,9 +6,8 @@ from nida_ast.base import *
 
 
 class IRGen:
-    def __init__(self, asts, module_name=None):
+    def __init__(self, asts):
         self.asts = asts
-        self.module_name = module_name
 
         self.IRs = []
 
@@ -235,7 +234,7 @@ class IRGen:
 
         # print(self.IRs)
 
-        ir_passer = IRPasser(self.IRs, module_name=self.module_name)
+        ir_passer = IRPasser(self.IRs)
         self.IRs = ir_passer.run()
 
         return self.IRs

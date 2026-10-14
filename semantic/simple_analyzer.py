@@ -7,6 +7,7 @@ from nida_ast.base import *
 from type_systems.types import resolve_type
 
 VALID_RETURN_EXPRESSIONS = (
+    NoneAST,
     VariableAST,
     NumberAST,
     StringAST,

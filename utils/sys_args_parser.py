@@ -124,4 +124,5 @@ class SysArgs:
             self.extra_c_files.append(path_obj)
 
     def add_extra_c_include(self, name: str) -> None:
-        self.extra_c_includes.append(name)
+        if name not in self.extra_c_includes:
+            self.extra_c_includes.append(name)

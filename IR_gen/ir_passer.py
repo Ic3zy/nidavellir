@@ -3,13 +3,8 @@ from type_systems.types import IntType
 
 
 class IRPasser:
-    def __init__(self, irs, module_name=None):
+    def __init__(self, irs):
         self.irs = irs
-        self.module_name = module_name
-
-    @property
-    def is_module(self):
-        return self.module_name is not None
 
     def run(self):
         final_irs = []

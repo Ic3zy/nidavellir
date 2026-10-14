@@ -4,7 +4,6 @@ from nida_ast import Parser
 from semantic import SimpleAnalyzer
 from import_systems import ImportSystem
 
-# from type_systems import AutoTypeDefEngine
 from type_systems.main import TypeSystem
 from IR_gen import IRGen
 from LIR_gen import IRLowerer
@@ -24,12 +23,10 @@ class Nidac:
         source: str = None,
         file_path: str = None,
         debug: bool = False,
-        module_name: str = None,
     ):
         self.source = source
         self.file_path = file_path
         self.debug = debug
-        self.module_name = module_name
 
         self.current_path = Path.cwd()
 
@@ -42,10 +39,6 @@ class Nidac:
         self.lir = None
         self.final_c_code = None
         self.c_gen = None
-
-    @property
-    def is_module(self):
-        return self.module_name is not None
 
     def compile(self):
         self.lex()
@@ -83,9 +76,8 @@ class Nidac:
         with open(c_path, "w") as f:
             f.write(self.final_c_code)
 
-        if not self.is_module:
-            compile_c_file(c_path, SysArgs.output)
-            self.run_binary(SysArgs.output)
+        compile_c_file(c_path, SysArgs.output)
+        self.run_binary(SysArgs.output)
 
     def generate_dependencies_c_code(self):
         for module in self.imported_modules:

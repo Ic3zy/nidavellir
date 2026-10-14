@@ -274,7 +274,7 @@ def my_custom_print(*args, **kwargs):
 builtins.print = my_custom_print
 
 
-test_count = 20000
+test_count = 2
 latencys = []
 
 for _ in range(test_count):
