@@ -19,7 +19,7 @@ class AutoTypeDefEngine:
         self.sym_tree = sym_tree
 
     def process_BooleanSymbol(self, sym):
-        pass
+        sym.type = BooleanType()
 
     def process_NumberSymbol(self, sym):
         val = detect_type(sym.value)

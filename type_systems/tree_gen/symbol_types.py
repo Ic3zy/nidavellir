@@ -186,3 +186,4 @@ class BooleanSymbol(Symbol):
     def __init__(self, value, ast_node):
         self.value = value
         self.ast_node = ast_node
+        self.type = None

@@ -438,7 +438,7 @@ class SimpleASTVisitor:
         self.stm.exit_scope()
 
     def stmt_ImportAST(self, node):
-        # raise Exception(node)
+        # TODO: refactor
         name = node.module
         module_scope = self.stm.enter_scope(
             scope_name="imp", is_func=False, link_to_parent=False
@@ -454,10 +454,14 @@ class SimpleASTVisitor:
 
         symbol_to_lk = {}
         for sym in node.symbols:
-            lk = self.stm.current_scope.lookup_func(sym)
+            func_name = sym["name"]
+            alias = sym.get("alias")
+
+            lk = self.stm.current_scope.lookup_func(func_name)
             if lk is None:
-                self.error(node, f"Symbol '{sym}' is not defined")
-            symbol_to_lk[sym] = lk
+                self.error(node, f"Symbol '{func_name}' is not defined")
+
+            symbol_to_lk[func_name if alias is None else alias] = lk
 
         c_scp = self.stm.current_scope
         self.stm.exit_scope()

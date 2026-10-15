@@ -793,8 +793,17 @@ class Parser:
         symbols = []
         while self.current is not None and self.peek_kind() != "NEWLINE":
             sym_token = self.consume("NAME")
-            symbols.append(sym_token[1])
+            alias_token = None
+            if self.peek_kind() == "AS":
+                self.advance()
+                alias_token = self.consume("NAME")
 
+            symbols.append(
+                {
+                    "name": sym_token[1],
+                    "alias": alias_token[1] if alias_token is not None else None,
+                }
+            )
             if self.peek_kind() == "COMMA":
                 self.advance()
             else:

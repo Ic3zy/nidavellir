@@ -18,6 +18,7 @@ PRIMITIVE_TYPE_FACTORIES = {
     "None": lambda: NoneType(),
     "void": lambda: NoneType(),
     "dynamic": lambda: DynamicType(),
+    "bool": lambda: BooleanType(),
 }
 
 TYPE_RANK = {
@@ -206,3 +207,8 @@ class ArrayType(Type):
 class NoneType(Type):
     def __str__(self):
         return "None"
+
+
+class BooleanType(Type):
+    def __str__(self):
+        return "bool"

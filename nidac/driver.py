@@ -103,6 +103,9 @@ class Nidac:
 
             module.include_path = c_header_path
 
+            if not module.include_path.exists():
+                module.include_path.parent.mkdir(parents=True, exist_ok=True)
+
             with open(c_path, "w") as f:
                 f.write(module.c_code)
 
