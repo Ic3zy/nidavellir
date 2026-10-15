@@ -25,7 +25,15 @@ class SimpleASTVisitor:
     def __init__(self, stm):
         self.stm = stm
         self.body_parse_waiter_funcs = []
+        self.module_scopes = {}
         self.current_class_name = None
+
+        self.function_id = 0
+
+    def get_function_id(self):
+        curr = self.function_id
+        self.function_id += 1
+        return f"Nida_Function_{curr}"
 
     def error(self, node, message):
         line = getattr(node, "line", None)
@@ -167,11 +175,7 @@ class SimpleASTVisitor:
             if func is None:
                 self.error(node, f"Function '{target}' not defined")
 
-            node.target_function_ast = (
-                func["ast"]
-                if isinstance(func, dict) and func.get("ast") is not None
-                else func
-            )
+            node.target_function = func
 
         args = node.args
 
@@ -181,11 +185,7 @@ class SimpleASTVisitor:
                 if isinstance(func, dict)
                 else getattr(func, "is_variadic", False)
             )
-            params = (
-                func.get("params", [])
-                if isinstance(func, dict)
-                else func.get("params", [])
-            )
+            params = func.params
 
             if not is_variadic and len(args) != len(params):
                 self.error(
@@ -331,7 +331,9 @@ class SimpleASTVisitor:
         #     )
 
         self.stm.enter_scope(scope_name=f"func_{node.name}", is_func=True)
-        self.stm.define_func(node.name, node.type, node.args, node)
+        node.function_id = self.get_function_id()
+        self.stm.define_func(node.name, node.function_id, node.type, node.args, node)
+        node.name = node.function_id
         args = node.args
         in_self = False
 
@@ -436,13 +438,37 @@ class SimpleASTVisitor:
         self.stm.exit_scope()
 
     def stmt_ImportAST(self, node):
+        # raise Exception(node)
+        name = node.module
+        module_scope = self.stm.enter_scope(
+            scope_name="imp", is_func=False, link_to_parent=False
+        )
         module = node.resolved_module
 
         if module is None:
             return
 
         for ast in module.asts:
-            self.visit_statement(ast)
+            print(ast)
+            res = self.visit_statement(ast)
+
+        symbol_to_lk = {}
+        for sym in node.symbols:
+            lk = self.stm.current_scope.lookup_func(sym)
+            if lk is None:
+                self.error(node, f"Symbol '{sym}' is not defined")
+            symbol_to_lk[sym] = lk
+
+        c_scp = self.stm.current_scope
+        self.stm.exit_scope()
+        self.module_scopes[name] = module_scope
+
+        for name, lk in symbol_to_lk.items():
+            p = c_scp.parent
+            if p is not None and p.name == "imp":
+                self.stm.define_imported_func(name, lk)
+            else:
+                self.stm.define_imported_func(name, lk, is_global=True)
 
     def visit_statement(self, node):
         method_name = f"stmt_{type(node).__name__}"

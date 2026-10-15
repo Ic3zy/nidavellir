@@ -105,11 +105,11 @@ class CallAST(AST):
         self.chain = chain
         self.args = args
 
-        self.target_function_ast = None
+        self.target_function = None
 
     @property
-    def target_function(self):
-        return self.target_function_ast.name
+    def target_function_name(self):
+        return self.target_function.func_id
 
 
 class ReturnAST(AST):

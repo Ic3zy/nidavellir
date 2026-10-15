@@ -157,7 +157,7 @@ class SymbolTreeBuilder:
         return params
 
     def stmt_CallAST(self, ast):
-        func_name = ast.target_function
+        func_name = ast.target_function_name
         lookup = self.stm.lookup(func_name)
 
         if lookup is None:

@@ -40,7 +40,7 @@ class AutoTypeDefEngine:
                 lk_type = sym.lookup.type
 
             if lk_type is None:
-                raise Exception(sym.lookup)
+                raise Exception(sym.lookup.ast_node)
                 raise Exception(sym, "Cannot determine type of variable")
 
             with TypeUpdate(sym):

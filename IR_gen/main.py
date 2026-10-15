@@ -55,7 +55,7 @@ class IRGen:
         for arg in args:
             args_irs.append(self.gen(arg))
 
-        target = ast.target_function
+        target = ast.target_function_name
         ir = CallIR(target, args_irs, type)
         return ir
 

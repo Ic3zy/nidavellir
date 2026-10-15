@@ -1,9 +1,23 @@
 # from .intrinsics import INTRINSIC_HANDLERS
 
 
+class FunctionSymbol:
+    def __init__(self, func_id, return_type, params, ast_node):
+        self.func_id = func_id
+        self.return_type = return_type
+        self.params = params
+        self.ast_node = ast_node
+
+
 class Scope:
     def __init__(
-        self, name="block", parent=None, is_func=False, is_if=False, class_name=None
+        self,
+        name="block",
+        parent=None,
+        is_func=False,
+        is_if=False,
+        class_name=None,
+        link_to_parent=True,
     ):
         self.name = name
         self.parent = parent
@@ -17,6 +31,8 @@ class Scope:
         self.classes = {}
         self.types = {}
         self.modules = {}
+
+        self.link_to_parent = link_to_parent
 
     def define_var(self, name, symbol_obj):
         self.variables[name] = symbol_obj
@@ -33,7 +49,7 @@ class Scope:
         if self.parent:
             return self.parent.lookup_func(name)
 
-    def lookup_module(self, name):  # EKLENDİ
+    def lookup_module(self, name):
         if name in self.modules:
             return self.modules[name]
         if self.parent:
@@ -56,7 +72,12 @@ class SymbolTableManager:
         self.current_scope = self.global_scope
 
     def enter_scope(
-        self, scope_name="block", is_func=False, is_if=False, class_name=None
+        self,
+        scope_name="block",
+        is_func=False,
+        is_if=False,
+        class_name=None,
+        link_to_parent=True,
     ):
         new_scope = Scope(
             name=scope_name,
@@ -64,6 +85,7 @@ class SymbolTableManager:
             is_func=is_func,
             is_if=is_if,
             class_name=class_name,
+            link_to_parent=link_to_parent,
         )
         self.current_scope = new_scope
 
@@ -105,34 +127,21 @@ class SymbolTableManager:
     def lookup_var(self, name):
         return self.current_scope.lookup_var(name)
 
-    def define_func(self, name, return_type, params, ast_node, c_name=None):
-        func_symbol = {
-            "name": name,
-            "return_type": return_type,
-            "params": params,
-            "ast": ast_node,
-            "is_variadic": False,
-            "module": None,
-            "c_name": c_name,
-        }
-        self.global_scope.functions[name] = func_symbol
+    def define_func(self, name, id, return_type, params, ast_node):
+        func_symbol = FunctionSymbol(id, return_type, params, ast_node)
+        if not self.current_scope.parent.link_to_parent:
+            self.current_scope.parent.functions[name] = func_symbol
+        else:
+            self.global_scope.functions[name] = func_symbol
 
-    def define_imported_func(
-        self, name, return_type, params, module_name, is_variadic=False
-    ):
-        func_symbol = {
-            "name": name,
-            "return_type": return_type,
-            "params": params,
-            "ast": None,
-            "is_variadic": is_variadic,
-            "is_external": True,
-            "module": module_name,
-        }
-        self.global_scope.functions[name] = func_symbol
+    def define_imported_func(self, name, func: FunctionSymbol, is_global=False):
+        if is_global:
+            self.global_scope.functions[name] = func
+        else:
+            self.current_scope.functions[name] = func
 
     def define_module(self, alias_or_name, real_module_name):
         self.current_scope.modules[alias_or_name] = real_module_name
 
     def lookup_func(self, name):
-        return self.global_scope.lookup_func(name)
+        return self.current_scope.lookup_func(name)
