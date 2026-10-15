@@ -57,6 +57,14 @@ class AutoTypeDefEngine:
                 if sym.type is None:
                     raise Exception(sym, "Cannot determine type of assigned value")
 
+    def process_DefinitionSymbol(self, sym):
+        if sym.type is None:
+            self.process(sym.value)
+            with TypeUpdate(sym):
+                sym.type = sym.value.type
+                if sym.type is None:
+                    raise Exception(sym, "Cannot determine type of assigned value")
+
     def process_BinaryOpSymbol(self, sym):
         right = sym.right_sym
         left = sym.left_sym

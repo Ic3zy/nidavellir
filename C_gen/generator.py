@@ -80,6 +80,7 @@ class C_Gen:
         name = lir.name
         args = lir.args
         body = lir.body
+        is_static = lir.is_static
         return_type = CTypeTranslator.translate(lir.type)
 
         args_nodes = []
@@ -90,7 +91,7 @@ class C_Gen:
         for b in body:
             body_nodes.append(self.process(b))
 
-        return CFunction(name, name, args_nodes, body_nodes, return_type)
+        return CFunction(name, name, args_nodes, body_nodes, return_type, is_static)
 
     def process_ConstLIR(self, lir):
         lir_name = self.name_maper(lir.name)
@@ -252,6 +253,13 @@ class C_Gen:
         cond_id = self.name_maper(cond)
         else_body = [CGoto(false_block)] if false_block else None
         return CIf(cond_id, [CGoto(true_block)], None, else_body)
+
+    def process_GlobalLIR(self, lir):
+        name = lir.name
+        type = CTypeTranslator.translate(lir.type)
+        initializer = lir.initializer
+
+        return CGlobal(name, type, initializer)
 
     def process(self, lir):
         name = lir.__class__.__name__

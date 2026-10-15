@@ -127,6 +127,13 @@ class AssignAST(AST):
         self.is_re_assign = None
 
 
+class DefinitionAST(AST):
+    def __init__(self, target, type, value):
+        self.target = target
+        self.type = type
+        self.value = value
+
+
 class WhileAST(AST):
     def __init__(self, cond, body):
         self.cond = cond

@@ -208,6 +208,14 @@ class IRGen:
     def gen_NoneAST(self, ast):
         return NoneIR()
 
+    def gen_DefinitionAST(self, ast):
+        target = ast.target
+        value = ast.value
+        type = ast.type
+
+        value_ir = self.gen(value)
+        return DefinitionIR(target, value_ir, type)
+
     def _gen_unary_op(self, target, ast):
         op = ast.op
         right = ast.right

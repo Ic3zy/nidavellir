@@ -62,12 +62,16 @@ class AssignIR(IR):
 
 
 class FunctionIR(IR):
-    def __init__(self, decs, name, args, body, type=None, is_main_func=False):
+    def __init__(
+        self, decs, name, args, body, type=None, is_main_func=False, is_static=False
+    ):
         self.decs = decs
         self.name = name
         self.args = args
         self.body = body
         self.type = type
+
+        self.is_static = is_static
 
         self.is_main_func = is_main_func
 
@@ -187,6 +191,15 @@ class IntrinsicCallIR(IR):
         self.name = name
         self.args = args
         self.type = type
+
+
+class DefinitionIR(IR):
+    def __init__(self, target, value, type):
+        self.target = target
+        self.value = value
+        self.type = type
+
+        self.initializer = None
 
 
 class RangeIR(IR):

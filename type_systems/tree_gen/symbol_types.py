@@ -25,6 +25,21 @@ class AssignSymbol(Symbol):
             self.parent_assign.set_type_to_AST()
 
 
+class DefinitionSymbol(Symbol):
+    def __init__(self, name, type, value, ast_node):
+        self.name = name
+        self.type = resolve_type(type)
+        self.value = value
+        self.ast_node = ast_node
+
+        self.parent_assign = None
+
+        self.uses = []
+
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type
+
+
 class NumberSymbol(Symbol):
     def __init__(self, value, ast_node):
         self.value = value

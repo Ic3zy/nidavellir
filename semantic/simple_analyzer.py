@@ -210,6 +210,14 @@ class SimpleASTVisitor:
     def stmt_PassAST(self, node):
         pass
 
+    def stmt_DefinitionAST(self, node):
+        lk = self.stm.lookup_var(node.target)
+        if lk is not None:
+            raise SyntaxError(f"Definition of variable '{node.target}' already exists")
+
+        self.visit_expression(node.value)
+        self.stm.define_var(node.target, node.type)
+
     def stmt_ClassAST(self, node):
         self.stm.define_class(node.name, node)
         self.stm.enter_scope(scope_name=node.name, is_func=False, class_name=node.name)

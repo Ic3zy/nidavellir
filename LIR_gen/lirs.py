@@ -56,10 +56,11 @@ class LoadLIR(LIR):
 
 
 class FunctionLIR(LIR):
-    def __init__(self, name, args, type, body):
+    def __init__(self, name, args, type, body, is_static):
         self.name = name
         self.args = args
         self.type = type
+        self.is_static = is_static
         self.body = body
 
 
@@ -203,3 +204,10 @@ class BranchLIR(LIR):
         self.condition = condition
         self.true_block = true_block
         self.false_block = false_block
+
+
+class GlobalLIR(LIR):
+    def __init__(self, name, type, initializer):
+        self.name = name
+        self.type = type
+        self.initializer = initializer

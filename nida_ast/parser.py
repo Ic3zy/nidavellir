@@ -495,7 +495,7 @@ class Parser:
 
         return type_name
 
-    def parse_assignment(self):
+    def parse_assignment(self, is_definition=False):
         type = self.parse_type()
 
         comp = self.get_compound_assignment()
@@ -522,6 +522,15 @@ class Parser:
                 value_ast = BinaryOpAST(
                     left=VariableAST(name=target_name), op=comp, right=value_ast
                 )
+
+        if is_definition:
+            if chain:
+                self.print_error(
+                    f"Syntax Error: Cannot use type annotation '{data_type}' on member access '{target_path}'.\n"
+                    f"  --> Fields already have a type defined in their class."
+                )
+            return DefinitionAST(target=target_name, type=data_type, value=value_ast)
+
         return AssignAST(
             target=target_name, chain=chain, type=data_type, value=value_ast
         )
@@ -638,6 +647,11 @@ class Parser:
         self.consume("DEF")
         if decorators:
             self.last_decorators = []
+
+        ch = self.check_assignment()
+        if ch:
+            assignment = self.parse_assignment(is_definition=True)
+            return assignment
 
         start = self.consume("NAME")
 

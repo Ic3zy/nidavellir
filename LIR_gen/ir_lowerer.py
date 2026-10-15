@@ -109,6 +109,7 @@ class IRLowerer:
         self.blocks = BlockManager()
         self.value_id = Value_Id()
         self.lir = []
+        self.globals = []
 
     def enter_new_value_scope(self):
         self.value_id = Value_Id(self.value_id)
@@ -232,6 +233,7 @@ class IRLowerer:
 
         name = hir.name
         args = hir.args
+        is_static = hir.is_static
         type_str = str(hir.type)
         body = hir.body_irs
 
@@ -254,7 +256,7 @@ class IRLowerer:
         self.blocks = prev_blocks
         self.exit_value_scope()
 
-        return FunctionLIR(name, args_lir, type_str, fn_blocks)
+        return FunctionLIR(name, args_lir, type_str, fn_blocks, is_static)
 
     # def process_IntrinsicCallIR(self, hir):
     #     lirs = LIRs()
@@ -541,6 +543,19 @@ class IRLowerer:
         module.lirs = lirs
         return
 
+    def process_DefinitionIR(self, hir):
+        target = hir.target
+        value = hir.value
+        type_str = str(hir.type)
+
+        init_fn = hir.initializer
+
+        gl_lir = GlobalLIR(target, type_str, init_fn)
+        self.globals.append(gl_lir)
+
+        # Do not append to lirs because it is not a statement.
+        return None
+
     def process(self, hir):
         name = hir.__class__.__name__
         func = getattr(self, f"process_{name}", None)
@@ -572,6 +587,6 @@ class IRLowerer:
                 if box.block not in self.lir and box.block.body:
                     self.lir.append(box.block)
 
-        # raise Exception(self.lir)
+        # raise Exception([*self.globals, *self.lir])
 
-        return self.lir
+        return [*self.globals, *self.lir]

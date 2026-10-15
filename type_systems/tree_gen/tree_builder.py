@@ -93,6 +93,17 @@ class SymbolTreeBuilder:
     def eval_IntrinsicCallAST(self, ast):
         return self.stmt_IntrinsicCallAST(ast)
 
+    def stmt_DefinitionAST(self, ast):
+        lk = self.stm.lookup(ast.target)
+        if lk is not None:
+            raise SyntaxError(f"Definition of variable '{ast.target}' already exists")
+
+        val = ast.value
+        val_sym = self.process_eval(val)
+
+        self.stm.add_symbol(d := DefinitionSymbol(ast.target, ast.type, val_sym, ast))
+        return d
+
     def stmt_FunctionAST(self, ast):
         lookup = self.stm.lookup(ast.name)
         if lookup is not None:

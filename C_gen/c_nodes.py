@@ -70,19 +70,24 @@ class CCall(CNode):
 
 
 class CFunction(CNode):
-    def __init__(self, name, c_name, args, body, type):
+    def __init__(self, name, c_name, args, body, type, is_static):
         self.name = name
         self.c_name = c_name
         self.args = args
         self.body = body
         self.type = type
+        self.is_static = is_static
 
     def __str__(self):
         body_str = "".join(
             f"{str(b)}{';' if not isinstance(b, CBlock) else ''}\n" for b in self.body
         )
         args_str = ", ".join(str(a) for a in self.args)
-        return f"{str(self.type)} {self.c_name}({args_str}) {{\n{body_str}}}"
+        static_str = "static " if self.is_static else ""
+
+        return (
+            f"{static_str}{str(self.type)} {self.c_name}({args_str}) {{\n{body_str}}}"
+        )
 
 
 class CReturn(CNode):
@@ -260,3 +265,13 @@ class CGoto(CNode):
 
     def __str__(self):
         return f"goto {self.block}"
+
+
+class CGlobal(CNode):
+    def __init__(self, name, type, initializer):
+        self.name = name
+        self.type = type
+        self.initializer = initializer
+
+    def __str__(self):
+        return f"{self.type} {self.name}"
