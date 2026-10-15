@@ -47,7 +47,7 @@ class IRGen:
         return ClassIR(name, body_irs)
 
     def gen_CallAST(self, ast):
-        target = ast.target
+        target = ast.target_function_name
         args = ast.args
         type = ast.type
 
@@ -55,7 +55,6 @@ class IRGen:
         for arg in args:
             args_irs.append(self.gen(arg))
 
-        target = ast.target_function_name
         ir = CallIR(target, args_irs, type)
         return ir
 
@@ -96,7 +95,7 @@ class IRGen:
 
     def gen_FunctionAST(self, ast):
         decs = ast.decorators
-        name = ast.name
+        name = ast.func_id
         args = ast.args
         body = ast.body
         type = ast.type

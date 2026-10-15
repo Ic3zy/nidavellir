@@ -55,6 +55,8 @@ class FunctionAST(AST):
 
         self.is_imported = False
 
+        self.func_id = None
+
 
 class BlockAST(AST):
     def __init__(self, body):

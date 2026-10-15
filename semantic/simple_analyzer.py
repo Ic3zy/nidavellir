@@ -324,16 +324,9 @@ class SimpleASTVisitor:
         self.visit_expression(node.value)
 
     def stmt_FunctionAST(self, node):
-        # is_intrinsic = node.name in INTRINSIC_HANDLERS
-        # if is_intrinsic:
-        #     self.error(
-        #         node, f"Cannot redefine built-in intrinsic function '{node.name}'"
-        #     )
-
         self.stm.enter_scope(scope_name=f"func_{node.name}", is_func=True)
-        node.function_id = self.get_function_id()
-        self.stm.define_func(node.name, node.function_id, node.type, node.args, node)
-        node.name = node.function_id
+        node.func_id = self.get_function_id()
+        self.stm.define_func(node.name, node.func_id, node.type, node.args, node)
         args = node.args
         in_self = False
 
@@ -449,15 +442,14 @@ class SimpleASTVisitor:
             return
 
         for ast in module.asts:
-            print(ast)
-            res = self.visit_statement(ast)
+            self.visit_statement(ast)
 
         symbol_to_lk = {}
         for sym in node.symbols:
             func_name = sym["name"]
             alias = sym.get("alias")
 
-            lk = self.stm.current_scope.lookup_func(func_name)
+            lk = self.stm.lookup_func(func_name)
             if lk is None:
                 self.error(node, f"Symbol '{func_name}' is not defined")
 
