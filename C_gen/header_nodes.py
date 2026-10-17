@@ -48,3 +48,11 @@ class HFunction(HeaderNode):
             c += 1
 
         return f"{self.return_type} {self.name}({args_str})"
+
+
+class HInclude(HeaderNode):
+    def __init__(self, file_name):
+        self.file_name = file_name
+
+    def str(self):
+        return f"#include {self.file_name}"

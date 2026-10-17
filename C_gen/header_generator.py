@@ -1,5 +1,6 @@
 from .c_nodes import *
 from .header_nodes import *
+from .extra_c_includes import EXTRA_C_INCLUDES
 
 
 class HeaderGenerator:
@@ -20,10 +21,26 @@ class HeaderGenerator:
             return func(node)
 
     def generate_default_header_dependencies(self):
-        return Hifndef(self.header_name)
+        ifndef = Hifndef(self.header_name)
+        includes = [ifndef]
+        for include in EXTRA_C_INCLUDES:
+            name = self.include_name_map(include)
+            node = HInclude(name)
+            includes.append(node)
+
+        return includes
+
+    def include_name_map(self, name):
+        if name.startswith('"'):
+            return name
+        elif name.startswith("<"):
+            return name
+        return f'"{name}"'
 
     def gen_all(self):
-        header_nodes = [self.generate_default_header_dependencies()]
+        default_dep = self.generate_default_header_dependencies()
+        header_nodes = []
+        header_nodes.extend(default_dep)
         for c_node in self.c_code:
             res = self.gen(c_node)
             if res is not None:
