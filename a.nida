@@ -1,1 +1,1 @@
-import t1 as test
+print("hello world")
