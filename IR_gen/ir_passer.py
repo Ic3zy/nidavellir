@@ -55,7 +55,6 @@ class IRPasser:
         )
 
         final_irs.append(main_fn)
-        raise Exception(final_irs)
         return final_irs
 
     def run_stmt(self, ir):
@@ -121,7 +120,7 @@ class IRPasser:
         asgn = AssignIR(ir.target, value, ir.type)
         asgn.re_assign = True
 
-        fn_name = self.f_alloc.alloc()
+        fn_name = self.f_alloc.anon()
 
         fn = FunctionIR(
             decs=None,
@@ -183,7 +182,7 @@ class IRPasser:
 
         initialize_func = FunctionIR(
             decs=[],
-            name=self.f_alloc.alloc(),
+            name=self.f_alloc.anon(),
             args=[],
             body=[
                 CallIR("print", [], type=NoneType()),

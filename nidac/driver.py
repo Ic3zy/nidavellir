@@ -56,7 +56,7 @@ class Nidac:
         if SysArgs.stop_after == "semantic":
             return
 
-        self.type_def()
+        # self.type_def()
         if SysArgs.stop_after == "type-engine" or SysArgs.stop_after == "type-tree":
             return
 
@@ -64,6 +64,10 @@ class Nidac:
 
         self.HIRGen()
         if SysArgs.stop_after == "hir":
+            return
+
+        self.LIRGen()
+        if SysArgs.stop_after == "lir":
             return
 
         self.emit_c11()
@@ -135,7 +139,7 @@ class Nidac:
 
     def emit_c11(self):
         if self.lir is None:
-            self.IRGen()
+            self.LIRGen()
 
         self.generate_dependencies_c_code()
 
@@ -152,9 +156,17 @@ class Nidac:
         hir = IRGen(self.asts, self.ctx)
         self.hir = hir.run()
 
+        if SysArgs.dump_hir:
+            print("===== HIR =====")
+            print(self.hir)
+
     def LIRGen(self):
         lir = IRLowerer(self.hir)
         self.lir = lir.run()
+
+        if SysArgs.dump_lir:
+            print("===== LIR =====")
+            print(self.lir)
 
     def read_file(self):
         with open(self.file_path, "r") as f:

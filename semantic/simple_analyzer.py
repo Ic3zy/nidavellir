@@ -66,9 +66,14 @@ class SimpleASTVisitor:
         return None
 
     def eval_VariableAST(self, node):
-        if self.stm.lookup_var(node.name) is None:
+        symbol = self.stm.lookup_var(node.name)
+        if symbol is None:
             self.error(node, f"Variable '{node.name}' is not defined")
-        return self.stm.lookup_var(node.name)
+
+        if node.type is None and symbol.get("type") is not None:
+            node.type = symbol["type"]
+
+        return symbol
 
     def eval_UnaryOpAST(self, node):
         pass
@@ -137,6 +142,9 @@ class SimpleASTVisitor:
                 f"Invalid arguments for intrinsic '{node.intrinsic.name}': "
                 f"{[arg.type for arg in args]}",
             )
+
+        for arg in args:
+            self.visit_expression(arg)
 
     def stmt_IntrinsicCallAST(self, node):
         return self.eval_IntrinsicCallAST(node)
@@ -345,7 +353,8 @@ class SimpleASTVisitor:
     def stmt_FunctionAST(self, node):
         self.stm.enter_scope(scope_name=f"func_{node.name}", is_func=True)
 
-        node.func_id = self.f_alloc.alloc()
+        if node.func_id is None:
+            node.func_id = self.f_alloc.alloc()
 
         self.stm.define_func(node.name, node.func_id, node.type, node.args, node)
         args = node.args

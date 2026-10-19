@@ -55,7 +55,7 @@ class FunctionAST(AST):
 
         self.is_imported = False
 
-        self.local_id = None
+        self.func_id = None
 
 
 class BlockAST(AST):
@@ -111,7 +111,7 @@ class CallAST(AST):
 
     @property
     def target_function_name(self):
-        return self.target_function.local_id
+        return self.target_function.func_id
 
 
 class ReturnAST(AST):
@@ -185,7 +185,7 @@ class ClassAST(AST):
         self.fields = {}
         self.methods = {}
 
-        self.local_id = None
+        self.func_id = None
 
 
 class SelfAST(AST):

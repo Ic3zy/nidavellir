@@ -10,6 +10,7 @@ class IRGen:
     def __init__(self, asts, ctx):
         self.asts = asts
         self.ctx = ctx
+        self.f_alloc = ctx["f_alloc"]
 
         self.IRs = []
 
@@ -38,18 +39,12 @@ class IRGen:
         res = self.gen(value)
         return ReturnIR(res)
 
-    def gen_ClassAST(self, ast):
-        name = ast.name
-        body = ast.body
-
-        body_irs = []
-        for n in body:
-            body_irs.append(self.gen(n))
-
-        return ClassIR(name, body_irs)
-
     def gen_CallAST(self, ast):
-        target = ast.target_function_name or ast.target
+        target = ast.target_function_name
+        if target is not None:
+            target = self.f_alloc.name_of(target)
+        else:
+            target = ast.target
         # target = ast.target_function_name
         # if target is None and isinstance(ast.target, ClassType):
         #     target = ast.target
@@ -103,7 +98,11 @@ class IRGen:
 
     def gen_FunctionAST(self, ast):
         decs = ast.decorators
-        name = ast.local_id
+        name = ast.func_id
+        if name is None:
+            raise Exception(f"No func_id for function {ast}")
+        name = self.f_alloc.name_of(name)
+
         args = ast.args
         body = ast.body
         type = ast.type

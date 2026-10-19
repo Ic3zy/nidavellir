@@ -15,6 +15,14 @@ class ClassSymbol:
         self.params = params
         self.ast_node = ast_node
 
+    @property
+    def methods(self):
+        return getattr(self.ast_node, "methods", {})
+
+    @property
+    def fields(self):
+        return getattr(self.ast_node, "fields", {})
+
 
 class Scope:
     def __init__(

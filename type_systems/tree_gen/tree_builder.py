@@ -105,11 +105,11 @@ class SymbolTreeBuilder:
         return d
 
     def stmt_FunctionAST(self, ast):
-        lookup = self.stm.lookup(ast.local_id)
+        lookup = self.stm.lookup(ast.name)
         if lookup is not None:
             self.error(ast, f"Function '{ast.name}' already exists")
 
-        fn_sym = FunctionSymbol(ast.local_id, ast.type, None, ast)
+        fn_sym = FunctionSymbol(ast.name, ast.type, None, ast)
         self.stm.add_symbol(fn_sym)
         self.stm.enter_scope()
 

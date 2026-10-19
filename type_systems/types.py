@@ -19,6 +19,10 @@ PRIMITIVE_TYPE_FACTORIES = {
     "void": lambda: NoneType(),
     "dynamic": lambda: DynamicType(),
     "bool": lambda: BooleanType(),
+    # user-friendly aliases
+    "int": lambda: IntType(signed=True, byte_size=4),
+    "float": lambda: FloatType(byte_size=4),
+    "String": lambda: StringType(),
 }
 
 TYPE_RANK = {
