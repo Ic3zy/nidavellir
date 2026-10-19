@@ -883,3 +883,7 @@ class Parser:
                 self.asts.append(res)
             else:
                 self.advance()
+
+    def run(self):
+        self.parse_all()
+        return self.asts

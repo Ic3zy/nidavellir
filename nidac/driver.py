@@ -34,7 +34,7 @@ class Nidac:
 
         self.current_path = Path.cwd()
 
-        self.tokens = []
+        self.lexer = None
         self.asts = []
         self.imported_modules = []
         self.symbol_table = None
@@ -47,15 +47,28 @@ class Nidac:
     def compile(self):
         self.lex()
         self.parse()
+        if SysArgs.stop_after == "ast":
+            return
 
         self.import_systems()
 
         self.analyze()
-        # self.type_def()
+        if SysArgs.stop_after == "semantic":
+            return
+
+        self.type_def()
+        if SysArgs.stop_after == "type-engine" or SysArgs.stop_after == "type-tree":
+            return
+
         # self.check_types()  # TODO: HardAnalyzer
-        self.IRGen()
+
+        self.HIRGen()
+        if SysArgs.stop_after == "hir":
+            return
 
         self.emit_c11()
+        if SysArgs.stop_after == "c":
+            return
 
         if not SysArgs.no_binary_compile:
             self.compile_binary()
@@ -129,10 +142,17 @@ class Nidac:
         self.c_gen = C_Gen(self.lir)
         self.final_c_code = self.c_gen.gen_from_list(self.lir)
 
-    def IRGen(self):
+        if SysArgs.dump_c:
+            print("===== C Code =====")
+            print(self.final_c_code)
+            print("===== C Nodes =====")
+            print(self.c_gen.c_nodes)
+
+    def HIRGen(self):
         hir = IRGen(self.asts, self.ctx)
         self.hir = hir.run()
 
+    def LIRGen(self):
         lir = IRLowerer(self.hir)
         self.lir = lir.run()
 
@@ -144,20 +164,20 @@ class Nidac:
         if self.source is None:
             self.read_file()
 
-        lexer = Lexer(self.source)
-        self.tokens = getattr(lexer, "tokens", [])
-        # print(lexer.tokenize())
-        return self.tokens
+        self.lexer = Lexer(self.source)
+        return self.lexer
 
     def parse(self):
-        if not self.tokens:
+        if not self.lexer:
             self.lex()
 
-        lexer_obj = Lexer(self.source)
-        parser = Parser(lexer_obj)
-        parser.parse_all()
-        self.asts = parser.asts
-        # print(self.asts)
+        parser = Parser(self.lexer)
+
+        self.asts = parser.run()
+        if SysArgs.dump_ast:
+            print("===== AST =====")
+            print(self.asts)
+
         return self.asts
 
     @staticmethod
@@ -175,6 +195,10 @@ class Nidac:
         analyzer.analyze_all()
 
         self.symbol_table = analyzer.stm
+        if SysArgs.dump_ast_after_semantic:
+            print("===== AST (after semantic analysis) =====")
+            print(self.asts)
+
         return self.symbol_table
 
     def type_def(self):

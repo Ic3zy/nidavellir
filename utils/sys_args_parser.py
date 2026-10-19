@@ -96,6 +96,64 @@ class SysArgs:
             help="Disables invocation of the underlying C compiler (GCC/Clang) and skips binary generation",
         )
 
+        parser.add_argument(
+            "-dph",
+            "--dump-hir",
+            action="store_true",
+            help="Dump HIR",
+        )
+
+        parser.add_argument(
+            "-dpl",
+            "--dump-lir",
+            action="store_true",
+            help="Dump LIR",
+        )
+
+        parser.add_argument(
+            "-dpa",
+            "--dump-ast",
+            action="store_true",
+            help="Dump AST",
+        )
+
+        parser.add_argument(
+            "-dpafs",
+            "--dump-ast-after-semantic",
+            action="store_true",
+            help="Dump AST after semantic analysis",
+        )
+
+        parser.add_argument(
+            "-dptt",
+            "--dump-type-tree",
+            action="store_true",
+            help="Dump type engine tree (befor type inference)",
+        )
+
+        parser.add_argument(
+            "-dpt",
+            "--dump-type-engine",
+            action="store_true",
+            help="Dump type engine tree (after type inference)",
+        )
+
+        parser.add_argument(
+            "-dpc",
+            "--dump-c",
+            action="store_true",
+            help="Dump C nodes",
+        )
+
+        parser.add_argument(
+            "-sta",
+            "--stop-after",
+            type=str,
+            choices=["hir", "lir", "ast", "semantic", "type-tree", "type-engine", "c"],
+            default=None,
+            help="Stop after the specified pipeline stage",
+        )
+
         parsed, _ = parser.parse_known_args(args)
 
         temp_dir = Path(tempfile.gettempdir())
