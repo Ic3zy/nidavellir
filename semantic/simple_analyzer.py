@@ -4,7 +4,7 @@
 from .intrinsics import INTRINSICS
 from .symbol_table import SymbolTableManager
 from nida_ast.base import *
-from type_systems.types import resolve_type
+from type_systems.types import resolve_type, ClassType
 
 VALID_RETURN_EXPRESSIONS = (
     NoneAST,
@@ -22,18 +22,16 @@ VALID_RETURN_EXPRESSIONS = (
 
 
 class SimpleASTVisitor:
-    def __init__(self, stm):
+    def __init__(self, stm, ctx):
         self.stm = stm
+        self.ctx = ctx
+        self.f_alloc = ctx["f_alloc"]
+
         self.body_parse_waiter_funcs = []
         self.module_scopes = {}
         self.current_class_name = None
 
         self.function_id = 0
-
-    def get_function_id(self):
-        curr = self.function_id
-        self.function_id += 1
-        return f"Nida_Function_{curr}"
 
     def error(self, node, message):
         line = getattr(node, "line", None)
@@ -89,33 +87,34 @@ class SimpleASTVisitor:
         self.visit_expression(node.right)
 
     def eval_FieldAccessAST(self, node):
-        if isinstance(node.target, SelfAST):
-            root_name = "self"
-        elif isinstance(node.target, VariableAST):
-            root_name = node.target.name
-            self.eval_VariableAST(node.target)
-        else:
-            self.visit_expression(node.target)
-            root_name = None
+        raise
+        # if isinstance(node.target, SelfAST):
+        #     root_name = "self"
+        # elif isinstance(node.target, VariableAST):
+        #     root_name = node.target.name
+        #     self.eval_VariableAST(node.target)
+        # else:
+        #     self.visit_expression(node.target)
+        #     root_name = None
 
-        if self.current_class_name is not None and root_name == "self":
-            chain = getattr(node, "chain", [])
+        # if self.current_class_name is not None and root_name == "self":
+        #     chain = getattr(node, "chain", [])
 
-            if not chain:
-                return None
+        #     if not chain:
+        #         return None
 
-            root_field = chain[0]
-            existing_field = self.stm.lookup_field(self.current_class_name, root_field)
+        #     root_field = chain[0]
+        #     existing_field = self.stm.lookup_field(self.current_class_name, root_field)
 
-            if not existing_field:
-                self.error(
-                    node,
-                    f"Member '{root_field}' is not defined in class '{self.current_class_name}'",
-                )
+        #     if not existing_field:
+        #         self.error(
+        #             node,
+        #             f"Member '{root_field}' is not defined in class '{self.current_class_name}'",
+        #         )
 
-            return existing_field
+        #     return existing_field
 
-        return None
+        # return None
 
     def process_intrinsic_call(self, node):
         name = node.target
@@ -151,6 +150,7 @@ class SimpleASTVisitor:
             self._parse_body(bpwf[0], bpwf[1], bpwf[2], bpwf[3])
 
         is_chain = node.chain
+        is_class = False
         is_intrinsic = False
 
         if is_chain:
@@ -160,9 +160,21 @@ class SimpleASTVisitor:
                 and not self.stm.lookup_var(target)
             ):
                 self.error(node, f"Variable '{target}' is not defined")
-        else:
-            is_class = False
 
+            if target == "self":
+                raise NotImplementedError("Self target not implemented")
+
+            target_class = self.stm.lookup_class(target)
+            if target_class is None:
+                self.error(node, f"Class '{target}' is not defined")
+
+            target_func = target_class.methods.get(target)
+            if target_func is None:
+                self.error(node, f"Method '{target}' is not defined")
+
+            node.target_function = target_func
+
+        else:
             if target in INTRINSICS:
                 return self.process_intrinsic_call(node)
 
@@ -175,11 +187,11 @@ class SimpleASTVisitor:
             if func is None:
                 self.error(node, f"Function '{target}' not defined")
 
-            node.target_function = func
-
+            node.target_function = func.ast_node
+            # raise Exception(node)
         args = node.args
 
-        if not is_chain:
+        if not is_chain and not is_class:
             is_variadic = (
                 func.get("is_variadic", False)
                 if isinstance(func, dict)
@@ -193,10 +205,8 @@ class SimpleASTVisitor:
                     f"{'Intrinsic' if is_intrinsic else 'Function' if not is_class else 'Class'} '{target}' takes {len(params)} arguments ({len(args)} given)",
                 )
 
-        analyzed_args = []
         for arg in args:
-            res = self.visit_expression(arg)
-            analyzed_args.append(res if res is not None else arg)
+            self.visit_expression(arg)
 
         return node
 
@@ -222,8 +232,17 @@ class SimpleASTVisitor:
         self.stm.define_class(node.name, node)
         self.stm.enter_scope(scope_name=node.name, is_func=False, class_name=node.name)
 
+        self.current_class_name = node.name
+
         try:
             for n in node.body:
+                if isinstance(n, FunctionAST):
+                    node.methods[n.name] = n
+                elif isinstance(n, AssignAST):
+                    node.fields[n.target] = n
+                else:
+                    self.error(n, f"Invalid class body item '{type(n).__name__}'")
+
                 self.visit_statement(n)
         finally:
             self.stm.exit_scope()
@@ -242,63 +261,63 @@ class SimpleASTVisitor:
         chain = getattr(node, "chain", [])
         class_name = self.get_current_class_name()
 
-        if class_name is not None:
-            if node.target == "self" and len(chain) == 1:
-                self.stm.define_field(
-                    class_name=class_name,
-                    field_name=chain[0],
-                    field_type=node.type,
-                    ast_node=node,
-                )
+        # if class_name is not None:
+        #     if node.target == "self" and len(chain) == 1:
+        #         self.stm.define_field(
+        #             class_name=class_name,
+        #             field_name=chain[0],
+        #             field_type=node.type,
+        #             ast_node=node,
+        #         )
 
-            elif node.target != "self" and not self.stm.current_scope.is_func:
-                self.stm.define_var(node.target, node.type)
+        #     elif node.target != "self" and not self.stm.current_scope.is_func:
+        #         self.stm.define_var(node.target, node.type)
 
-            elif node.target == "self" and len(chain) > 1:
-                last_class = self.stm.lookup_class(class_name)
+        #     elif node.target == "self" and len(chain) > 1:
+        #         last_class = self.stm.lookup_class(class_name)
 
-                for idx, ch in enumerate(chain):
-                    if ch in last_class["fields"]:
-                        ast = last_class["fields"][ch]["ast"]
-                        value = ast.value
+        #         for idx, ch in enumerate(chain):
+        #             if ch in last_class["fields"]:
+        #                 ast = last_class["fields"][ch]["ast"]
+        #                 value = ast.value
 
-                        is_last_in_chain = idx == len(chain) - 1
+        #                 is_last_in_chain = idx == len(chain) - 1
 
-                        if not is_last_in_chain:
-                            if not isinstance(value, CallAST):
-                                type_str = getattr(ast, "type", "primitive")
-                                self.error(
-                                    node,
-                                    f"Cannot perform member chain access '{'.'.join(chain)}': "
-                                    f"'{ch}' is of type '{type_str}', not a class instance.",
-                                )
-                                break
+        #                 if not is_last_in_chain:
+        #                     if not isinstance(value, CallAST):
+        #                         type_str = getattr(ast, "type", "primitive")
+        #                         self.error(
+        #                             node,
+        #                             f"Cannot perform member chain access '{'.'.join(chain)}': "
+        #                             f"'{ch}' is of type '{type_str}', not a class instance.",
+        #                         )
+        #                         break
 
-                            tr = value.target
-                            last_class = self.stm.lookup_class(tr)
-                            if not last_class:
-                                self.error(
-                                    node,
-                                    f"Class '{tr}' referenced by '{ch}' is not defined.",
-                                )
-                                break
-                    else:
-                        curr_class_name = last_class.get("name", class_name)
-                        self.error(
-                            node,
-                            f"Member '{ch}' is not defined in class '{curr_class_name}'",
-                        )
-                        break
+        #                     tr = value.target
+        #                     last_class = self.stm.lookup_class(tr)
+        #                     if not last_class:
+        #                         self.error(
+        #                             node,
+        #                             f"Class '{tr}' referenced by '{ch}' is not defined.",
+        #                         )
+        #                         break
+        #             else:
+        #                 curr_class_name = last_class.get("name", class_name)
+        #                 self.error(
+        #                     node,
+        #                     f"Member '{ch}' is not defined in class '{curr_class_name}'",
+        #                 )
+        #                 break
 
-            else:
-                self.stm.define_var(node.target, node.type)
+        #     else:
+        #         self.stm.define_var(node.target, node.type)
 
-        else:
-            lookups = self.stm.lookup_var(node.target)
-            if lookups:
-                node.is_re_assign = True
+        # else:
+        lookups = self.stm.lookup_var(node.target)
+        if lookups:
+            node.is_re_assign = True
 
-            self.stm.define_var(node.target, node.type)
+        self.stm.define_var(node.target, node.type)
 
         if node.value is not None:
             self.visit_expression(node.value)
@@ -325,7 +344,9 @@ class SimpleASTVisitor:
 
     def stmt_FunctionAST(self, node):
         self.stm.enter_scope(scope_name=f"func_{node.name}", is_func=True)
-        node.func_id = self.get_function_id()
+
+        node.func_id = self.f_alloc.alloc()
+
         self.stm.define_func(node.name, node.func_id, node.type, node.args, node)
         args = node.args
         in_self = False
@@ -484,16 +505,20 @@ class SimpleASTVisitor:
         return visitor(node)
 
 
-def normalize_ast_types(node):
+def normalize_ast_types(node, classes={}):
     if node is None:
         return
 
     if hasattr(node, "type") and node.type is not None:
         new_type = resolve_type(node.type)
         if new_type is None:
-            raise TypeError(
-                f"Unknown type '{node.type}'. The type is not defined or imported."
-            )
+            name = node.type
+            if name in classes:
+                new_type = ClassType(name)
+            else:
+                raise TypeError(
+                    f"Unknown type '{node.type}'. The type is not defined or imported."
+                )
 
         node.type = new_type
 
@@ -501,21 +526,22 @@ def normalize_ast_types(node):
         val = getattr(node, attr, None)
         if isinstance(val, list):
             for item in val:
-                normalize_ast_types(item)
+                normalize_ast_types(item, classes)
         elif val is not None and not isinstance(val, (str, int, float, bool)):
-            normalize_ast_types(val)
+            normalize_ast_types(val, classes)
 
     for attr in ("value", "target", "cond", "left", "right", "expr", "else_body"):
         val = getattr(node, attr, None)
         if val is not None and not isinstance(val, (str, int, float, bool)):
-            normalize_ast_types(val)
+            normalize_ast_types(val, classes)
 
 
 class SimpleAnalyzer:
-    def __init__(self, ast_tree):
+    def __init__(self, ast_tree, ctx):
         self.ast_tree = ast_tree
+        self.ctx = ctx
         self.stm = SymbolTableManager()
-        self.sav = SimpleASTVisitor(self.stm)
+        self.sav = SimpleASTVisitor(self.stm, self.ctx)
 
     def analyze_all(self):
         for node in self.ast_tree:
@@ -526,4 +552,4 @@ class SimpleAnalyzer:
             self.sav._parse_body(func[0], func[1], func[2], func[3])
 
         for node in self.ast_tree:
-            normalize_ast_types(node)
+            normalize_ast_types(node, self.stm.global_scope.classes)

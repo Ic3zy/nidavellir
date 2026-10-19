@@ -55,7 +55,7 @@ class FunctionAST(AST):
 
         self.is_imported = False
 
-        self.func_id = None
+        self.local_id = None
 
 
 class BlockAST(AST):
@@ -106,12 +106,12 @@ class CallAST(AST):
         self.target = target
         self.chain = chain
         self.args = args
-
+        self.type = None
         self.target_function = None
 
     @property
     def target_function_name(self):
-        return self.target_function.func_id
+        return self.target_function.local_id
 
 
 class ReturnAST(AST):
@@ -160,8 +160,7 @@ class OperatorAST(AST):
 
 
 class PassAST(AST):
-    def __init__(self):
-        pass
+    pass
 
 
 class BinaryOpAST(AST):
@@ -182,6 +181,11 @@ class ClassAST(AST):
         self.decorators = decorators
         self.name = name
         self.body = body
+
+        self.fields = {}
+        self.methods = {}
+
+        self.local_id = None
 
 
 class SelfAST(AST):

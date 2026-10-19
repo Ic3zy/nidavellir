@@ -235,7 +235,7 @@ class IRLowerer:
         args = hir.args
         is_static = hir.is_static
         type_str = str(hir.type)
-        body = hir.body_irs
+        body = hir.body
 
         prev_blocks = self.blocks
         self.blocks = BlockManager()

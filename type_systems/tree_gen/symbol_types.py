@@ -187,3 +187,11 @@ class BooleanSymbol(Symbol):
         self.value = value
         self.ast_node = ast_node
         self.type = None
+
+
+class ClassSymbol(Symbol):
+    def __init__(self, name, ast_node):
+        self.name = name
+        self.ast_node = ast_node
+
+        self.body = []

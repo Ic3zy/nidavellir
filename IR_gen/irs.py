@@ -52,6 +52,10 @@ class IR:
         return self.tree_repr()
 
 
+class PassIR(IR):
+    pass
+
+
 class AssignIR(IR):
     def __init__(self, target, value, type=None, re_assign=False):
         self.target = target
@@ -74,8 +78,6 @@ class FunctionIR(IR):
         self.is_static = is_static
 
         self.is_main_func = is_main_func
-
-        self.body_irs = []
 
 
 class ReturnIR(IR):
@@ -207,3 +209,12 @@ class RangeIR(IR):
         self.start = start
         self.end = end
         self.step = step
+
+
+# only use for ir_passer
+class StructIR(IR):
+    def __init__(self, name, fields: list[AssignIR]):
+        self.name = name
+        self.fields = fields
+
+        self.initialize_function = None

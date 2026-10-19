@@ -105,11 +105,11 @@ class SymbolTreeBuilder:
         return d
 
     def stmt_FunctionAST(self, ast):
-        lookup = self.stm.lookup(ast.func_id)
+        lookup = self.stm.lookup(ast.local_id)
         if lookup is not None:
             self.error(ast, f"Function '{ast.name}' already exists")
 
-        fn_sym = FunctionSymbol(ast.func_id, ast.type, None, ast)
+        fn_sym = FunctionSymbol(ast.local_id, ast.type, None, ast)
         self.stm.add_symbol(fn_sym)
         self.stm.enter_scope()
 
@@ -249,6 +249,22 @@ class SymbolTreeBuilder:
 
         st = self.process_from_list(module.asts)
         self.st.extend(st)
+
+    def stmt_ClassAST(self, ast):
+        self.stm.enter_scope()
+        name = ast.name
+
+        class_sym = ClassSymbol(name, ast)
+        self.stm.add_symbol(class_sym)
+
+        for b in ast.body:
+            res = self.process_stmt(b)
+            if res is not None:
+                class_sym.body.append(res)
+
+        self.stm.exit_scope()
+
+        return class_sym
 
     def process_eval(self, ast):
         method_name = f"eval_{type(ast).__name__}"

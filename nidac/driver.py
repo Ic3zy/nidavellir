@@ -1,7 +1,7 @@
 from pathlib import Path
 from lexer import Lexer
 from nida_ast import Parser
-from semantic import SimpleAnalyzer
+from semantic import SimpleAnalyzer, FunctionAllocator
 from import_systems import ImportSystem
 
 from type_systems.main import TypeSystem
@@ -24,6 +24,10 @@ class Nidac:
         file_path: str = None,
         debug: bool = False,
     ):
+        self.ctx = {
+            "f_alloc": FunctionAllocator(),
+        }
+
         self.source = source
         self.file_path = file_path
         self.debug = debug
@@ -47,7 +51,7 @@ class Nidac:
         self.import_systems()
 
         self.analyze()
-        self.type_def()
+        # self.type_def()
         # self.check_types()  # TODO: HardAnalyzer
         self.IRGen()
 
@@ -126,8 +130,9 @@ class Nidac:
         self.final_c_code = self.c_gen.gen_from_list(self.lir)
 
     def IRGen(self):
-        ir = IRGen(self.asts)
-        self.hir = ir.gen_from_list(self.asts)
+        hir = IRGen(self.asts, self.ctx)
+        self.hir = hir.run()
+
         lir = IRLowerer(self.hir)
         self.lir = lir.run()
 
@@ -166,8 +171,9 @@ class Nidac:
         if not self.asts:
             self.parse()
 
-        analyzer = SimpleAnalyzer(self.asts)
+        analyzer = SimpleAnalyzer(self.asts, self.ctx)
         analyzer.analyze_all()
+
         self.symbol_table = analyzer.stm
         return self.symbol_table
 

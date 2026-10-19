@@ -212,3 +212,11 @@ class NoneType(Type):
 class BooleanType(Type):
     def __str__(self):
         return "bool"
+
+
+class ClassType(Type):
+    def __init__(self, name):
+        self.name = name
+
+    def __str__(self):
+        return self.name
