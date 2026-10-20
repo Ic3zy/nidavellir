@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from lexer import Lexer
 from nida_ast import Parser
 from semantic import SimpleAnalyzer, FunctionAllocator
@@ -18,6 +19,12 @@ sys.set_int_max_str_digits(0)
 
 
 class Nidac:
+    """Nidavellir compiler driver.
+
+    Owns the pipeline state (AST -> HIR -> LIR -> C -> binary) and exposes
+    one entry point per stage so callers can stop anywhere in between.
+    """
+
     def __init__(
         self,
         source: str = None,
@@ -44,7 +51,12 @@ class Nidac:
         self.final_c_code = None
         self.c_gen = None
 
+    # ------------------------------------------------------------------
+    # Pipeline
+    # ------------------------------------------------------------------
+
     def compile(self):
+        """Run the whole pipeline, honouring --stop-after and --no-binary-compile."""
         self.lex()
         self.parse()
         if SysArgs.stop_after == "ast":
@@ -57,10 +69,8 @@ class Nidac:
             return
 
         # self.type_def()
-        if SysArgs.stop_after == "type-engine" or SysArgs.stop_after == "type-tree":
+        if SysArgs.stop_after in ("type-engine", "type-tree"):
             return
-
-        # self.check_types()  # TODO: HardAnalyzer
 
         self.HIRGen()
         if SysArgs.stop_after == "hir":
@@ -77,30 +87,81 @@ class Nidac:
         if not SysArgs.no_binary_compile:
             self.compile_binary()
 
+    # ------------------------------------------------------------------
+    # Frontend
+    # ------------------------------------------------------------------
+
+    def lex(self):
+        if self.source is None:
+            self.read_file()
+
+        self.lexer = Lexer(self.source)
+        return self.lexer
+
+    def parse(self):
+        if not self.lexer:
+            self.lex()
+
+        parser = Parser(self.lexer)
+
+        self.asts = parser.run()
+        if SysArgs.dump_ast:
+            print("===== AST =====")
+            print(self.asts)
+
+        return self.asts
+
     def import_systems(self):
         root_path = Path.cwd()
         module_scanner = ImportSystem(root_path, self.asts)
         self.imported_modules = module_scanner.ordered_modules
 
-    def run_binary(self, binary_path: str, args: list[str] = None):
-        if self.final_c_code is None:
-            self.emit_c11()
+    def analyze(self):
+        if not self.asts:
+            self.parse()
 
-        run_compiled_file(binary_path, args)
+        analyzer = SimpleAnalyzer(self.asts, self.ctx)
+        analyzer.analyze_all()
 
-    def compile_binary(self):
-        if self.final_c_code is None:
-            self.emit_c11()
+        self.symbol_table = analyzer.stm
+        if SysArgs.dump_ast_after_semantic:
+            print("===== AST (after semantic analysis) =====")
+            print(self.asts)
 
-        c_path = SysArgs.emit_c
+        return self.symbol_table
 
-        with open(c_path, "w") as f:
-            f.write(self.final_c_code)
+    def type_def(self):
+        if not self.symbol_table:
+            self.analyze()
 
-        compile_c_file(c_path, SysArgs.output)
-        self.run_binary(SysArgs.output)
+        TypeSystem(self.asts)
+
+    # ------------------------------------------------------------------
+    # Middleend
+    # ------------------------------------------------------------------
+
+    def HIRGen(self):
+        hir = IRGen(self.asts, self.ctx)
+        self.hir = hir.run()
+
+        if SysArgs.dump_hir:
+            print("===== HIR =====")
+            print(self.hir)
+
+    def LIRGen(self):
+        lir = IRLowerer(self.hir)
+        self.lir = lir.run()
+
+        if SysArgs.dump_lir:
+            print("===== LIR =====")
+            print(self.lir)
+
+    # ------------------------------------------------------------------
+    # Backend
+    # ------------------------------------------------------------------
 
     def generate_dependencies_c_code(self):
+        """Emit one C file + header per imported module into __nidacache__."""
         for module in self.imported_modules:
             if not module.lirs:
                 continue
@@ -152,45 +213,31 @@ class Nidac:
             print("===== C Nodes =====")
             print(self.c_gen.c_nodes)
 
-    def HIRGen(self):
-        hir = IRGen(self.asts, self.ctx)
-        self.hir = hir.run()
+    def compile_binary(self):
+        if self.final_c_code is None:
+            self.emit_c11()
 
-        if SysArgs.dump_hir:
-            print("===== HIR =====")
-            print(self.hir)
+        c_path = SysArgs.emit_c
 
-    def LIRGen(self):
-        lir = IRLowerer(self.hir)
-        self.lir = lir.run()
+        with open(c_path, "w") as f:
+            f.write(self.final_c_code)
 
-        if SysArgs.dump_lir:
-            print("===== LIR =====")
-            print(self.lir)
+        compile_c_file(c_path, SysArgs.output)
+        self.run_binary(SysArgs.output)
+
+    def run_binary(self, binary_path: str, args: list[str] = None):
+        if self.final_c_code is None:
+            self.emit_c11()
+
+        run_compiled_file(binary_path, args)
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
 
     def read_file(self):
         with open(self.file_path, "r") as f:
             self.source = f.read()
-
-    def lex(self):
-        if self.source is None:
-            self.read_file()
-
-        self.lexer = Lexer(self.source)
-        return self.lexer
-
-    def parse(self):
-        if not self.lexer:
-            self.lex()
-
-        parser = Parser(self.lexer)
-
-        self.asts = parser.run()
-        if SysArgs.dump_ast:
-            print("===== AST =====")
-            print(self.asts)
-
-        return self.asts
 
     @staticmethod
     def parse_from_source_code(source_code):
@@ -198,26 +245,6 @@ class Nidac:
         parser = Parser(lexer_obj)
         parser.parse_all()
         return parser.asts
-
-    def analyze(self):
-        if not self.asts:
-            self.parse()
-
-        analyzer = SimpleAnalyzer(self.asts, self.ctx)
-        analyzer.analyze_all()
-
-        self.symbol_table = analyzer.stm
-        if SysArgs.dump_ast_after_semantic:
-            print("===== AST (after semantic analysis) =====")
-            print(self.asts)
-
-        return self.symbol_table
-
-    def type_def(self):
-        if not self.symbol_table:
-            self.analyze()
-
-        TypeSystem(self.asts)
 
 
 SysArgs.nidac_ptr = Nidac
