@@ -68,3 +68,13 @@ class CTFloat(CType):
 class CTString(CType):
     def __str__(self):
         return "Nida_Str"
+
+
+class CTStruct(CType):
+    """A class instance — always handled as a pointer to the struct."""
+
+    def __init__(self, name):
+        self.name = name
+
+    def __str__(self):
+        return f"{self.name} *"

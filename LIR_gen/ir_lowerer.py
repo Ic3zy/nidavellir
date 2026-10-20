@@ -195,12 +195,36 @@ class IRLowerer:
         value = hir.value
         type_str = str(hir.type)
         is_reassign = hir.re_assign
+        chain = hir.chain or []
 
         value_lirs = self.process(value)
+        value_id = self.get_current_value_id()
 
         as_lir = None
 
-        if is_reassign:
+        if chain:
+            # "obj.member = value": store into the member of the object.
+            base = self._load_base(target, hir.base_type)
+
+            chain_types = hir.chain_types or []
+
+            for idx, member in enumerate(chain[:-1]):
+                member_type = (
+                    str(chain_types[idx]) if idx < len(chain_types) else type_str
+                )
+
+                access = FieldAccessLIR(self.get_value_id(), base, member, member_type)
+                self.blocks.emit(access)
+                base = access.name
+
+            member_type = str(chain_types[-1]) if chain_types else type_str
+
+            store_lir = FieldStoreLIR(
+                self.get_value_id(), base, chain[-1], member_type, value_id
+            )
+            self.blocks.emit(store_lir)
+            as_lir = store_lir
+        elif is_reassign:
             const_id = self.get_current_value_id()
             store_lir = StoreLIR(target, type_str, const_id)
             self.blocks.emit(store_lir)
@@ -214,6 +238,19 @@ class IRLowerer:
         lirs.append(value_lirs)
         lirs.append(as_lir)
         return lirs
+
+    def _base_of(self, lirs):
+        """The variable the last load in 'lirs' read from."""
+        if isinstance(lirs, list):
+            for l in reversed(lirs):
+                if isinstance(l, LoadLIR):
+                    return l.var_name
+
+        return None
+
+    def _load_base(self, target, base_type=None):
+        self.process(VariableIR(target, base_type))
+        return self.get_current_value_id()
 
     def process_args(self, args):
         args_lir = LIRs()
@@ -448,15 +485,17 @@ class IRLowerer:
         # The First block
         target = hir.target.target
         target_reassign = hir.target.re_assign
-        target_type = str(hir.target.type)
         source = hir.source
+
+        if not isinstance(source, RangeIR):
+            raise NotImplementedError("Only range-based for loops are supported")
+
+        target_type = str(hir.target.type or source.end.type)
+        hir.target.type = source.end.type
 
         source.start.type = hir.target.type
         source.end.type = hir.target.type
         source.step.type = hir.target.type
-
-        if not isinstance(source, RangeIR):
-            raise NotImplementedError("Only range-based for loops are supported")
 
         condition_block = self.blocks.create_block()
         loop_block = self.blocks.create_block()
@@ -556,6 +595,50 @@ class IRLowerer:
         # Do not append to lirs because it is not a statement.
         return None
 
+    def process_StructIR(self, hir):
+        fields = []
+
+        for name, field_type, _ in hir.class_fields:
+            fields.append(FieldDeclLIR(name, str(field_type)))
+
+        struct_lir = StructLIR(hir.name, fields)
+
+        init = hir.initialize_function
+
+        if init is not None:
+            init_lir = self.process(init)
+
+            if isinstance(init_lir, FunctionLIR):
+                self.lir.append(init_lir)
+
+        return struct_lir
+
+    def process_NewIR(self, hir):
+        new_lir = NewLIR(self.get_value_id(), hir.class_name, str(hir.type))
+        self.blocks.emit(new_lir)
+
+        return new_lir
+
+    def process_FieldAccessIR(self, hir):
+        self.process(hir.target)
+
+        base = self.get_current_value_id()
+
+        chain_types = hir.chain_types or []
+
+        access = None
+
+        for idx, field in enumerate(hir.chain):
+            type_str = (
+                str(chain_types[idx]) if idx < len(chain_types) else str(hir.type)
+            )
+
+            access = FieldAccessLIR(self.get_value_id(), base, field, type_str)
+            self.blocks.emit(access)
+            base = access.name
+
+        return access
+
     def process(self, hir):
         name = hir.__class__.__name__
         func = getattr(self, f"process_{name}", None)
@@ -577,9 +660,13 @@ class IRLowerer:
         if self.blocks.current is None:
             self.blocks.new_block()
 
+        structs = []
+
         for hir in self.hir:
             res = self.process(hir)
-            if isinstance(res, FunctionLIR):
+            if isinstance(res, StructLIR):
+                structs.append(res)
+            elif isinstance(res, FunctionLIR):
                 self.lir.append(res)
 
         for box in self.blocks.blocks:
@@ -587,6 +674,5 @@ class IRLowerer:
                 if box.block not in self.lir and box.block.body:
                     self.lir.append(box.block)
 
-        # raise Exception([*self.globals, *self.lir])
-
-        return [*self.globals, *self.lir]
+        # Structs come first: a function may use the type they define.
+        return [*self.globals, *structs, *self.lir]

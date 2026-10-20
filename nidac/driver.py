@@ -68,7 +68,7 @@ class Nidac:
         if SysArgs.stop_after == "semantic":
             return
 
-        # self.type_def()
+        self.type_def()
         if SysArgs.stop_after in ("type-engine", "type-tree"):
             return
 

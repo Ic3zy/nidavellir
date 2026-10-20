@@ -2,6 +2,7 @@ from .symbol_table import SymbolTableManager
 from .tree_printer import render_node
 from .symbol_types import *
 from nida_ast.base import *
+from type_systems.types import resolve_type, ClassType
 
 
 class SymbolTreeBuilder:
@@ -9,8 +10,11 @@ class SymbolTreeBuilder:
         self.ast_tree = ast_tree
         self.stm = SymbolTableManager()
         self.st = []
+        self.class_syms = {}
 
         self.visited_imports = set()
+
+        self.current_class_name = None
 
         self.run()
 
@@ -19,6 +23,15 @@ class SymbolTreeBuilder:
         col = getattr(node, "column", None)
         loc = f" [Line {line}:{col}]" if line is not None else ""
         raise SyntaxError(f"Nidavellir Error{loc}: {message}")
+
+    def resolve(self, type_val):
+        resolved = resolve_type(type_val)
+
+        if resolved is None and isinstance(type_val, str):
+            if isinstance(self.stm.lookup(type_val), ClassSymbol):
+                return ClassType(type_val)
+
+        return resolved
 
     def eval_VariableAST(self, ast):
         var = self.stm.lookup(ast.name)
@@ -58,6 +71,11 @@ class SymbolTreeBuilder:
     def eval_BooleanAST(self, ast):
         return BooleanSymbol(ast.value, ast)
 
+    def eval_UnaryOpAST(self, ast):
+        right_sym = self.process_eval(ast.right)
+
+        return UnaryOpSymbol(ast.op, right_sym, ast)
+
     def stmt_PassAST(self, ast):
         pass
 
@@ -69,12 +87,28 @@ class SymbolTreeBuilder:
 
         final_sym = AssignSymbol(ast.target, ast.type, val_sym, ast)
 
+        if final_sym.type is None:
+            final_sym.type = self.resolve(ast.type)
+
         target_lookup = self.stm.current_scope.symbols.get(ast.target)
         if target_lookup is not None:
             final_sym.parent_assign = target_lookup
             target_lookup.uses.append(final_sym)
-        else:
+        elif ast.target != "self":
             self.stm.add_symbol(final_sym)
+
+        if ast.chain:
+            final_sym.chain = ast.chain
+
+            base_type = getattr(ast, "base_type", None)
+
+            if base_type is not None:
+                final_sym.type = self.resolve(base_type)
+
+            if ast.target == "self":
+                final_sym.base_sym = SelfSymbol(ast, self.current_class_name)
+            else:
+                final_sym.base_sym = self.stm.lookup(ast.target)
 
         return final_sym
 
@@ -105,12 +139,15 @@ class SymbolTreeBuilder:
         return d
 
     def stmt_FunctionAST(self, ast):
-        lookup = self.stm.lookup(ast.name)
-        if lookup is not None:
-            self.error(ast, f"Function '{ast.name}' already exists")
+        fn_sym = self.stm.lookup(ast.name)
 
-        fn_sym = FunctionSymbol(ast.name, ast.type, None, ast)
-        self.stm.add_symbol(fn_sym)
+        if fn_sym is None:
+            fn_sym = FunctionSymbol(ast.name, ast.type, None, ast)
+            self.stm.add_symbol(fn_sym)
+
+        fn_sym.ast_node = ast
+        fn_sym.type = self.resolve(ast.type)
+
         self.stm.enter_scope()
 
         params = []
@@ -136,17 +173,19 @@ class SymbolTreeBuilder:
 
         return ReturnSymbol(val, ast)
 
-    def process_call_args(self, args, lookup, func_name, is_intrinsic=False):
+    def process_call_args(self, args, lookup, func_name, is_intrinsic=False, skip=0):
         params = []
+        arg_symbols = self._arg_symbols(lookup)[skip:]
+
         for idx, arg in enumerate(args):
             res = self.process_eval(arg)
 
             lookup_func_arg = None
             if not is_intrinsic:
-                if idx >= len(lookup.args):
+                if idx >= len(arg_symbols):
                     self.error(arg, f"Too many arguments for function '{func_name}'")
 
-                lookup_func_arg = lookup.args[idx]
+                lookup_func_arg = arg_symbols[idx]
 
             if res is not None:
                 params.append(res)
@@ -156,26 +195,95 @@ class SymbolTreeBuilder:
 
         return params
 
+    def _arg_symbols(self, lookup):
+        if isinstance(lookup, ClassSymbol):
+            init_sym = lookup.method_syms.get("__init__")
+
+            if init_sym is None:
+                return []
+
+            return init_sym.args or []
+
+        return getattr(lookup, "args", None) or []
+
     def stmt_CallAST(self, ast):
-        func_name = ast.target_function_name
+        func_name = ast.target
+
+        if ast.chain:
+            return self._method_call(ast)
+
         lookup = self.stm.lookup(func_name)
 
         if lookup is None:
             self.error(ast, f"Function '{func_name}' is not defined")
 
-        params = self.process_call_args(ast.args, lookup, func_name)
+        skip = 1 if isinstance(lookup, ClassSymbol) else 0
+
+        params = self.process_call_args(ast.args, lookup, func_name, skip=skip)
+
+        if isinstance(lookup, ClassSymbol):
+            sym = ConstructorCallSymbol(func_name, params, lookup, ast)
+            sym.type = lookup.type
+            lookup.uses.append(sym)
+
+            init_sym = lookup.method_syms.get("__init__")
+
+            if init_sym is not None:
+                init_sym.uses.append(sym)
+
+            return sym
 
         sym = CallSymbol(func_name, params, lookup, ast)
         lookup.uses.append(sym)
 
         return sym
 
+    def _method_call(self, ast):
+        method_name = ast.chain[0]
+
+        if ast.target == "self":
+            class_name = self.current_class_name
+        else:
+            base = self.stm.lookup(ast.target)
+
+            if base is None:
+                self.error(ast, f"Variable '{ast.target}' is not defined")
+
+            class_name = base.type.name if isinstance(base.type, ClassType) else None
+
+        if class_name is None:
+            self.error(ast, f"Cannot call method '{method_name}' on a non-class value")
+
+        class_sym = self._find_class(class_name)
+        if class_sym is None:
+            self.error(ast, f"Class '{class_name}' is not defined")
+
+        method_ast = class_sym.methods.get(method_name)
+        if method_ast is None:
+            self.error(ast, f"Method '{method_name}' is not defined")
+
+        lookup = class_sym.method_syms.get(method_name)
+
+        if lookup is None:
+            lookup = FunctionSymbol(method_name, method_ast.type, None, method_ast)
+            lookup.args = [None] * len(method_ast.args)
+
+        params = self.process_call_args(ast.args, lookup, method_name, skip=1)
+
+        sym = CallSymbol(method_name, params, lookup, ast)
+        lookup.uses.append(sym)
+
+        return sym
+
+    def _find_class(self, name):
+        return self.class_syms.get(name)
+
     def stmt_ForAST(self, ast):
         self.stm.enter_scope()
         target = self.process_stmt(ast.target)
         source = ast.source
         loop_count = None
-        if isinstance(source, (CallAST, IntrinsicAST)):
+        if isinstance(source, (CallAST, IntrinsicAST, IntrinsicCallAST)):
             target_fn = getattr(source, "target", getattr(source, "name", None))
             args = getattr(source, "args", [])
             if target_fn == "range" and args and isinstance(args[0], NumberAST):
@@ -251,20 +359,55 @@ class SymbolTreeBuilder:
         self.st.extend(st)
 
     def stmt_ClassAST(self, ast):
-        self.stm.enter_scope()
         name = ast.name
 
-        class_sym = ClassSymbol(name, ast)
-        self.stm.add_symbol(class_sym)
+        class_sym = self.stm.lookup(name)
+
+        if class_sym is None:
+            class_sym = ClassSymbol(name, ast)
+            self.stm.add_symbol(class_sym)
+
+        class_sym.ast_node = ast
+        self.class_syms[name] = class_sym
+
+        self.stm.enter_scope()
+
+        self.current_class_name = name
 
         for b in ast.body:
             res = self.process_stmt(b)
             if res is not None:
                 class_sym.body.append(res)
 
+            if isinstance(b, AssignAST):
+                if b.chain:
+                    class_sym.fields[b.chain[0]] = b
+                else:
+                    class_sym.fields[b.target] = b
+            elif isinstance(b, FunctionAST):
+                class_sym.methods[b.name] = b
+                class_sym.method_syms[b.name] = res
+
+                for stmt in b.body:
+                    if isinstance(stmt, AssignAST) and stmt.chain:
+                        class_sym.fields.setdefault(stmt.chain[0], stmt)
+
+        self.current_class_name = None
+
         self.stm.exit_scope()
 
         return class_sym
+
+    def eval_FieldAccessAST(self, ast):
+        target = ast.target
+        chain = ast.chain
+
+        target_sym = self.process_eval(target)
+
+        return FieldAccessSymbol(target_sym, chain, ast)
+
+    def eval_SelfAST(self, ast):
+        return SelfSymbol(ast, self.current_class_name)
 
     def process_eval(self, ast):
         method_name = f"eval_{type(ast).__name__}"
@@ -290,9 +433,23 @@ class SymbolTreeBuilder:
         return st
 
     def run(self):
+        self.declare(self.ast_tree)
+
         res = self.process_from_list(self.ast_tree)
         self.st.extend(res)
         # raise Exception(self.print_scopes())
+
+    def declare(self, asts):
+        for ast in asts:
+            if isinstance(ast, FunctionAST):
+                if self.stm.lookup(ast.name) is None:
+                    fn_sym = FunctionSymbol(ast.name, ast.type, None, ast)
+                    fn_sym.args = [None] * len(ast.args)
+                    self.stm.add_symbol(fn_sym)
+
+            elif isinstance(ast, ClassAST):
+                if self.stm.lookup(ast.name) is None:
+                    self.stm.add_symbol(ClassSymbol(ast.name, ast))
 
     def print_scopes(self, st=None):
         print("SymbolTree")

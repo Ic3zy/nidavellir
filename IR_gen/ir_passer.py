@@ -178,27 +178,75 @@ class IRPasser:
             else:
                 raise Exception(f"No IR generated for {b}")
 
-        struct = StructIR(ir.name, assignments)
+        struct = StructIR(ir.name, assignments, ir.fields)
 
-        initialize_func = FunctionIR(
-            decs=[],
-            name=self.f_alloc.anon(),
-            args=[],
-            body=[
-                CallIR("print", [], type=NoneType()),
-            ],
-            type=ClassType(ir.name),
-            is_main_func=False,
-            is_static=True,
-        )
+        methods = [fn for fn in functions if fn.ast_name != "__init__"]
 
-        struct.initialize_function = initialize_func
-        self.generated_functions[class_name] = initialize_func
+        init_func = self._class_initializer(ir, functions)
+
+        struct.initialize_function = init_func
+        self.generated_functions[class_name] = init_func
 
         return [
             IR_Box(struct, destination=Module),
-            IR_Box(functions, destination=Module),
+            IR_Box(methods, destination=Module),
         ]
+
+    def _class_initializer(self, ir, functions):
+        init = None
+
+        for fn in functions:
+            if fn.ast_name == "__init__":
+                init = fn
+                break
+
+        class_type = ClassType(ir.name)
+
+        default_value_setters = []
+
+        for field in ir.fields:
+            field_name = field[0]
+            field_type = field[1]
+            default_value = field[2]
+
+            if default_value is None:
+                continue
+
+            setter = AssignIR(
+                "self",
+                default_value,
+                field_type,
+                chain=[field_name],
+                base_type=class_type,
+                chain_types=[field_type],
+            )
+            default_value_setters.append(setter)
+
+        body = [
+            AssignIR(
+                "self",
+                NewIR(ir.name, class_type),
+                class_type,
+                chain=[],
+            ),
+            *default_value_setters,
+            ReturnIR(VariableIR("self", class_type), type=class_type),
+        ]
+
+        if init is not None:
+            body.insert(len(body) - 2, init)
+
+        args = init.args[1:] if init is not None else []
+
+        return FunctionIR(
+            decs=[],
+            name=self.f_alloc.anon(),
+            args=args,
+            body=body,
+            type=class_type,
+            is_main_func=False,
+            is_static=True,
+        )
 
     def expr_BinaryOpIR(self, ir):
         ir.left = self.run_expr(ir.left)

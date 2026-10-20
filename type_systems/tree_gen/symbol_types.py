@@ -1,4 +1,4 @@
-from ..types import resolve_type, StringType, NoneType
+from ..types import resolve_type, StringType, NoneType, ClassType
 
 
 class Symbol:
@@ -18,9 +18,12 @@ class AssignSymbol(Symbol):
 
         self.uses = []
 
+        self.chain = []
+        self.base_sym = None
+
     def set_type_to_AST(self):
         self.ast_node.type = self.type
-        if self.parent_assign is not None:
+        if self.parent_assign is not None and not self.chain:
             self.parent_assign.type = self.type
             self.parent_assign.set_type_to_AST()
 
@@ -146,6 +149,18 @@ class BinaryOpSymbol(Symbol):
         self.ast_node.type = self.type
 
 
+class UnaryOpSymbol(Symbol):
+    def __init__(self, op, right_sym, ast_node=None):
+        self.op = op
+        self.right_sym = right_sym
+        self.ast_node = ast_node
+
+        self.type = None
+
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type
+
+
 class ForSymbol(Symbol):
     def __init__(self, target, source, body, loop_count, ast_node):
         self.target = target
@@ -195,3 +210,53 @@ class ClassSymbol(Symbol):
         self.ast_node = ast_node
 
         self.body = []
+
+        self.fields = {}
+        self.methods = {}
+
+        self.method_syms = {}
+
+        self.uses = []
+
+        self.type = ClassType(name)
+
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type
+
+
+class FieldAccessSymbol(Symbol):
+    def __init__(self, target, chain, ast_node):
+        self.target = target
+        self.chain = chain
+        self.ast_node = ast_node
+
+        self.type = None
+
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type
+
+
+class SelfSymbol(Symbol):
+    def __init__(self, ast_node, class_name=None):
+        self.ast_node = ast_node
+        self.class_name = class_name
+
+        self.type = None
+
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type
+
+
+class ConstructorCallSymbol(Symbol):
+    def __init__(self, name, args, lookup, ast_node):
+        self.name = name
+        self.args = args
+        self.lookup = lookup
+        self.ast_node = ast_node
+
+        self.arg_offset = 1
+
+        self.type = None
+
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type

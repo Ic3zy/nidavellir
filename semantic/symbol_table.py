@@ -117,17 +117,18 @@ class SymbolTableManager:
         self.global_scope.classes[name] = class_symbol
 
     def lookup_field(self, class_name, field_name):
-        raise
         class_symbol = self.lookup_class(class_name)
-        if class_symbol and field_name in class_symbol["fields"]:
-            return class_symbol["fields"][field_name]
-        return None
+
+        if class_symbol is None:
+            return None
+
+        return class_symbol.fields.get(field_name)
 
     def define_field(self, class_name, field_name, field_type, ast_node=None):
-        raise
         class_symbol = self.global_scope.classes.get(class_name)
-        if class_symbol:
-            class_symbol["fields"][field_name] = {
+
+        if class_symbol is not None:
+            class_symbol.fields[field_name] = {
                 "name": field_name,
                 "type": field_type,
                 "ast": ast_node,

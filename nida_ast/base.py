@@ -109,6 +109,9 @@ class CallAST(AST):
         self.type = None
         self.target_function = None
 
+        # The type of the object a method is called on.
+        self.receiver_type = None
+
     @property
     def target_function_name(self):
         return self.target_function.func_id
@@ -127,6 +130,9 @@ class AssignAST(AST):
         self.value = value
 
         self.is_re_assign = None
+
+        self.chain_types = []
+        self.base_type = None
 
 
 class DefinitionAST(AST):
@@ -199,6 +205,8 @@ class UnaryOpAST(AST):
         self.op = op
         self.right = right
 
+        self.type = None
+
 
 class DecoratorAST(AST):
     def __init__(self, name, args):
@@ -210,6 +218,9 @@ class FieldAccessAST(AST):
     def __init__(self, target, chain):
         self.target = target
         self.chain = chain
+
+        self.type = None
+        self.chain_types = []
 
 
 class ListLiteralAST(AST):

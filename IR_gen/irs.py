@@ -57,17 +57,46 @@ class PassIR(IR):
 
 
 class AssignIR(IR):
-    def __init__(self, target, value, type=None, re_assign=False):
+    def __init__(
+        self,
+        target,
+        value,
+        type=None,
+        re_assign=False,
+        chain=None,
+        base_type=None,
+        chain_types=None,
+    ):
         self.target = target
         self.value = value
         self.type = type
 
         self.re_assign = re_assign
 
+        self.chain = chain or []
+        self.base_type = base_type
+        self.chain_types = chain_types or []
+
+
+class FieldAccessIR(IR):
+    def __init__(self, target, chain, type=None, chain_types=None):
+        self.target = target
+        self.chain = chain
+        self.type = type
+        self.chain_types = chain_types or []
+
 
 class FunctionIR(IR):
     def __init__(
-        self, decs, name, args, body, type=None, is_main_func=False, is_static=False
+        self,
+        decs,
+        name,
+        args,
+        body,
+        type=None,
+        is_main_func=False,
+        is_static=False,
+        ast_name=None,
     ):
         self.decs = decs
         self.name = name
@@ -78,6 +107,17 @@ class FunctionIR(IR):
         self.is_static = is_static
 
         self.is_main_func = is_main_func
+
+        # The name in the source, before it was turned into an id.
+        self.ast_name = ast_name
+
+
+class NewIR(IR):
+    """Allocates an instance of a class."""
+
+    def __init__(self, class_name, type=None):
+        self.class_name = class_name
+        self.type = type
 
 
 class ReturnIR(IR):
@@ -99,6 +139,8 @@ class VariableIR(IR):
         self.name = name
         self.type = type
 
+        self.target = name
+
 
 class CallIR(IR):
     def __init__(self, target, args, type=None):
@@ -116,9 +158,12 @@ class NumberIR(IR):
 
 
 class ClassIR(IR):
-    def __init__(self, name, body):
+    def __init__(self, name, body, fields=None):
         self.name = name
         self.body = body
+
+        # The declared fields of the class: [(name, type, default_value)].
+        self.fields = fields or []
 
 
 class StringLiteralIR(IR):
@@ -213,8 +258,11 @@ class RangeIR(IR):
 
 # only use for ir_passer
 class StructIR(IR):
-    def __init__(self, name, fields: list[AssignIR]):
+    def __init__(self, name, fields: list[AssignIR], class_fields=None):
         self.name = name
         self.fields = fields
+
+        # The physical layout of the struct: [(name, type, default_value)].
+        self.class_fields = class_fields or []
 
         self.initialize_function = None

@@ -3,8 +3,6 @@ from .ir_passer import IRPasser
 from nida_ast.base import *
 from type_systems.types import ClassType
 
-# from semantic import INTRINSIC_HANDLERS
-
 
 class IRGen:
     def __init__(self, asts, ctx):
@@ -21,6 +19,7 @@ class IRGen:
         target = ast.target
         value = ast.value
         var_type = ast.type
+        chain = getattr(ast, "chain", []) or []
 
         if isinstance(value, UnaryOpAST):
             val_res = self._gen_unary_op(target, value)
@@ -32,7 +31,25 @@ class IRGen:
         if hasattr(val_res, "type") and val_res.type is None:
             val_res.type = var_type
 
-        return AssignIR(target, val_res, var_type, re_assign=ast.is_re_assign)
+        return AssignIR(
+            target,
+            val_res,
+            var_type,
+            re_assign=ast.is_re_assign,
+            chain=chain,
+            base_type=getattr(ast, "base_type", None),
+            chain_types=getattr(ast, "chain_types", []),
+        )
+
+    def gen_FieldAccessAST(self, ast):
+        target_ir = self.gen(ast.target)
+        chain = getattr(ast, "chain", []) or []
+        chain_types = getattr(ast, "chain_types", []) or []
+
+        return FieldAccessIR(target_ir, chain, ast.type, chain_types)
+
+    def gen_SelfAST(self, ast):
+        return VariableIR("self", ast.type)
 
     def gen_ReturnAST(self, ast):
         value = ast.value
@@ -45,11 +62,6 @@ class IRGen:
             target = self.f_alloc.name_of(target)
         else:
             target = ast.target
-        # target = ast.target_function_name
-        # if target is None and isinstance(ast.target, ClassType):
-        #     target = ast.target
-        # else:
-        #     raise Exception(f"No IR generated for {ast}")
 
         args = ast.args
         type = ast.type
@@ -57,6 +69,12 @@ class IRGen:
         args_irs = []
         for arg in args:
             args_irs.append(self.gen(arg))
+
+        # A method call passes the object it is called on as the first
+        # argument.
+        if ast.chain:
+            receiver = VariableIR(ast.target, getattr(ast, "receiver_type", None))
+            args_irs.insert(0, receiver)
 
         ir = CallIR(target, args_irs, type)
         return ir
@@ -116,7 +134,7 @@ class IRGen:
             res = self.gen(b)
             ir_body.append(res)
 
-        ir = FunctionIR(decs, name, args_irs, ir_body, type)
+        ir = FunctionIR(decs, name, args_irs, ir_body, type, ast_name=ast.name)
 
         return ir
 
@@ -252,7 +270,28 @@ class IRGen:
 
         new_body = self.process_class_body(body)
 
-        return ClassIR(name, new_body)
+        return ClassIR(name, new_body, self._class_fields(ast))
+
+    def _class_fields(self, ast):
+        """The fields of a class: [(name, type)] in declaration order."""
+        fields = []
+
+        for field_name, field_ast in ast.fields.items():
+            info_tuple = [field_name]
+            field_type = field_ast.type
+
+            if field_type is None and field_ast.value is not None:
+                field_type = field_ast.value.type
+
+            info_tuple.append(field_type)
+
+            if hasattr(field_ast, "value"):
+                value_ir = self.gen(field_ast.value)
+                info_tuple.append(value_ir)
+
+            fields.append(tuple(info_tuple))
+
+        return fields
 
     def _gen_unary_op(self, target, ast):
         op = ast.op
