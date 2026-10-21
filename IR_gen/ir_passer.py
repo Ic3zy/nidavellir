@@ -201,26 +201,25 @@ class IRPasser:
                 break
 
         class_type = ClassType(ir.name)
+        fn_name = self.f_alloc.anon()
 
-        default_value_setters = []
+        assigned = self._assigned_fields(init)
 
-        for field in ir.fields:
-            field_name = field[0]
-            field_type = field[1]
-            default_value = field[2]
+        field_setters = []
 
-            if default_value is None:
+        for field_name, field_type, default_value in ir.fields:
+            if field_name in assigned:
                 continue
 
-            setter = AssignIR(
-                "self",
-                default_value,
-                field_type,
-                chain=[field_name],
-                base_type=class_type,
-                chain_types=[field_type],
+            setter = self._field_setter(
+                class_type, field_name, field_type, default_value
             )
-            default_value_setters.append(setter)
+
+            if setter is None:
+                continue
+
+            for box in self.run_stmt(setter):
+                field_setters.extend(box.ir)
 
         body = [
             AssignIR(
@@ -229,7 +228,7 @@ class IRPasser:
                 class_type,
                 chain=[],
             ),
-            *default_value_setters,
+            *field_setters,
         ]
 
         if init is not None:
@@ -241,12 +240,40 @@ class IRPasser:
 
         return FunctionIR(
             decs=[],
-            name=self.f_alloc.anon(),
+            name=fn_name,
             args=args,
             body=body,
             type=class_type,
             is_main_func=False,
             is_static=False,
+        )
+
+    def _assigned_fields(self, init):
+        if init is None:
+            return set()
+
+        names = set()
+
+        for stmt in init.body:
+            if isinstance(stmt, AssignIR) and stmt.chain:
+                names.add(stmt.chain[0])
+
+        return names
+
+    def _field_setter(self, class_type, field_name, field_type, default_value):
+        if default_value is None:
+            if not isinstance(field_type, ClassType):
+                return None
+
+            default_value = self.run_expr(CallIR(field_type.name, [], field_type))
+
+        return AssignIR(
+            "self",
+            default_value,
+            field_type,
+            chain=[field_name],
+            base_type=class_type,
+            chain_types=[field_type],
         )
 
     def stmt_IRImport(self, ir):

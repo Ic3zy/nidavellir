@@ -38,9 +38,7 @@ class IRGen:
             re_assign=ast.is_re_assign,
             chain=chain,
             base_type=self._type_of(getattr(ast, "base_type", None)),
-            chain_types=[
-                self._type_of(t) for t in getattr(ast, "chain_types", [])
-            ],
+            chain_types=[self._type_of(t) for t in getattr(ast, "chain_types", [])],
         )
 
     def _type_of(self, type_val):
