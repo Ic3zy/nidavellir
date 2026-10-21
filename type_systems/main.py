@@ -31,7 +31,7 @@ class TypeSystem:
         self.tde.run()
 
         if SysArgs.dump_type_engine:
-            print(self.stb.print_tree())
+            print(self.stb.print_scopes())
 
         # raise Exception(self.ast_tree)
 
