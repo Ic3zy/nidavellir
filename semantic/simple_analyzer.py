@@ -699,7 +699,6 @@ class SimpleASTVisitor:
             return
 
         for ast in module.asts:
-            print(ast)
             self.visit_statement(ast)
 
         funcs = {}
