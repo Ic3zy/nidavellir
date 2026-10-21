@@ -111,6 +111,12 @@ class IRLowerer:
         self.lir = []
         self.globals = []
 
+        self.class_names = set()
+
+        for hir in hirs:
+            if isinstance(hir, (ClassIR, StructIR)):
+                self.class_names.add(hir.name)
+
     def enter_new_value_scope(self):
         self.value_id = Value_Id(self.value_id)
 
@@ -143,7 +149,7 @@ class IRLowerer:
 
     def process_VariableIR(self, hir):
         name = hir.name
-        type_str = str(hir.type)
+        type_str = str(self.type_of(hir))
 
         const_id = self.get_value_id()
         lirs = LIRs()
@@ -155,17 +161,17 @@ class IRLowerer:
 
     def process_NumberIR(self, hir):
         val = hir.value
-        types = hir.type
+        types = self.type_of(hir)
         if val is not None and isinstance(val, str):
             if isinstance(types, FloatType):
                 val = float(val)
             elif isinstance(types, IntType):
                 val = int(val)
             else:
-                raise Exception(f"Invalid number type: {types}")
+                raise Exception(f"Invalid number type: {hir.type}")
 
         const_id = self.get_value_id()
-        type_str = str(hir.type)
+        type_str = str(types)
         const_lir = ConstLIR(const_id, type_str, val)
         self.blocks.emit(const_lir)
 
@@ -193,7 +199,7 @@ class IRLowerer:
 
         target = hir.target
         value = hir.value
-        type_str = str(hir.type)
+        type_str = str(self.type_of(hir))
         is_reassign = hir.re_assign
         chain = hir.chain or []
 
@@ -210,14 +216,18 @@ class IRLowerer:
 
             for idx, member in enumerate(chain[:-1]):
                 member_type = (
-                    str(chain_types[idx]) if idx < len(chain_types) else type_str
+                    self.type_str_of(chain_types[idx], type_str)
+                    if idx < len(chain_types)
+                    else type_str
                 )
 
                 access = FieldAccessLIR(self.get_value_id(), base, member, member_type)
                 self.blocks.emit(access)
                 base = access.name
 
-            member_type = str(chain_types[-1]) if chain_types else type_str
+            member_type = (
+                self.type_str_of(chain_types[-1], type_str) if chain_types else type_str
+            )
 
             store_lir = FieldStoreLIR(
                 self.get_value_id(), base, chain[-1], member_type, value_id
@@ -271,7 +281,7 @@ class IRLowerer:
         name = hir.name
         args = hir.args
         is_static = hir.is_static
-        type_str = str(hir.type)
+        type_str = str(self.type_of(hir))
         body = hir.body
 
         prev_blocks = self.blocks
@@ -301,8 +311,8 @@ class IRLowerer:
     #     name = hir.name
     #     args = hir.args
     #     intrinsic = hir.intrinsic
-    #     is_not_return = isinstance(hir.type, NoneType) or hir.type is None
-    #     type_str = str(hir.type)
+    #     is_not_return = isinstance(self.type_of(hir), NoneType) or self.type_of(hir) is None
+    #     type_str = str(self.type_of(hir))
 
     #     lirs = LIRs()
     #     arg_ids = []
@@ -330,9 +340,11 @@ class IRLowerer:
         return self.process(hir.expr)
 
     def process_CallIR(self, hir):
-        is_not_return = isinstance(hir.type, NoneType) or hir.type is None
+        is_not_return = (
+            isinstance(self.type_of(hir), NoneType) or self.type_of(hir) is None
+        )
 
-        type_str = str(hir.type)
+        type_str = str(self.type_of(hir))
         target = hir.target
         args = hir.args
 
@@ -399,7 +411,7 @@ class IRLowerer:
     def process_BinaryOpIR(self, hir):
         left = hir.left
         right = hir.right
-        type_str = str(hir.type)
+        type_str = str(self.type_of(hir))
         op = hir.op
 
         lirs = LIRs()
@@ -409,7 +421,7 @@ class IRLowerer:
         right_lir = self.process(right)
         right_id = self.get_current_value_id()
 
-        op_lir = self._op_to_lir(hir.type, left_id, right_id, op)
+        op_lir = self._op_to_lir(self.type_of(hir), left_id, right_id, op)
         self.blocks.emit(op_lir)
 
         lirs.append(left_lir)
@@ -585,7 +597,7 @@ class IRLowerer:
     def process_DefinitionIR(self, hir):
         target = hir.target
         value = hir.value
-        type_str = str(hir.type)
+        type_str = str(self.type_of(hir))
 
         init_fn = hir.initializer
 
@@ -614,7 +626,7 @@ class IRLowerer:
         return struct_lir
 
     def process_NewIR(self, hir):
-        new_lir = NewLIR(self.get_value_id(), hir.class_name, str(hir.type))
+        new_lir = NewLIR(self.get_value_id(), hir.class_name, str(self.type_of(hir)))
         self.blocks.emit(new_lir)
 
         return new_lir
@@ -630,7 +642,9 @@ class IRLowerer:
 
         for idx, field in enumerate(hir.chain):
             type_str = (
-                str(chain_types[idx]) if idx < len(chain_types) else str(hir.type)
+                self.type_str_of(chain_types[idx], str(self.type_of(hir)))
+                if idx < len(chain_types)
+                else str(self.type_of(hir))
             )
 
             access = FieldAccessLIR(self.get_value_id(), base, field, type_str)
@@ -676,3 +690,36 @@ class IRLowerer:
 
         # Structs come first: a function may use the type they define.
         return [*self.globals, *structs, *self.lir]
+
+    def type_str_of(self, type_val, fallback=None):
+        if type_val is None:
+            return fallback
+
+        if isinstance(type_val, Type):
+            return str(type_val)
+
+        resolved = resolve_type(type_val)
+
+        if resolved is not None:
+            return str(resolved)
+
+        if isinstance(type_val, str) and type_val in self.class_names:
+            return str(ClassType(type_val))
+
+        return str(type_val)
+
+    def type_of(self, hir):
+        type_val = getattr(hir, "type", None)
+
+        if type_val is None or isinstance(type_val, Type):
+            return type_val
+
+        resolved = resolve_type(type_val)
+
+        if resolved is not None:
+            return resolved
+
+        if isinstance(type_val, str) and type_val in self.class_names:
+            return ClassType(type_val)
+
+        return type_val

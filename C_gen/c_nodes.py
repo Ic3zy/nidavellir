@@ -286,7 +286,7 @@ class CStruct(CNode):
 
     def __str__(self):
         field_str = "".join(f"    {str(f)};\n" for f in self.fields)
-        return f"typedef struct {{\n{field_str}}} {self.name};"
+        return f"typedef struct {{\n{field_str}}} {self.name}"
 
 
 class CFieldDecl(CNode):

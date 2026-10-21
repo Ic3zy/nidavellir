@@ -56,3 +56,14 @@ class HInclude(HeaderNode):
 
     def str(self):
         return f"#include {self.file_name}"
+
+
+class HStruct(HeaderNode):
+    def __init__(self, name, fields):
+        self.name = name
+        self.fields = fields
+
+    def str(self):
+        fields_str = "".join(f"    {str(f)};\n" for f in self.fields)
+
+        return f"typedef struct {{\n{fields_str}}} {self.name};"

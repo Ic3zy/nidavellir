@@ -14,6 +14,9 @@ class HeaderGenerator:
         type = node.type
         return HFunction(name, args, type)
 
+    def gen_CStruct(self, node):
+        return HStruct(node.name, node.fields)
+
     def gen(self, node):
         name = node.__class__.__name__
         func = getattr(self, f"gen_{name}")

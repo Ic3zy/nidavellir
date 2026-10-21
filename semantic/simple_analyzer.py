@@ -685,29 +685,45 @@ class SimpleASTVisitor:
             return
 
         for ast in module.asts:
+            print(ast)
             self.visit_statement(ast)
 
-        symbol_to_lk = {}
+        funcs = {}
+        classes = {}
         for sym in node.symbols:
             func_name = sym["name"]
             alias = sym.get("alias")
 
+            is_class = False
             lk = self.stm.lookup_func(func_name)
+            if lk is None:
+                lk = self.stm.lookup_class(func_name)
+                is_class = True
+
             if lk is None:
                 self.error(node, f"Symbol '{func_name}' is not defined")
 
-            symbol_to_lk[func_name if alias is None else alias] = lk
-
+            if is_class:
+                classes[func_name if alias is None else alias] = lk
+            else:
+                funcs[func_name if alias is None else alias] = lk
         c_scp = self.stm.current_scope
         self.stm.exit_scope()
         self.module_scopes[name] = module_scope
 
-        for name, lk in symbol_to_lk.items():
+        for name, lk in funcs.items():
             p = c_scp.parent
             if p is not None and p.name == "imp":
                 self.stm.define_imported_func(name, lk)
             else:
                 self.stm.define_imported_func(name, lk, is_global=True)
+
+        for name, lk in classes.items():
+            p = c_scp.parent
+            if p is not None and p.name == "imp":
+                self.stm.define_imported_class(name, lk)
+            else:
+                self.stm.define_imported_class(name, lk, is_global=True)
 
     def visit_statement(self, node):
         method_name = f"stmt_{type(node).__name__}"
@@ -732,17 +748,7 @@ def normalize_ast_types(node, classes={}):
         return
 
     if hasattr(node, "type") and node.type is not None:
-        new_type = resolve_type(node.type)
-        if new_type is None:
-            name = node.type
-            if name in classes:
-                new_type = ClassType(name)
-            else:
-                raise TypeError(
-                    f"Unknown type '{node.type}'. The type is not defined or imported."
-                )
-
-        node.type = new_type
+        node.type = _normalize_type(node.type, classes)
 
     for attr in ("body", "args", "elifs"):
         val = getattr(node, attr, None)
@@ -767,6 +773,32 @@ def normalize_ast_types(node, classes={}):
         if val is not None and not isinstance(val, (str, int, float, bool)):
             normalize_ast_types(val, classes)
 
+    types = getattr(node, "chain_types", None)
+
+    if isinstance(types, list):
+        node.chain_types = [_normalize_type(t, classes) for t in types]
+
+    base_type = getattr(node, "base_type", None)
+    if base_type is not None:
+        node.base_type = _normalize_type(base_type, classes)
+
+
+def _normalize_type(type_val, classes):
+    if type_val is None or isinstance(type_val, Type):
+        return type_val
+
+    new_type = resolve_type(type_val)
+
+    if new_type is None:
+        if type_val in classes:
+            new_type = ClassType(type_val)
+        else:
+            raise TypeError(
+                f"Unknown type '{type_val}'. The type is not defined or imported."
+            )
+
+    return new_type
+
 
 class SimpleAnalyzer:
     def __init__(self, ast_tree, ctx):
@@ -785,3 +817,28 @@ class SimpleAnalyzer:
 
         for node in self.ast_tree:
             normalize_ast_types(node, self.stm.global_scope.classes)
+
+        for module in self._imported_modules():
+            for node in module.asts:
+                normalize_ast_types(node, self.stm.global_scope.classes)
+
+    def _imported_modules(self):
+        modules = []
+        seen = set()
+
+        def visit(node):
+            module = getattr(node, "resolved_module", None)
+
+            if module is None or id(module) in seen:
+                return
+
+            seen.add(id(module))
+            modules.append(module)
+
+            for child in module.asts:
+                visit(child)
+
+        for node in self.ast_tree:
+            visit(node)
+
+        return modules

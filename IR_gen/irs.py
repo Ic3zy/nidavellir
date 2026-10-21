@@ -171,7 +171,7 @@ class StringLiteralIR(IR):
         self.value = value
 
 
-class IRImport:
+class IRImport(IR):
     def __init__(
         self,
         module: str,

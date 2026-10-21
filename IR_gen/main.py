@@ -1,7 +1,7 @@
 from .irs import *
 from .ir_passer import IRPasser
 from nida_ast.base import *
-from type_systems.types import ClassType
+from type_systems.types import ClassType, Type, resolve_type
 
 
 class IRGen:
@@ -37,16 +37,35 @@ class IRGen:
             var_type,
             re_assign=ast.is_re_assign,
             chain=chain,
-            base_type=getattr(ast, "base_type", None),
-            chain_types=getattr(ast, "chain_types", []),
+            base_type=self._type_of(getattr(ast, "base_type", None)),
+            chain_types=[
+                self._type_of(t) for t in getattr(ast, "chain_types", [])
+            ],
         )
+
+    def _type_of(self, type_val):
+        """A type written as a name ('int', 'Point') becomes a type object."""
+        if type_val is None or isinstance(type_val, Type):
+            return type_val
+
+        resolved = resolve_type(type_val)
+
+        if resolved is not None:
+            return resolved
+
+        return type_val
 
     def gen_FieldAccessAST(self, ast):
         target_ir = self.gen(ast.target)
         chain = getattr(ast, "chain", []) or []
         chain_types = getattr(ast, "chain_types", []) or []
 
-        return FieldAccessIR(target_ir, chain, ast.type, chain_types)
+        return FieldAccessIR(
+            target_ir,
+            chain,
+            self._type_of(ast.type),
+            [self._type_of(t) for t in chain_types],
+        )
 
     def gen_SelfAST(self, ast):
         return VariableIR("self", ast.type)
@@ -285,9 +304,12 @@ class IRGen:
 
             info_tuple.append(field_type)
 
-            if hasattr(field_ast, "value"):
+            value_ir = None
+
+            if getattr(field_ast, "value", None) is not None:
                 value_ir = self.gen(field_ast.value)
-                info_tuple.append(value_ir)
+
+            info_tuple.append(value_ir)
 
             fields.append(tuple(info_tuple))
 

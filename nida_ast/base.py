@@ -78,9 +78,9 @@ class IfAST(AST):
 
 
 class NumberAST(AST):
-    def __init__(self, value):
+    def __init__(self, value, type=None):
         self.value = value
-        self.type = "idyn"
+        self.type = type if type is not None else "idyn"
 
 
 class StringAST(AST):

@@ -158,6 +158,12 @@ class SymbolTableManager:
         else:
             self.current_scope.functions[name] = func
 
+    def define_imported_class(self, name, class_sym: ClassSymbol, is_global=False):
+        if is_global:
+            self.global_scope.classes[name] = class_sym
+        else:
+            self.current_scope.classes[name] = class_sym
+
     def define_module(self, alias_or_name, real_module_name):
         self.current_scope.modules[alias_or_name] = real_module_name
 

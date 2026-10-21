@@ -230,11 +230,12 @@ class IRPasser:
                 chain=[],
             ),
             *default_value_setters,
-            ReturnIR(VariableIR("self", class_type), type=class_type),
         ]
 
         if init is not None:
-            body.insert(len(body) - 2, init)
+            body.extend(init.body)
+
+        body.append(ReturnIR(VariableIR("self", class_type), type=class_type))
 
         args = init.args[1:] if init is not None else []
 
@@ -245,8 +246,16 @@ class IRPasser:
             body=body,
             type=class_type,
             is_main_func=False,
-            is_static=True,
+            is_static=False,
         )
+
+    def stmt_IRImport(self, ir):
+        body = ir.resolved_module.hirs
+        new_body = self.run_stmts(body)
+
+        ir.resolved_module.hirs = new_body
+
+        return [IR_Box(ir)]
 
     def expr_BinaryOpIR(self, ir):
         ir.left = self.run_expr(ir.left)
