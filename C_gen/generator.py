@@ -5,6 +5,7 @@ from .header_generator import HeaderGenerator
 from .c_types import *
 from .extra_c_includes import EXTRA_C_INCLUDES
 from semantic.symbol_table import SymbolTableManager
+from type_systems.types import ClassType
 
 
 class CExprTranslator:
@@ -50,10 +51,16 @@ class CTypeTranslator:
     }
 
     @classmethod
-    def translate(cls, type_name: str) -> CType:
+    def translate(cls, type_name) -> CType:
+        if isinstance(type_name, ClassType):
+            return CTStruct(type_name.name)
+
         try:
             return cls.TYPES[type_name]
         except KeyError:
+            if isinstance(type_name, str) and type_name.isidentifier():
+                return CTStruct(type_name)
+
             raise Exception(f"Unsupported C translation for type: {type_name}")
 
 
@@ -260,6 +267,42 @@ class C_Gen:
         initializer = lir.initializer
 
         return CGlobal(name, type, initializer)
+
+    def process_StructLIR(self, lir):
+        fields = [
+            CFieldDecl(f.name, CTypeTranslator.translate(f.type)) for f in lir.fields
+        ]
+
+        return CStruct(lir.name, fields)
+
+    def process_FieldAccessLIR(self, lir):
+        target = lir.target
+
+        if isinstance(target, str):
+            target = CVariable(self.name_maper(target))
+        else:
+            target = self.process(target)
+
+        access = CFieldAccess(target, lir.field)
+
+        return CAssign(
+            self.name_maper(lir.name),
+            access,
+            CTypeTranslator.translate(lir.type),
+        )
+
+    def process_FieldStoreLIR(self, lir):
+        target = CVariable(self.name_maper(lir.target))
+        value = CVariable(self.name_maper(lir.value))
+
+        return CFieldStore(target, lir.field, value)
+
+    def process_NewLIR(self, lir):
+        return CAssign(
+            self.name_maper(lir.name),
+            CNew(lir.class_name),
+            CTypeTranslator.translate(lir.type),
+        )
 
     def process(self, lir):
         name = lir.__class__.__name__

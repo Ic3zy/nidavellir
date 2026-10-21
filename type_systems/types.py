@@ -19,6 +19,10 @@ PRIMITIVE_TYPE_FACTORIES = {
     "void": lambda: NoneType(),
     "dynamic": lambda: DynamicType(),
     "bool": lambda: BooleanType(),
+    # user-friendly aliases
+    "int": lambda: IntType(signed=True, byte_size=4),
+    "float": lambda: FloatType(byte_size=4),
+    "String": lambda: StringType(),
 }
 
 TYPE_RANK = {
@@ -212,3 +216,11 @@ class NoneType(Type):
 class BooleanType(Type):
     def __str__(self):
         return "bool"
+
+
+class ClassType(Type):
+    def __init__(self, name):
+        self.name = name
+
+    def __str__(self):
+        return self.name

@@ -178,16 +178,6 @@ class Parser:
 
         self.print_error(f"Unexpected token in expression")
 
-    def parse_factor(self):
-        left = self.parse_primary()
-
-        while self.peek_kind() in ("STAR", "DIV"):
-            op_token = self.advance()
-            right = self.parse_unary()
-            left = BinaryOpAST(left=left, op=op_token[1], right=right)
-
-        return left
-
     def parse_postfix(self):
         left = self.parse_primary()
 
@@ -417,6 +407,12 @@ class Parser:
                     return True
 
                 if prev_kind == "NAME" and kind == "NAME":
+                    # "NAME NAME" is a typed declaration ("def int x = 5"),
+                    # but "def int name(" is a function signature.
+                    nxt = self.get_token(self.index + offset + 1)
+                    nxt_kind = nxt[0] if isinstance(nxt, tuple) else nxt
+                    if nxt_kind == "LPAREN":
+                        return False
                     return True
 
             prev_kind = kind
@@ -883,3 +879,7 @@ class Parser:
                 self.asts.append(res)
             else:
                 self.advance()
+
+    def run(self):
+        self.parse_all()
+        return self.asts

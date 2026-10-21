@@ -106,8 +106,11 @@ class CallAST(AST):
         self.target = target
         self.chain = chain
         self.args = args
-
+        self.type = None
         self.target_function = None
+
+        # The type of the object a method is called on.
+        self.receiver_type = None
 
     @property
     def target_function_name(self):
@@ -127,6 +130,9 @@ class AssignAST(AST):
         self.value = value
 
         self.is_re_assign = None
+
+        self.chain_types = []
+        self.base_type = None
 
 
 class DefinitionAST(AST):
@@ -160,8 +166,7 @@ class OperatorAST(AST):
 
 
 class PassAST(AST):
-    def __init__(self):
-        pass
+    pass
 
 
 class BinaryOpAST(AST):
@@ -183,6 +188,11 @@ class ClassAST(AST):
         self.name = name
         self.body = body
 
+        self.fields = {}
+        self.methods = {}
+
+        self.func_id = None
+
 
 class SelfAST(AST):
     def __init__(self):
@@ -195,6 +205,8 @@ class UnaryOpAST(AST):
         self.op = op
         self.right = right
 
+        self.type = None
+
 
 class DecoratorAST(AST):
     def __init__(self, name, args):
@@ -206,6 +218,9 @@ class FieldAccessAST(AST):
     def __init__(self, target, chain):
         self.target = target
         self.chain = chain
+
+        self.type = None
+        self.chain_types = []
 
 
 class ListLiteralAST(AST):

@@ -1,5 +1,6 @@
 from .tree_gen import SymbolTreeBuilder
 from .type_def import AutoTypeDefEngine
+from utils import SysArgs
 
 
 class TypeSystem:
@@ -19,12 +20,18 @@ class TypeSystem:
 
         self.stb = SymbolTreeBuilder(self.ast_tree)
 
+        if SysArgs.dump_type_tree:
+            print(self.stb.print_scopes())
+
     def type_def(self):
         if self.stb is None:
             self.tree_gen()
 
         self.tde = AutoTypeDefEngine(self.stb.st)
         self.tde.run()
+
+        if SysArgs.dump_type_engine:
+            print(self.stb.print_tree())
 
         # raise Exception(self.ast_tree)
 

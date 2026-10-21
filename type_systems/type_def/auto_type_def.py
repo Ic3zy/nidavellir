@@ -57,6 +57,13 @@ class AutoTypeDefEngine:
                 if sym.type is None:
                     raise Exception(sym, "Cannot determine type of assigned value")
 
+        if sym.chain:
+            base = sym.base_sym
+            if base.type is None:
+                self.process(base)
+
+            self._resolve_chain(base.type, sym.chain, sym)
+
     def process_DefinitionSymbol(self, sym):
         if sym.type is None:
             self.process(sym.value)
@@ -88,6 +95,17 @@ class AutoTypeDefEngine:
             if sym.type is None:
                 raise Exception(sym, "Cannot determine type of binary operation")
 
+    def process_UnaryOpSymbol(self, sym):
+        right = sym.right_sym
+        if right.type is None:
+            self.process(right)
+
+        if right.type is None:
+            raise Exception(sym, "Cannot determine type of unary operation")
+
+        with TypeUpdate(sym):
+            sym.type = right.type
+
     def _infer_returns(self, body: list):
         returns = []
 
@@ -108,8 +126,10 @@ class AutoTypeDefEngine:
             return
 
         for call in sym.uses:
-            if not isinstance(call, CallSymbol):
+            if not isinstance(call, (CallSymbol, ConstructorCallSymbol)):
                 continue
+
+            offset = getattr(call, "arg_offset", 0)
 
             for idx, arg in enumerate(call.args):
                 if arg.type is None:
@@ -123,7 +143,7 @@ class AutoTypeDefEngine:
                         f"in call {call.name}",
                     )
 
-                if (previous_type := arg_types.get(idx)) is not None:
+                if (previous_type := arg_types.get(idx + offset)) is not None:
                     if arg_type != previous_type:
                         raise Exception(
                             sym,
@@ -131,7 +151,7 @@ class AutoTypeDefEngine:
                             f"{arg_type} and {previous_type}",
                         )
 
-                arg_types[idx] = arg_type
+                arg_types[idx + offset] = arg_type
         for idx, arg in enumerate(sym.args):
             if arg.type is None:
                 arg_type = arg_types.get(idx)
@@ -189,6 +209,84 @@ class AutoTypeDefEngine:
 
         for arg in sym.args:
             self.process(arg)
+
+    def process_ConstructorCallSymbol(self, sym):
+        for arg in sym.args:
+            self.process(arg)
+
+        with TypeUpdate(sym):
+            sym.type = sym.lookup.type
+
+    def process_ClassSymbol(self, sym):
+        self.process_from_list(sym.body)
+
+        for method in sym.method_syms.values():
+            self._process_FunctionSymbol(method)
+
+    def process_SelfSymbol(self, sym):
+        if sym.class_name is None:
+            raise Exception(sym, "'self' is only valid inside a class")
+
+        with TypeUpdate(sym):
+            sym.type = ClassType(sym.class_name)
+
+    def process_FieldAccessSymbol(self, sym):
+        target = sym.target
+        if target.type is None:
+            self.process(target)
+
+        self._resolve_chain(target.type, sym.chain, sym)
+
+    def _resolve_chain(self, base_type, chain, sym):
+        for name in chain:
+            if not isinstance(base_type, ClassType):
+                raise Exception(
+                    sym,
+                    f"Cannot access member '{name}' on non-class type '{base_type}'",
+                )
+
+            class_sym = self._find_class(base_type.name)
+            if class_sym is None:
+                raise Exception(sym, f"Class '{base_type.name}' is not defined")
+
+            field_ast = class_sym.fields.get(name)
+            if field_ast is None:
+                raise Exception(
+                    sym, f"Member '{name}' is not defined in class '{base_type.name}'"
+                )
+
+            base_type = self._field_type(class_sym, field_ast)
+            if base_type is None:
+                raise Exception(
+                    sym,
+                    f"Cannot determine type of member '{name}' "
+                    f"in class '{base_type.name}'",
+                )
+
+        with TypeUpdate(sym):
+            sym.type = base_type
+
+    def _find_class(self, name):
+        for sym in self.sym_tree:
+            if isinstance(sym, ClassSymbol) and sym.name == name:
+                return sym
+
+        return None
+
+    def _field_type(self, class_sym, field_ast):
+        if field_ast.type is not None:
+            return resolve_type(field_ast.type)
+
+        if field_ast.value is not None:
+            value_sym = field_ast.value
+            if value_sym.type is not None:
+                return value_sym.type
+
+            self.process(value_sym)
+            if value_sym.type is not None:
+                return value_sym.type
+
+        return None
 
     def process_IntrinsicCallSymbol(self, sym):
         args = sym.args

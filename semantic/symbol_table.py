@@ -9,6 +9,21 @@ class FunctionSymbol:
         self.ast_node = ast_node
 
 
+class ClassSymbol:
+    def __init__(self, name, ast_node, params=[]):
+        self.name = name
+        self.params = params
+        self.ast_node = ast_node
+
+    @property
+    def methods(self):
+        return getattr(self.ast_node, "methods", {})
+
+    @property
+    def fields(self):
+        return getattr(self.ast_node, "fields", {})
+
+
 class Scope:
     def __init__(
         self,
@@ -98,19 +113,22 @@ class SymbolTableManager:
         self.current_scope.define_var(name, var_symbol)
 
     def define_class(self, name, ast_node):
-        class_symbol = {"name": name, "params": [], "fields": {}, "ast": ast_node}
+        class_symbol = ClassSymbol(name, ast_node)
         self.global_scope.classes[name] = class_symbol
 
     def lookup_field(self, class_name, field_name):
         class_symbol = self.lookup_class(class_name)
-        if class_symbol and field_name in class_symbol["fields"]:
-            return class_symbol["fields"][field_name]
-        return None
+
+        if class_symbol is None:
+            return None
+
+        return class_symbol.fields.get(field_name)
 
     def define_field(self, class_name, field_name, field_type, ast_node=None):
         class_symbol = self.global_scope.classes.get(class_name)
-        if class_symbol:
-            class_symbol["fields"][field_name] = {
+
+        if class_symbol is not None:
+            class_symbol.fields[field_name] = {
                 "name": field_name,
                 "type": field_type,
                 "ast": ast_node,
@@ -118,8 +136,8 @@ class SymbolTableManager:
 
     def define_class_required_params(self, class_name, params):
         class_symbol = self.global_scope.classes.get(class_name)
-        if class_symbol:
-            class_symbol["params"] = params
+        if class_symbol is not None:
+            class_symbol.params = params
 
     def lookup_class(self, name):
         return self.current_scope.lookup_class(name)

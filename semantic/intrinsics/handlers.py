@@ -52,14 +52,16 @@ def range_intrinsic(Hir):
     end = None
     step = None
 
+    num_type = args[0].type if args else None
+
     if arg_c == 1:
-        start = NumberIR(0)
+        start = NumberIR(0, num_type)
         end = args[0]
-        step = NumberIR(1)
+        step = NumberIR(1, num_type)
     elif arg_c == 2:
         start = args[0]
         end = args[1]
-        step = NumberIR(1)
+        step = NumberIR(1, num_type)
     elif arg_c == 3:
         start = args[0]
         end = args[1]

@@ -211,3 +211,39 @@ class GlobalLIR(LIR):
         self.name = name
         self.type = type
         self.initializer = initializer
+
+
+class StructLIR(LIR):
+    def __init__(self, name, fields):
+        self.name = name
+        self.fields = fields
+
+
+class FieldDeclLIR(LIR):
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
+
+
+class FieldAccessLIR(LIR):
+    def __init__(self, name, target, field, type=None):
+        self.name = name
+        self.target = target
+        self.field = field
+        self.type = type
+
+
+class FieldStoreLIR(LIR):
+    def __init__(self, name, target, field, type, value):
+        self.name = name
+        self.target = target
+        self.field = field
+        self.type = type
+        self.value = value
+
+
+class NewLIR(LIR):
+    def __init__(self, name, class_name, type=None):
+        self.name = name
+        self.class_name = class_name
+        self.type = type

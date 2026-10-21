@@ -275,3 +275,51 @@ class CGlobal(CNode):
 
     def __str__(self):
         return f"{self.type} {self.name}"
+
+
+class CStruct(CNode):
+    """A C struct definition."""
+
+    def __init__(self, name, fields):
+        self.name = name
+        self.fields = fields
+
+    def __str__(self):
+        field_str = "".join(f"    {str(f)};\n" for f in self.fields)
+        return f"typedef struct {{\n{field_str}}} {self.name};"
+
+
+class CFieldDecl(CNode):
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
+
+    def __str__(self):
+        return f"{self.type} {self.name}"
+
+
+class CFieldAccess(CNode):
+    def __init__(self, target, field):
+        self.target = target
+        self.field = field
+
+    def __str__(self):
+        return f"{self.target}->{self.field}"
+
+
+class CFieldStore(CNode):
+    def __init__(self, target, field, value):
+        self.target = target
+        self.field = field
+        self.value = value
+
+    def __str__(self):
+        return f"{self.target}->{self.field} = {self.value}"
+
+
+class CNew(CNode):
+    def __init__(self, class_name):
+        self.class_name = class_name
+
+    def __str__(self):
+        return f"({self.class_name} *)calloc(1, sizeof({self.class_name}))"
