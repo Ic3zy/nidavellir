@@ -154,6 +154,13 @@ class SysArgs:
             help="Stop after the specified pipeline stage",
         )
 
+        parser.add_argument(
+            "-pct",
+            "--print-compile-time",
+            action="store_true",
+            help="Set the time limit for the compilation (in seconds)",
+        )
+
         parsed, _ = parser.parse_known_args(args)
 
         temp_dir = Path(tempfile.gettempdir())

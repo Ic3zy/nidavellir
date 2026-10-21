@@ -10,7 +10,7 @@ from IR_gen import IRGen
 from LIR_gen import IRLowerer
 from C_gen import C_Gen
 from C_gen import HeaderGenerator
-from utils import SysArgs
+from utils import SysArgs, ExecutionTimer
 from .gcc import compile_c_file, run_compiled_file
 
 import sys
@@ -57,35 +57,50 @@ class Nidac:
 
     def compile(self):
         """Run the whole pipeline, honouring --stop-after and --no-binary-compile."""
+        timer = ExecutionTimer()
+
+        timer.start("Lexer")
         self.lex()
+
+        timer.start("Parser")
         self.parse()
         if SysArgs.stop_after == "ast":
             return
 
+        timer.start("Import Systems")
         self.import_systems()
 
+        timer.start("Semantic Analyzer")
         self.analyze()
         if SysArgs.stop_after == "semantic":
             return
 
+        timer.start("Type Engine")
         self.type_def()
         if SysArgs.stop_after in ("type-engine", "type-tree"):
             return
 
+        timer.start("HIR Generator")
         self.HIRGen()
         if SysArgs.stop_after == "hir":
             return
 
+        timer.start("LIR Generator")
         self.LIRGen()
         if SysArgs.stop_after == "lir":
             return
 
+        timer.start("C Generator")
         self.emit_c11()
         if SysArgs.stop_after == "c":
             return
 
+        timer.start("Binary Compiler")
         if not SysArgs.no_binary_compile:
             self.compile_binary()
+
+        if SysArgs.print_compile_time:
+            timer.print()
 
     # ------------------------------------------------------------------
     # Frontend

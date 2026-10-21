@@ -247,3 +247,11 @@ class NewLIR(LIR):
         self.name = name
         self.class_name = class_name
         self.type = type
+
+
+class UnaryOpLIR(LIR):
+    def __init__(self, name, op, value, type=None):
+        self.name = name
+        self.op = op
+        self.value = value
+        self.type = type

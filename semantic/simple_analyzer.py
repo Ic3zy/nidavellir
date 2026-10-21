@@ -306,6 +306,7 @@ class SimpleASTVisitor:
 
         is_chain = node.chain
         chain = node.chain or []
+        lk_func = None
         is_class = False
         is_intrinsic = False
 
@@ -336,6 +337,8 @@ class SimpleASTVisitor:
             if target_class is None:
                 self.error(node, f"Class '{class_name}' is not defined")
 
+            lk_func = target_class
+
             target_func = target_class.methods.get(method_name)
             if target_func is None:
                 self.error(node, f"Method '{method_name}' is not defined")
@@ -362,8 +365,10 @@ class SimpleASTVisitor:
                 func = self.stm.lookup_class(target)
                 is_class = True
 
+            lk_func = func
+
             if func is None:
-                self.error(node, f"Function '{target}' not defined")
+                self.error(node, f"Function '{target}' not defined, {node}")
 
             node.target_function = func.ast_node
 
@@ -371,7 +376,16 @@ class SimpleASTVisitor:
                 node.type = ClassType(target)
             else:
                 node.type = func.return_type
+
         args = node.args
+        if is_class:
+            param_len = len(lk_func.params) - 1
+            if len(args) != param_len:
+                self.error(
+                    node,
+                    f"Invalid arguments for class constructor: "
+                    f"{[arg.type for arg in args]}",
+                )
 
         if not is_chain and not is_class:
             is_variadic = (

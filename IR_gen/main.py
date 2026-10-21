@@ -258,6 +258,14 @@ class IRGen:
         value_ir = self.gen(value)
         return DefinitionIR(target, value_ir, type)
 
+    def gen_UnaryOpAST(self, ast):
+        op = ast.op
+        value = ast.right
+        type = ast.type
+
+        value_ir = self.gen(value)
+        return UnaryOpIR(op, value_ir, type)
+
     def process_class_body(self, body):
         new_body = []
 

@@ -304,6 +304,14 @@ class C_Gen:
             CTypeTranslator.translate(lir.type),
         )
 
+    def process_UnaryOpLIR(self, lir):
+        name = self.name_maper(lir.name)
+        type = CTypeTranslator.translate(lir.type)
+
+        val_name = self.name_maper(lir.value)
+
+        return CUnaryOp(name, lir.op, val_name, type)
+
     def process(self, lir):
         name = lir.__class__.__name__
         func = getattr(self, f"process_{name}", None)

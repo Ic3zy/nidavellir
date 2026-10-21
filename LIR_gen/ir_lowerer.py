@@ -653,6 +653,17 @@ class IRLowerer:
 
         return access
 
+    def process_UnaryOpIR(self, hir):
+        op = hir.op
+        value_lir = self.process(hir.value)
+        type_str = str(self.type_of(hir))
+
+        result_id = self.get_value_id()
+        lir = UnaryOpLIR(result_id, op, value_lir.name, type_str)
+        self.blocks.emit(lir)
+
+        return lir
+
     def process(self, hir):
         name = hir.__class__.__name__
         func = getattr(self, f"process_{name}", None)

@@ -323,3 +323,14 @@ class CNew(CNode):
 
     def __str__(self):
         return f"({self.class_name} *)calloc(1, sizeof({self.class_name}))"
+
+
+class CUnaryOp(CNode):
+    def __init__(self, name, op, value, type=None):
+        self.name = name
+        self.op = op
+        self.value = value
+        self.type = type
+
+    def __str__(self):
+        return f"{self.type} {self.name} = {self.op}{self.value}"

@@ -266,3 +266,10 @@ class StructIR(IR):
         self.class_fields = class_fields or []
 
         self.initialize_function = None
+
+
+class UnaryOpIR(IR):
+    def __init__(self, op, value, type=None):
+        self.op = op
+        self.value = value
+        self.type = type
