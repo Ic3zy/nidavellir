@@ -2,7 +2,7 @@ from .symbol_table import SymbolTableManager
 from .tree_printer import render_node
 from .symbol_types import *
 from nida_ast.base import *
-from type_systems.types import resolve_type, ClassType
+from type_systems.types import resolve_type, ClassType, ListType, NoneType
 
 
 class SymbolTreeBuilder:
@@ -75,6 +75,15 @@ class SymbolTreeBuilder:
         right_sym = self.process_eval(ast.right)
 
         return UnaryOpSymbol(ast.op, right_sym, ast)
+
+    def eval_ListLiteralAST(self, ast):
+        elements = []
+
+        for e in ast.elements:
+            element_sym = self.process_eval(e)
+            elements.append(element_sym)
+
+        return ListLiteralSymbol(elements, ast)
 
     def stmt_PassAST(self, ast):
         pass
@@ -242,6 +251,7 @@ class SymbolTreeBuilder:
         chain = ast.chain
 
         if ast.target == "self":
+            base = None
             class_name = self.current_class_name
         else:
             base = self.stm.lookup(ast.target)
@@ -250,6 +260,9 @@ class SymbolTreeBuilder:
                 self.error(ast, f"Variable '{ast.target}' is not defined")
 
             class_name = base.type.name if isinstance(base.type, ClassType) else None
+
+        if class_name is None and isinstance(getattr(base, "type", None), ListType):
+            return self._list_method_call(ast, base)
 
         if class_name is None:
             self.error(ast, f"Cannot call method '{chain[0]}' on a non-class value")
@@ -299,6 +312,22 @@ class SymbolTreeBuilder:
         sym.receiver_chain = list(field_chain)
         sym.arg_offset = 1
         lookup.uses.append(sym)
+
+        return sym
+
+    def _list_method_call(self, ast, base):
+        chain = ast.chain
+        method_name = chain[-1]
+
+        if method_name != "append":
+            self.error(ast, f"List has no method '{method_name}'")
+
+        params = self.process_call_args(ast.args, None, method_name, is_intrinsic=True)
+
+        sym = CallSymbol(method_name, params, base, ast)
+        sym.type = NoneType()
+        sym.is_list_method = True
+        base.uses.append(sym)
 
         return sym
 

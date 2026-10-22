@@ -195,6 +195,10 @@ class AutoTypeDefEngine:
             sym.type = sym.value.type
 
     def process_CallSymbol(self, sym):
+        if getattr(sym, "is_list_method", False):
+            self.process_from_list(sym.args)
+            return
+
         lk = sym.lookup
         self._process_FunctionSymbol(lk)
 
@@ -318,6 +322,14 @@ class AutoTypeDefEngine:
         if sym.else_body is not None:
             for stmt in sym.else_body:
                 self.process(stmt)
+
+    def process_ListLiteralSymbol(self, sym):
+        for element_sym in sym.elements:
+            self.process(element_sym)
+
+        if sym.type is None:
+            with TypeUpdate(sym):
+                sym.type = ListType()
 
     def process(self, sym):
         method_name = f"process_{type(sym).__name__}"

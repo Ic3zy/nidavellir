@@ -78,3 +78,14 @@ class CTStruct(CType):
 
     def __str__(self):
         return f"{self.name} *"
+
+
+class CTList(CType):
+    def __init__(self, element_type=None):
+        self.element_type = element_type
+
+    def __str__(self):
+        if "dynix_nida.h" not in EXTRA_C_INCLUDES:
+            EXTRA_C_INCLUDES.append("dynix_nida.h")
+
+        return "Nida_List *"

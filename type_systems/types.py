@@ -23,6 +23,7 @@ PRIMITIVE_TYPE_FACTORIES = {
     "int": lambda: IntType(signed=True, byte_size=4),
     "float": lambda: FloatType(byte_size=4),
     "String": lambda: StringType(),
+    "List": lambda: ListType(),
 }
 
 TYPE_RANK = {
@@ -91,6 +92,15 @@ class DynamicType(Type):
 class BoolType(Type):
     def __str__(self):
         return "bool"
+
+
+class ListType(Type):
+    def __init__(self, element_type=None, size=None):
+        self.element_type = element_type
+        self.size = size
+
+    def __str__(self):
+        return "List"
 
 
 class IntType(Type):

@@ -110,6 +110,7 @@ class IRPasser:
     def expr_CallIR(self, ir):
         return self.process_CallIR(ir, is_expr=True)
 
+
     def stmt_AssignIR(self, ir):
         ir.value = self.run_expr(ir.value)
         return [IR_Box(ir)]

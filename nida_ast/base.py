@@ -109,6 +109,8 @@ class CallAST(AST):
         self.type = None
         self.target_function = None
 
+        self.list_runtime_target = None
+
         # The type of the object a method is called on.
         self.receiver_type = None
 
@@ -231,6 +233,8 @@ class FieldAccessAST(AST):
 class ListLiteralAST(AST):
     def __init__(self, elements):
         self.elements = elements
+
+        self.type = None
 
 
 class IntrinsicAST(AST):

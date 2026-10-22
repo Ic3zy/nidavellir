@@ -48,6 +48,8 @@ class CTypeTranslator:
         "bool": CTInt(False, 1),
         "None": CTNone(),
         "str": CTString(),
+        "List": CTList(CTVoid()),
+        "Nida_List *": CTList(CTVoid()),
     }
 
     @classmethod
@@ -328,6 +330,13 @@ class C_Gen:
         return f'"{name}"'
 
     def get_code_string(self):
+        body_code = ""
+        for idx, c_node in enumerate(self.c_nodes):
+            if idx == 0:
+                body_code += "\n" + c_node.str()
+            else:
+                body_code += ";\n" + c_node.str()
+
         includes = ["#include <Nida_core.h>"]
         for include in EXTRA_C_INCLUDES:
             includes.append(f"#include {self.include_name_map(include)}")
@@ -337,16 +346,7 @@ class C_Gen:
             if incl not in includes:
                 includes.append(incl)
 
-        includes_str = "\n".join(includes)
-
-        c_code = includes_str + "\n"
-        for idx, c_node in enumerate(self.c_nodes):
-            if idx == 0:
-                c_code += "\n" + c_node.str()
-            else:
-                c_code += ";\n" + c_node.str()
-
-        return c_code
+        return "\n".join(includes) + "\n" + body_code
 
     def gen_from_list(self, lirs):
         for lir in lirs:

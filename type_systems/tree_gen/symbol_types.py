@@ -267,3 +267,15 @@ class ConstructorCallSymbol(Symbol):
 
     def set_type_to_AST(self):
         self.ast_node.type = self.type
+
+
+class ListLiteralSymbol(Symbol):
+    def __init__(self, elements, ast_node):
+        self.elements = elements
+        self.appended_elements = []
+        self.ast_node = ast_node
+
+        self.type = None
+
+    def set_type_to_AST(self):
+        self.ast_node.type = self.type

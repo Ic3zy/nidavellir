@@ -11,6 +11,7 @@ class IRGen:
         self.f_alloc = ctx["f_alloc"]
 
         self.IRs = []
+        self.list_literal_count = 0
 
     def gen_PassAST(self, ast):
         return PassIR()
@@ -74,6 +75,17 @@ class IRGen:
         return ReturnIR(res)
 
     def gen_CallAST(self, ast):
+        runtime_target = getattr(ast, "list_runtime_target", None)
+
+        if runtime_target is not None:
+            args_irs = [VariableIR(ast.target, ast.receiver_type)]
+            for arg in ast.args:
+                args_irs.append(self.gen(arg))
+
+            ir = CallIR(runtime_target, args_irs, ast.type)
+            ir.runtime_call = True
+            return ir
+
         target = ast.target_function_name
         if target is not None:
             target = self.f_alloc.name_of(target)
@@ -282,6 +294,22 @@ class IRGen:
 
         value_ir = self.gen(value)
         return UnaryOpIR(op, value_ir, type)
+
+    def gen_ListLiteralAST(self, ast):
+        elements = []
+
+        for e in ast.elements:
+            element_ir = self.gen(e)
+            elements.append(element_ir)
+
+        literal_ir = ListLiteralIR(elements, ast.type)
+        literal_ir.element_list_id = self._next_list_id()
+        return literal_ir
+
+    def _next_list_id(self):
+        list_id = self.list_literal_count
+        self.list_literal_count += 1
+        return list_id
 
     def process_class_body(self, body):
         new_body = []

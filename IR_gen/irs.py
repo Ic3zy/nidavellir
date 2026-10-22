@@ -150,6 +150,8 @@ class CallIR(IR):
 
         self.imported_func_call = False
 
+        self.runtime_call = False
+
 
 class NumberIR(IR):
     def __init__(self, value, type=None):
@@ -272,4 +274,10 @@ class UnaryOpIR(IR):
     def __init__(self, op, value, type=None):
         self.op = op
         self.value = value
+        self.type = type
+
+
+class ListLiteralIR(IR):
+    def __init__(self, elements, type=None):
+        self.elements = elements
         self.type = type

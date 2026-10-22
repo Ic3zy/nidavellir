@@ -339,7 +339,66 @@ class IRLowerer:
     def process_GroupIR(self, hir):
         return self.process(hir.expr)
 
+    def process_ListLiteralIR(self, hir):
+        lirs = LIRs()
+
+        lirs.append(self._runtime_call("Nida_list_new", [], "Nida_List *"))
+
+        tmp_name = f"__nida_list_{hir.element_list_id}"
+
+        declare_lir = DeclareLIR(tmp_name, "Nida_List *", self.get_current_value_id())
+        self.blocks.emit(declare_lir)
+        lirs.append(declare_lir)
+
+        for element in hir.elements:
+            lirs.append(self.process(element))
+
+            lirs.append(
+                self._runtime_call(
+                    "Nida_list_append",
+                    [tmp_name, self.get_current_value_id()],
+                    "void",
+                )
+            )
+
+        load_lir = LoadLIR(self.get_value_id(), tmp_name, "Nida_List *")
+        self.blocks.emit(load_lir)
+        lirs.append(load_lir)
+
+        return lirs
+
+    def _runtime_call(self, func_name, arg_ids, return_type):
+        """Emit a direct C runtime call; the value id only exists when it returns."""
+        value_id = None if return_type == "void" else self.get_value_id()
+        call_lir = CallLIR(value_id, return_type, func_name, arg_ids)
+
+        self.blocks.emit(call_lir)
+
+        lirs = LIRs()
+        lirs.append(call_lir)
+
+        return lirs
+
     def process_CallIR(self, hir):
+        if getattr(hir, "runtime_call", False):
+            lirs = LIRs()
+
+            lirs.append(self.process(hir.args[0]))
+            arg_ids = [self.get_current_value_id()]
+
+            for arg in hir.args[1:]:
+                lirs.append(self.process(arg))
+                arg_ids.append(self.get_current_value_id())
+
+            return_type = self.type_str_of(self.type_of(hir), "None")
+
+            if isinstance(self.type_of(hir), NoneType) or return_type == "None":
+                return_type = "void"
+
+            lirs.append(self._runtime_call(hir.target, arg_ids, return_type))
+
+            return lirs
+
         is_not_return = (
             isinstance(self.type_of(hir), NoneType) or self.type_of(hir) is None
         )

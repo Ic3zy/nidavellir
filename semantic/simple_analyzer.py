@@ -4,7 +4,7 @@
 from .intrinsics import INTRINSICS
 from .symbol_table import SymbolTableManager
 from nida_ast.base import *
-from type_systems.types import resolve_type, ClassType, Type
+from type_systems.types import resolve_type, ClassType, ListType, NoneType, Type
 
 VALID_RETURN_EXPRESSIONS = (
     NoneAST,
@@ -144,6 +144,20 @@ class SimpleASTVisitor:
         node.chain_types = chain_types
 
         return None
+
+    def eval_ListLiteralAST(self, node):
+        element_type = None
+
+        for element in node.elements:
+            self.visit_expression(element)
+
+            if element_type is None and getattr(element, "type", None) is not None:
+                element_type = self._resolve(element.type)
+
+        if node.type is None:
+            node.type = ListType(element_type)
+
+        return node.type
 
     def _type_of_field(self, field):
         if isinstance(field, dict):
@@ -300,6 +314,52 @@ class SimpleASTVisitor:
     def stmt_IntrinsicCallAST(self, node):
         return self.eval_IntrinsicCallAST(node)
 
+    LIST_METHODS = {
+        "append": ("Nida_list_append", NoneType(), 1),
+    }
+
+    def _builtin_receiver(self, symbol):
+        symbol_type = symbol.get("type") if isinstance(symbol, dict) else None
+
+        if isinstance(symbol_type, ListType):
+            return symbol
+
+        return None
+
+    def _list_method_call(self, node, symbol):
+        chain = node.chain or []
+        method_name = chain[0]
+
+        method = self.LIST_METHODS.get(method_name)
+
+        if method is None:
+            self.error(node, f"List has no method '{method_name}'")
+
+        runtime_target, return_type, arg_count = method
+
+        if len(node.args) != arg_count:
+            self.error(
+                node,
+                f"List method '{method_name}' takes {arg_count} arguments "
+                f"({len(node.args)} given)",
+            )
+
+        for arg in node.args:
+            self.visit_expression(arg)
+
+        if len(chain) > 1:
+            self.error(
+                node,
+                f"Cannot chain '{'.'.join(chain[1:])}' after list method "
+                f"'{method_name}'",
+            )
+
+        node.list_runtime_target = runtime_target
+        node.receiver_type = symbol.get("type")
+        node.type = return_type
+
+        return node
+
     def eval_CallAST(self, node):
         target = node.target
 
@@ -325,6 +385,11 @@ class SimpleASTVisitor:
 
                 if symbol is None:
                     self.error(node, f"Variable '{target}' is not defined")
+
+                receiver = self._builtin_receiver(symbol)
+
+                if receiver is not None:
+                    return self._list_method_call(node, receiver)
 
                 class_name = self._class_of(symbol)
 
@@ -508,59 +573,6 @@ class SimpleASTVisitor:
     def stmt_AssignAST(self, node):
         chain = getattr(node, "chain", [])
         class_name = self.get_current_class_name()
-
-        # if class_name is not None:
-        #     if node.target == "self" and len(chain) == 1:
-        #         self.stm.define_field(
-        #             class_name=class_name,
-        #             field_name=chain[0],
-        #             field_type=node.type,
-        #             ast_node=node,
-        #         )
-
-        #     elif node.target != "self" and not self.stm.current_scope.is_func:
-        #         self.stm.define_var(node.target, node.type)
-
-        #     elif node.target == "self" and len(chain) > 1:
-        #         last_class = self.stm.lookup_class(class_name)
-
-        #         for idx, ch in enumerate(chain):
-        #             if ch in last_class["fields"]:
-        #                 ast = last_class["fields"][ch]["ast"]
-        #                 value = ast.value
-
-        #                 is_last_in_chain = idx == len(chain) - 1
-
-        #                 if not is_last_in_chain:
-        #                     if not isinstance(value, CallAST):
-        #                         type_str = getattr(ast, "type", "primitive")
-        #                         self.error(
-        #                             node,
-        #                             f"Cannot perform member chain access '{'.'.join(chain)}': "
-        #                             f"'{ch}' is of type '{type_str}', not a class instance.",
-        #                         )
-        #                         break
-
-        #                     tr = value.target
-        #                     last_class = self.stm.lookup_class(tr)
-        #                     if not last_class:
-        #                         self.error(
-        #                             node,
-        #                             f"Class '{tr}' referenced by '{ch}' is not defined.",
-        #                         )
-        #                         break
-        #             else:
-        #                 curr_class_name = last_class.get("name", class_name)
-        #                 self.error(
-        #                     node,
-        #                     f"Member '{ch}' is not defined in class '{curr_class_name}'",
-        #                 )
-        #                 break
-
-        #     else:
-        #         self.stm.define_var(node.target, node.type)
-
-        # else:
         lookups = self.stm.lookup_var(node.target)
         if lookups:
             node.is_re_assign = True
@@ -699,7 +711,6 @@ class SimpleASTVisitor:
         self.stm.exit_scope()
 
     def stmt_ForAST(self, node):
-
         if not isinstance(node.target, AssignAST):
             self.error(
                 f"Invalid 'for' loop target '{type(node.target).__name__}'. "
