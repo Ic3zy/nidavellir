@@ -118,12 +118,10 @@ class AutoTypeDefEngine:
         return returns
 
     def process_FunctionSymbol(self, sym: FunctionSymbol):
-        pass
+        self._process_FunctionSymbol(sym)
 
     def _process_FunctionSymbol(self, sym):
         arg_types = {}
-        if not sym.uses:
-            return
 
         for call in sym.uses:
             if not isinstance(call, (CallSymbol, ConstructorCallSymbol)):
@@ -179,6 +177,9 @@ class AutoTypeDefEngine:
         if inferred_type is not None:
             with TypeUpdate(sym):
                 sym.type = inferred_type
+        elif sym.type is None:
+            with TypeUpdate(sym):
+                sym.type = NoneType()
 
     def process_ReturnSymbol(self, sym):
         if sym.value is None:

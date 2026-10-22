@@ -112,6 +112,11 @@ class CallAST(AST):
         # The type of the object a method is called on.
         self.receiver_type = None
 
+        self.receiver_chain = []
+
+        self.receiver_base_type = None
+        self.receiver_chain_types = []
+
     @property
     def target_function_name(self):
         return self.target_function.func_id

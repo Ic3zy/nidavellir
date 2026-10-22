@@ -253,6 +253,9 @@ class SimpleASTVisitor:
         else:
             node_type = getattr(node, "type", None)
 
+        return self._class_of_type(node_type, node)
+
+    def _class_of_type(self, node_type, node=None):
         if isinstance(node_type, ClassType):
             return node_type.name
 
@@ -260,11 +263,12 @@ class SimpleASTVisitor:
             if self.stm.lookup_class(node_type) is not None:
                 return node_type
 
-            symbol = self.stm.lookup_var(getattr(node, "name", None))
-            if symbol is not None:
-                symbol_type = symbol.get("type")
-                if isinstance(symbol_type, ClassType):
-                    return symbol_type.name
+            if node is not None:
+                symbol = self.stm.lookup_var(getattr(node, "name", None))
+                if symbol is not None:
+                    symbol_type = symbol.get("type")
+                    if isinstance(symbol_type, ClassType):
+                        return symbol_type.name
 
         return None
 
@@ -311,9 +315,6 @@ class SimpleASTVisitor:
         is_intrinsic = False
 
         if is_chain:
-            method_name = chain[0]
-            rest_chain = chain[1:]
-
             if target == "self":
                 class_name = self.get_current_class_name()
 
@@ -330,8 +331,41 @@ class SimpleASTVisitor:
                 if class_name is None:
                     self.error(
                         node,
-                        f"Cannot call method '{method_name}' on a non-class value",
+                        f"Cannot call method '{chain[0]}' on a non-class value",
                     )
+
+            field_chain = chain[:-1]
+            method_name = chain[-1]
+            rest_chain = []
+
+            base_type = ClassType(class_name)
+            chain_types = []
+
+            for field_name in field_chain:
+                target_class = self.stm.lookup_class(class_name)
+                if target_class is None:
+                    self.error(node, f"Class '{class_name}' is not defined")
+
+                field = self.stm.lookup_field(class_name, field_name)
+
+                if field is None:
+                    self.error(
+                        node,
+                        f"Member '{field_name}' is not defined in class '{class_name}'",
+                    )
+
+                field_type = self._type_of_field(field)
+                next_class = self._class_of_type(field_type)
+
+                if next_class is None:
+                    self.error(
+                        node,
+                        f"Cannot call method on field '{field_name}' "
+                        f"of non-class type '{field_type}'",
+                    )
+
+                chain_types.append(field_type)
+                class_name = next_class
 
             target_class = self.stm.lookup_class(class_name)
             if target_class is None:
@@ -351,6 +385,9 @@ class SimpleASTVisitor:
             node.target_function = target_func
             node.type = target_func.type
             node.receiver_type = ClassType(class_name)
+            node.receiver_chain = list(field_chain)
+            node.receiver_base_type = base_type
+            node.receiver_chain_types = chain_types
 
             if rest_chain:
                 self._check_chain(node, target, rest_chain)

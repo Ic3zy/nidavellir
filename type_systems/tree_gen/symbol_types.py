@@ -105,6 +105,10 @@ class CallSymbol(Symbol):
         self.lookup = lookup
         self.ast_node = ast_node
 
+        self.receiver_chain = []
+
+        self.arg_offset = 0
+
         self.type = None
 
     def set_type_to_AST(self):
@@ -244,6 +248,9 @@ class SelfSymbol(Symbol):
         self.type = None
 
     def set_type_to_AST(self):
+        if hasattr(self.ast_node, "chain"):
+            return
+
         self.ast_node.type = self.type
 
 

@@ -239,7 +239,7 @@ class SymbolTreeBuilder:
         return sym
 
     def _method_call(self, ast):
-        method_name = ast.chain[0]
+        chain = ast.chain
 
         if ast.target == "self":
             class_name = self.current_class_name
@@ -252,7 +252,32 @@ class SymbolTreeBuilder:
             class_name = base.type.name if isinstance(base.type, ClassType) else None
 
         if class_name is None:
-            self.error(ast, f"Cannot call method '{method_name}' on a non-class value")
+            self.error(ast, f"Cannot call method '{chain[0]}' on a non-class value")
+
+        field_chain = chain[:-1]
+        method_name = chain[-1]
+
+        for field_name in field_chain:
+            class_sym = self._find_class(class_name)
+            if class_sym is None:
+                self.error(ast, f"Class '{class_name}' is not defined")
+
+            field_ast = class_sym.fields.get(field_name)
+
+            if field_ast is None:
+                self.error(
+                    ast, f"Member '{field_name}' is not defined in class '{class_name}'"
+                )
+
+            field_class = self._field_class(field_ast)
+
+            if field_class is None:
+                self.error(
+                    ast,
+                    f"Cannot call method on field '{field_name}' of non-class type",
+                )
+
+            class_name = field_class
 
         class_sym = self._find_class(class_name)
         if class_sym is None:
@@ -271,9 +296,26 @@ class SymbolTreeBuilder:
         params = self.process_call_args(ast.args, lookup, method_name, skip=1)
 
         sym = CallSymbol(method_name, params, lookup, ast)
+        sym.receiver_chain = list(field_chain)
+        sym.arg_offset = 1
         lookup.uses.append(sym)
 
         return sym
+
+    def _field_class(self, field_ast):
+        field_type = getattr(field_ast, "type", None)
+
+        if field_type is None:
+            value = getattr(field_ast, "value", None)
+            field_type = getattr(value, "type", None)
+
+        if isinstance(field_type, ClassType):
+            return field_type.name
+
+        if isinstance(field_type, str) and self._find_class(field_type) is not None:
+            return field_type
+
+        return None
 
     def _find_class(self, name):
         return self.class_syms.get(name)

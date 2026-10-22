@@ -87,14 +87,31 @@ class IRGen:
         for arg in args:
             args_irs.append(self.gen(arg))
 
-        # A method call passes the object it is called on as the first
-        # argument.
         if ast.chain:
-            receiver = VariableIR(ast.target, getattr(ast, "receiver_type", None))
+            receiver = self._gen_receiver(ast)
             args_irs.insert(0, receiver)
 
         ir = CallIR(target, args_irs, type)
         return ir
+
+    def _gen_receiver(self, ast):
+        receiver_type = getattr(ast, "receiver_type", None)
+        receiver_chain = getattr(ast, "receiver_chain", None) or []
+
+        if not receiver_chain:
+            return VariableIR(ast.target, receiver_type)
+
+        base_type = getattr(ast, "receiver_base_type", None)
+        target_ir = VariableIR(ast.target, base_type)
+
+        chain_types = list(getattr(ast, "receiver_chain_types", None) or [])
+
+        return FieldAccessIR(
+            target_ir,
+            list(receiver_chain),
+            receiver_type,
+            chain_types,
+        )
 
     def gen_IntrinsicCallAST(self, ast):
         name = ast.intrinsic.name
