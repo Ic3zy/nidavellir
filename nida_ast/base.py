@@ -1,4 +1,7 @@
 class AST:
+    def __init__(self, line=None):
+        self.line = line
+
     def _format(self, indent=0):
         lines = []
         prefix = "  " * indent
@@ -46,7 +49,8 @@ class AST:
 
 
 class FunctionAST(AST):
-    def __init__(self, decorators, name, args, body, type):
+    def __init__(self, decorators, name, args, body, type, line=None):
+        super().__init__(line)
         self.decorators = decorators
         self.name = name
         self.args = args
@@ -59,18 +63,21 @@ class FunctionAST(AST):
 
 
 class BlockAST(AST):
-    def __init__(self, body):
+    def __init__(self, body, line=None):
+        super().__init__(line)
         self.body = body
 
 
 class ElifAST(AST):
-    def __init__(self, cond, body):
+    def __init__(self, cond, body, line=None):
+        super().__init__(line)
         self.cond = cond
         self.body = body
 
 
 class IfAST(AST):
-    def __init__(self, cond, body, elifs, else_body):
+    def __init__(self, cond, body, elifs, else_body, line=None):
+        super().__init__(line)
         self.cond = cond
         self.body = body
         self.elifs = elifs
@@ -78,31 +85,36 @@ class IfAST(AST):
 
 
 class NumberAST(AST):
-    def __init__(self, value, type=None):
+    def __init__(self, value, type=None, line=None):
+        super().__init__(line)
         self.value = value
         self.type = type if type is not None else "idyn"
 
 
 class StringAST(AST):
-    def __init__(self, value):
+    def __init__(self, value, line=None):
+        super().__init__(line)
         self.value = value
         self.type = "str"
 
 
 class VariableAST(AST):
-    def __init__(self, name):
+    def __init__(self, name, line=None):
+        super().__init__(line)
         self.name = name
         self.type = None
 
 
 class IndexAccessAST(AST):
-    def __init__(self, target, index):
+    def __init__(self, target, index, line=None):
+        super().__init__(line)
         self.target = target
         self.index = index
 
 
 class CallAST(AST):
-    def __init__(self, target, chain, args):
+    def __init__(self, target, chain, args, line=None):
+        super().__init__(line)
         self.target = target
         self.chain = chain
         self.args = args
@@ -125,12 +137,14 @@ class CallAST(AST):
 
 
 class ReturnAST(AST):
-    def __init__(self, value):
+    def __init__(self, value, line=None):
+        super().__init__(line)
         self.value = value
 
 
 class AssignAST(AST):
-    def __init__(self, target, chain, type, value):
+    def __init__(self, target, chain, type, value, line=None):
+        super().__init__(line)
         self.target = target
         self.chain = chain
         self.type = type
@@ -143,41 +157,48 @@ class AssignAST(AST):
 
 
 class DefinitionAST(AST):
-    def __init__(self, target, type, value):
+    def __init__(self, target, type, value, line=None):
+        super().__init__(line)
         self.target = target
         self.type = type
         self.value = value
 
 
 class WhileAST(AST):
-    def __init__(self, cond, body):
+    def __init__(self, cond, body, line=None):
+        super().__init__(line)
         self.cond = cond
         self.body = body
 
 
 class ForAST(AST):
-    def __init__(self, target, source, body):
+    def __init__(self, target, source, body, line=None):
+        super().__init__(line)
         self.target = target
         self.source = source
         self.body = body
 
 
 class ListAST(AST):
-    def __init__(self, body):
+    def __init__(self, body, line=None):
+        super().__init__(line)
         self.body = body
 
 
 class OperatorAST(AST):
-    def __init__(self, op):
+    def __init__(self, op, line=None):
+        super().__init__(line)
         self.op = op
 
 
 class PassAST(AST):
-    pass
+    def __init__(self, line=None):
+        super().__init__(line)
 
 
 class BinaryOpAST(AST):
-    def __init__(self, left, op, right):
+    def __init__(self, left, op, right, line=None):
+        super().__init__(line)
         self.left = left
         self.op = op
         self.right = right
@@ -185,12 +206,14 @@ class BinaryOpAST(AST):
 
 
 class BooleanAST(AST):
-    def __init__(self, value):
+    def __init__(self, value, line=None):
+        super().__init__(line)
         self.value = value
 
 
 class ClassAST(AST):
-    def __init__(self, decorators, name, body):
+    def __init__(self, decorators, name, body, line=None):
+        super().__init__(line)
         self.decorators = decorators
         self.name = name
         self.body = body
@@ -202,13 +225,15 @@ class ClassAST(AST):
 
 
 class SelfAST(AST):
-    def __init__(self):
+    def __init__(self, line=None):
+        super().__init__(line)
         self.target = "self"
         self.type = None
 
 
 class UnaryOpAST(AST):
-    def __init__(self, op, right):
+    def __init__(self, op, right, line=None):
+        super().__init__(line)
         self.op = op
         self.right = right
 
@@ -216,13 +241,15 @@ class UnaryOpAST(AST):
 
 
 class DecoratorAST(AST):
-    def __init__(self, name, args):
+    def __init__(self, name, args, line=None):
+        super().__init__(line)
         self.name = name
         self.args = args
 
 
 class FieldAccessAST(AST):
-    def __init__(self, target, chain):
+    def __init__(self, target, chain, line=None):
+        super().__init__(line)
         self.target = target
         self.chain = chain
 
@@ -231,14 +258,16 @@ class FieldAccessAST(AST):
 
 
 class ListLiteralAST(AST):
-    def __init__(self, elements):
+    def __init__(self, elements, line=None):
+        super().__init__(line)
         self.elements = elements
 
         self.type = None
 
 
 class IntrinsicAST(AST):
-    def __init__(self, name, type, params, handler):
+    def __init__(self, name, type, params, handler, line=None):
+        super().__init__(line)
         self.name = name
         self.type = type
         self.params = params
@@ -246,7 +275,8 @@ class IntrinsicAST(AST):
 
 
 class IntrinsicCallAST(AST):
-    def __init__(self, intrinsic: IntrinsicAST, name, args):
+    def __init__(self, intrinsic: IntrinsicAST, name, args, line=None):
+        super().__init__(line)
         self.intrinsic = intrinsic
         self.name = name
         self.args = args
@@ -255,18 +285,22 @@ class IntrinsicCallAST(AST):
 
 class ImportAST(AST):
     def __init__(
-        self, module: str, symbols: list = None, alias: str = None, line: int = 1
+        self, module: str, symbols: list = None, alias: str = None, line=None
     ):
+        super().__init__(line)
         self.module = module
         self.symbols = symbols or []
         self.alias = alias
+        # keep old line param name for compat
         self.line = line
 
 
 class GroupAST(AST):
-    def __init__(self, expr):
+    def __init__(self, expr, line=None):
+        super().__init__(line)
         self.expr = expr
 
 
 class NoneAST(AST):
-    pass
+    def __init__(self, line=None):
+        super().__init__(line)

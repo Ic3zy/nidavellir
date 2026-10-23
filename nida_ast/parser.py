@@ -1,7 +1,7 @@
 from .base import *
 from .keys import create_keywords, ASSIGN_TOKENS, COMPOUND_MAP
-import sys
 import inspect
+from utils.errors import NidavellirSyntaxError, Line
 
 
 class Parser:
@@ -24,36 +24,110 @@ class Parser:
     def current(self):
         return self.get_token(self.index)
 
+    def _col_of(self, token, from_col=None):
+        """Best-effort 1-based start column of `token` on its source line.
+
+        Tokens only carry (kind, value, line), so the column is recovered by
+        locating the token text inside the source line. Returns None when the
+        token has no text (NEWLINE/INDENT/DEDENT) or cannot be located.
+        """
+        if token is None or len(token) < 3:
+            return None
+
+        line_num = token[2]
+        value = token[1]
+
+        if value is None or not line_num or not (1 <= line_num <= len(self.lines)):
+            return None
+
+        text = self.lines[line_num - 1]
+        offset = 0 if from_col is None else max(0, from_col - 1)
+        idx = text.find(str(value), offset)
+
+        return (idx + 1) if idx >= 0 else None
+
+    def _make_line(self, start_token=None, end_token=None):
+        """Build a Line spanning start_token (where the node began) to
+        end_token (last token consumed for it)."""
+        if start_token is None:
+            start_token = self.current
+        if start_token is None:
+            return Line(self.lines, 1, 1, 1)
+
+        line_num = (
+            start_token[2] if len(start_token) > 2 and start_token[2] else 1
+        )
+        col_start = self._col_of(start_token) or 1
+
+        end_line = None
+        if end_token is not None and len(end_token) > 2:
+            end_line = end_token[2]
+
+        if end_token is not None and end_line == line_num and end_token[1] is not None:
+            end_col = self._col_of(end_token, col_start)
+            col_end = (
+                end_col + len(str(end_token[1])) if end_col is not None else col_start + 1
+            )
+        elif end_token is None and start_token[1] is not None:
+            # Single token: the range is exactly that token's text.
+            col_end = col_start + len(str(start_token[1]))
+        elif 1 <= line_num <= len(self.lines):
+            # Multi-line or unknown end: cover the rest of the start line.
+            col_end = max(col_start + 1, len(self.lines[line_num - 1]) + 1)
+        else:
+            col_end = col_start + 1
+
+        return Line(self.lines, line_num, col_start, col_end)
+
+    def _span_line(self, left_line, right_line, fallback_token=None):
+        """Line covering `left_line`'s start through `right_line`'s end.
+
+        Used for compound nodes (binary/unary/postfix) so the range spans the
+        whole expression rather than just the operator token. Falls back to the
+        operator token when the operands are not usable.
+        """
+        if left_line is None or right_line is None:
+            return self._make_line(fallback_token)
+
+        if left_line.line != right_line.line:
+            # Cross-line expression: cover from left start to end of its line.
+            start = self._line_num(fallback_token, left_line.line)
+            return Line(
+                self.lines,
+                left_line.line,
+                left_line.col_start,
+                max(left_line.col_start + 1, len(self.lines[left_line.line - 1]) + 1),
+            )
+
+        return Line(
+            self.lines, left_line.line, left_line.col_start, right_line.col_end
+        )
+
+    def _current_line(self):
+        """Get Line object for current token."""
+        return self._make_line(self.current)
+
+    def _block_line(self, start_token, end_token=None):
+        """Line for a statement whose body is an indented block (def/if/
+        while/for/class/else/elif).
+
+        `Line` describes a single source line, so such a statement is anchored
+        at its first line (`def foo(...):`) and the column range covers the
+        rest of that line.
+        """
+        line = self._make_line(start_token)
+        if 1 <= line.line <= len(self.lines):
+            line.col_end = max(line.col_start + 1, len(self.lines[line.line - 1]) + 1)
+        return line
+
     def print_error(self, msg):
         curr = self.current
         if curr is None:
-            print("Syntax Error: Unexpected end of file")
-            sys.exit(1)
+            raise NidavellirSyntaxError(
+                "Unexpected end of file", Line(self.lines, 1, 1, 1)
+            )
 
-        target_line = curr[2]
-
-        start_line = max(1, target_line - 3)
-        end_line = min(len(self.lines), target_line + 3)
-
-        print(f"\n--- Compile Error (Line {target_line}) ---")
-
-        for l in range(start_line, end_line + 1):
-            line_str = self.lines[l - 1].rstrip("\n")
-
-            if l == target_line:
-                print(f" {l:3d} | {line_str}")
-
-                indent_spaces = len(line_str) - len(line_str.lstrip())
-                caret_len = max(1, len(line_str.strip()))
-                print(" " * 6 + " " * indent_spaces + "^" * caret_len)
-            else:
-                print(f" {l:3d} | {line_str}")
-
-        print(self.current[1])
-
-        print(msg)
-
-        sys.exit(1)
+        raise NidavellirSyntaxError(msg, self._current_line())
 
     def advance(self):
         token = self.current
@@ -76,12 +150,12 @@ class Parser:
         if self.peek_kind() == kind:
             return self.advance()
 
-        raise self.print_error("Syntax Error")
+        self.print_error("Syntax Error")
 
     def parse_number(self, data_type=None):
         token_value = self.advance()
-
-        return NumberAST(value=token_value[1], type=data_type)
+        line = self._make_line(token_value)
+        return NumberAST(value=token_value[1], type=data_type, line=line)
 
     def check_index_access(self):
         start_index = self.index
@@ -125,6 +199,7 @@ class Parser:
     def parse_list_literal(self):
         index_access = self.check_index_access()
 
+        start_token = self.current
         self.consume("LBRACKET")
         elements = []
 
@@ -137,20 +212,27 @@ class Parser:
                 else:
                     break
 
+        end_token = self.current
         self.consume("RBRACKET")
+        line = self._make_line(start_token, end_token)
+
         if index_access:
-            return IndexAccessAST(target=None, index=elements[0])
+            return IndexAccessAST(target=None, index=elements[0], line=line)
         else:
-            return ListLiteralAST(elements=elements)
+            return ListLiteralAST(elements=elements, line=line)
 
     def parse_primary(self):
         kind = self.peek_kind()
 
         if kind == "NUMBER":
-            return NumberAST(self.advance()[1])
+            token = self.advance()
+            line = self._make_line(token)
+            return NumberAST(value=token[1], line=line)
 
         if kind == "STRING":
-            return StringAST(self.advance()[1])
+            token = self.advance()
+            line = self._make_line(token)
+            return StringAST(value=token[1], line=line)
 
         if kind == "NAME":
             return self.parse_name()
@@ -159,22 +241,28 @@ class Parser:
             return self.parse_list_literal()
 
         if kind == "LPAREN":
+            start_token = self.current
             self.advance()
             expr = self.parse_expression()
+            end_token = self.current
             self.consume("RPAREN")
-            return GroupAST(expr)
+            line = self._make_line(start_token, end_token)
+            return GroupAST(expr, line=line)
 
         if kind == "TRUE":
-            self.advance()
-            return BooleanAST(True)
+            token = self.advance()
+            line = self._make_line(token)
+            return BooleanAST(True, line=line)
 
         if kind == "FALSE":
-            self.advance()
-            return BooleanAST(False)
+            token = self.advance()
+            line = self._make_line(token)
+            return BooleanAST(False, line=line)
 
         if kind == "NONE":
-            self.advance()
-            return NoneAST()
+            token = self.advance()
+            line = self._make_line(token)
+            return NoneAST(line=line)
 
         self.print_error(f"Unexpected token in expression")
 
@@ -186,27 +274,48 @@ class Parser:
 
             if kind == "DOT":
                 chain = []
+                member_token = None
                 while self.peek_kind() == "DOT":
                     self.advance()
                     member_token = self.consume("NAME")
                     chain.append(member_token[1])
 
-                left = FieldAccessAST(target=left, chain=chain)
+                line = self._span_line(
+                    left.line, self._make_line(member_token), member_token
+                )
+                left = FieldAccessAST(target=left, chain=chain, line=line)
 
             elif kind == "LBRACKET":
                 self.advance()
                 index_expr = self.parse_expression()
+                end_token = self.current
                 self.consume("RBRACKET")
-                left = IndexAccessAST(target=left, index=index_expr)
+                line = self._span_line(
+                    left.line, self._make_line(index_expr.line or end_token), end_token
+                )
+                left = IndexAccessAST(target=left, index=index_expr, line=line)
 
             elif kind == "LPAREN":
+                self.advance()
                 args = self.parse_args()
-                left = CallAST(target=left, args=args)
+                end_token = self.current
+                self.consume("RPAREN")
+                last = args[-1].line if args and args[-1] is not None else None
+                start_line = left.line or self._make_line(end_token)
+                end_line = last or self._make_line(end_token)
+                line = self._span_line(start_line, end_line, end_token)
+                left = CallAST(target=left, args=args, line=line)
 
             else:
                 break
 
         return left
+
+    def _binary_line(self, left, right, op_token):
+        """Range of a binary op spanning both operands."""
+        if left is not None and left.line is not None:
+            return self._span_line(left.line, right.line if right is not None else None, op_token)
+        return self._make_line(op_token)
 
     def parse_unary(self):
         kind = self.peek_kind()
@@ -214,7 +323,10 @@ class Parser:
         if kind in ("MINUS", "PLUS"):
             op_token = self.advance()
             right = self.parse_unary()
-            return UnaryOpAST(op=op_token[1], right=right)
+            line = self._span_line(
+                self._make_line(op_token), right.line if right is not None else None, op_token
+            )
+            return UnaryOpAST(op=op_token[1], right=right, line=line)
 
         return self.parse_postfix()
 
@@ -224,7 +336,10 @@ class Parser:
         while self.peek_kind() in ("STAR", "DIV"):
             op_token = self.advance()
             right = self.parse_unary()
-            left = BinaryOpAST(left=left, op=op_token[1], right=right)
+            left = BinaryOpAST(
+                left=left, op=op_token[1], right=right,
+                line=self._binary_line(left, right, op_token),
+            )
 
         return left
 
@@ -234,7 +349,10 @@ class Parser:
         while self.peek_kind() in ("OR"):
             op_token = self.advance()
             right = self.parse_and()
-            left = BinaryOpAST(left=left, op=op_token[1], right=right)
+            left = BinaryOpAST(
+                left=left, op=op_token[1], right=right,
+                line=self._binary_line(left, right, op_token),
+            )
 
         return left
 
@@ -244,7 +362,10 @@ class Parser:
         while self.peek_kind() in ("AND"):
             op_token = self.advance()
             right = self.parse_equality()
-            left = BinaryOpAST(left=left, op=op_token[1], right=right)
+            left = BinaryOpAST(
+                left=left, op=op_token[1], right=right,
+                line=self._binary_line(left, right, op_token),
+            )
 
         return left
 
@@ -254,7 +375,10 @@ class Parser:
         while self.peek_kind() in ("PLUS", "MINUS"):
             op_token = self.advance()
             right = self.parse_factor()
-            left = BinaryOpAST(left=left, op=op_token[1], right=right)
+            left = BinaryOpAST(
+                left=left, op=op_token[1], right=right,
+                line=self._binary_line(left, right, op_token),
+            )
 
         return left
 
@@ -267,40 +391,61 @@ class Parser:
             if kind in ("EQEQ", "NEQ", "GT", "LT", "GTE", "LTE"):
                 op_token = self.advance()
                 right = self.parse_term()
-                left = BinaryOpAST(left=left, op=op_token[1], right=right)
+                left = BinaryOpAST(
+                    left=left, op=op_token[1], right=right,
+                    line=self._binary_line(left, right, op_token),
+                )
 
             elif (
                 kind == "IS"
                 and self.peek_kind_at(1) == "NOT"
                 and self.peek_kind_at(2) == "IN"
             ):
+                op_token = self.current
                 self.advance()  # is
                 self.advance()  # not
                 self.advance()  # in
                 right = self.parse_term()
-                left = BinaryOpAST(left=left, op="is not in", right=right)
+                left = BinaryOpAST(
+                    left=left, op="is not in", right=right,
+                    line=self._binary_line(left, right, op_token),
+                )
 
             elif kind == "IS" and self.peek_kind_at(1) == "NOT":
+                op_token = self.current
                 self.advance()  # is
                 self.advance()  # not
                 right = self.parse_term()
-                left = BinaryOpAST(left=left, op="is not", right=right)
+                left = BinaryOpAST(
+                    left=left, op="is not", right=right,
+                    line=self._binary_line(left, right, op_token),
+                )
 
             elif kind == "IS":
-                self.advance()  # is
+                op_token = self.advance()  # is
                 right = self.parse_term()
-                left = BinaryOpAST(left=left, op="is", right=right)
+                left = BinaryOpAST(
+                    left=left, op="is", right=right,
+                    line=self._binary_line(left, right, op_token),
+                )
 
             elif kind == "NOT" and self.peek_kind_at(1) == "IN":
+                op_token = self.current
                 self.advance()  # not
                 self.advance()  # in
                 right = self.parse_term()
-                left = BinaryOpAST(left=left, op="not in", right=right)
+                left = BinaryOpAST(
+                    left=left, op="not in", right=right,
+                    line=self._binary_line(left, right, op_token),
+                )
 
             elif kind == "IN":
-                self.advance()  # in
+                op_token = self.advance()  # in
                 right = self.parse_term()
-                left = BinaryOpAST(left=left, op="in", right=right)
+                left = BinaryOpAST(
+                    left=left, op="in", right=right,
+                    line=self._binary_line(left, right, op_token),
+                )
 
             else:
                 break
@@ -321,7 +466,7 @@ class Parser:
                 field_token = self.advance()
                 chain.append(field_token[1])
             else:
-                raise self.print_error("Syntax Error: Expected field name after '.'")
+                self.print_error("Syntax Error: Expected field name after '.'")
 
         if self.peek_kind() == "LBRACKET":
             c = self.parse_list_literal()
@@ -431,6 +576,7 @@ class Parser:
         self.advance()
         decorators = []
         while self.current is not None and self.peek_kind() == "NAME":
+            start_token = self.current
             decorator_name = self.advance()[1]
 
             args = []
@@ -449,10 +595,13 @@ class Parser:
 
                 self.consume("RPAREN")
 
+            end_token = self.current
+            line = self._make_line(start_token, end_token)
+
             if self.peek_kind() == "COMMA":
                 self.advance()
 
-            decorators.append(DecoratorAST(decorator_name, args))
+            decorators.append(DecoratorAST(decorator_name, args, line=line))
 
         return decorators
 
@@ -492,6 +641,7 @@ class Parser:
         return type_name
 
     def parse_assignment(self, is_definition=False):
+        start_token = self.current
         type = self.parse_type()
 
         comp = self.get_compound_assignment()
@@ -512,12 +662,19 @@ class Parser:
         value_ast = None
 
         if self.peek_kind() in ASSIGN_TOKENS:
-            self.consume(self.peek_kind())
+            op_token = self.consume(self.peek_kind())
             value_ast = self.parse_expression()
             if comp:
+                op_line = self._make_line(op_token)
                 value_ast = BinaryOpAST(
-                    left=VariableAST(name=target_name), op=comp, right=value_ast
+                    left=VariableAST(name=target_name, line=op_line),
+                    op=comp,
+                    right=value_ast,
+                    line=op_line,
                 )
+
+        end_token = self.current
+        line = self._make_line(start_token, end_token)
 
         if is_definition:
             if chain:
@@ -525,10 +682,10 @@ class Parser:
                     f"Syntax Error: Cannot use type annotation '{data_type}' on member access '{target_path}'.\n"
                     f"  --> Fields already have a type defined in their class."
                 )
-            return DefinitionAST(target=target_name, type=data_type, value=value_ast)
+            return DefinitionAST(target=target_name, type=data_type, value=value_ast, line=line)
 
         return AssignAST(
-            target=target_name, chain=chain, type=data_type, value=value_ast
+            target=target_name, chain=chain, type=data_type, value=value_ast, line=line
         )
 
     def parse_args(self):
@@ -544,20 +701,23 @@ class Parser:
         return args
 
     def parse_function_call(self):
+        start_token = self.current
         target_name, chain = self.parse_chain_target()
 
         self.consume("LPAREN")
 
         args = self.parse_args()
 
+        end_token = self.current
         self.consume("RPAREN")
+        line = self._make_line(start_token, end_token)
 
-        return CallAST(target=target_name, chain=chain, args=args)
+        return CallAST(target=target_name, chain=chain, args=args, line=line)
 
     def parse_name(self, is_func_arg=False):
         token = self.current
         if token is None:
-            raise self.print_error("Syntax Error: Expected name")
+            self.print_error("Syntax Error: Expected name")
 
         if self.check_assignment():
             return self.parse_assignment()
@@ -565,14 +725,17 @@ class Parser:
             return self.parse_function_call()
         elif token[1] == "self":
             self.advance()
-            return SelfAST()
+            line = self._make_line(token)
+            return SelfAST(line=line)
         elif is_func_arg:
             return self.parse_assignment()
         else:
             self.advance()
-            return VariableAST(name=token[1])
+            line = self._make_line(token)
+            return VariableAST(name=token[1], line=line)
 
     def parse_else(self):
+        start_token = self.current
         self.consume("ELSE")
         self.consume("COLON")
         self.consume("NEWLINE")
@@ -586,10 +749,13 @@ class Parser:
             else:
                 self.advance()
 
+        end_token = self.current
         self.consume("DEDENT")
-        return BlockAST(body)
+        line = self._block_line(start_token, end_token)
+        return BlockAST(body, line=line)
 
     def parse_elif(self):
+        start_token = self.current
         self.consume("ELIF")
         cond = self.parse_expression()
 
@@ -605,11 +771,14 @@ class Parser:
             else:
                 self.advance()
 
+        end_token = self.current
         self.consume("DEDENT")
+        line = self._block_line(start_token, end_token)
 
-        return ElifAST(cond, body)
+        return ElifAST(cond, body, line=line)
 
     def parse_if(self):
+        start_token = self.current
         self.consume("IF")
         cond = self.parse_expression()
 
@@ -637,9 +806,13 @@ class Parser:
         if self.current is not None and self.peek_kind() == "ELSE":
             else_body = self.parse_else()
 
-        return IfAST(cond, body, elifs, else_body)
+        end_token = self.current
+        line = self._block_line(start_token, end_token)
+
+        return IfAST(cond, body, elifs, else_body, line=line)
 
     def parse_def(self, decorators=None):
+        start_token = self.current
         self.consume("DEF")
         if decorators:
             self.last_decorators = []
@@ -683,20 +856,28 @@ class Parser:
             else:
                 self.advance()
 
+        end_token = self.current
         self.consume("DEDENT")
+        line = self._block_line(start_token, end_token)
 
         return FunctionAST(
-            decorators=decorators, name=name[1], args=args, body=body, type=type
+            decorators=decorators, name=name[1], args=args, body=body, type=type, line=line
         )
 
     def parse_return(self):
+        start_token = self.current
         self.consume("RETURN")
         value = None
         if self.peek_kind() != "NEWLINE":
             value = self.parse_expression()
-        return ReturnAST(value)
+        if value is not None and value.line is not None:
+            line = self._span_line(self._make_line(start_token), value.line, start_token)
+        else:
+            line = self._make_line(start_token)
+        return ReturnAST(value, line=line)
 
     def parse_class(self, decorators=None):
+        start_token = self.current
         if decorators:
             self.last_decorators = []
 
@@ -714,10 +895,13 @@ class Parser:
             else:
                 self.advance()
 
+        end_token = self.current
         self.consume("DEDENT")
-        return ClassAST(decorators=decorators, name=name[1], body=body)
+        line = self._block_line(start_token, end_token)
+        return ClassAST(decorators=decorators, name=name[1], body=body, line=line)
 
     def parse_while(self):
+        start_token = self.current
         self.consume("WHILE")
         cond = self.parse_expression()
         self.consume("COLON")
@@ -732,11 +916,14 @@ class Parser:
             else:
                 self.advance()
 
+        end_token = self.current
         self.consume("DEDENT")
+        line = self._block_line(start_token, end_token)
 
-        return WhileAST(cond, body)
+        return WhileAST(cond, body, line=line)
 
     def parse_for(self):
+        start_token = self.current
         self.consume("FOR")
 
         target = self.parse_assignment()
@@ -756,9 +943,11 @@ class Parser:
             else:
                 self.advance()
 
+        end_token = self.current
         self.consume("DEDENT")
+        line = self._block_line(start_token, end_token)
 
-        return ForAST(target, source, body)
+        return ForAST(target, source, body, line=line)
 
     def accepts_decorators(self, func):
         sig = inspect.signature(func)
@@ -767,19 +956,24 @@ class Parser:
         )
 
     def parse_import(self):
+        start_token = self.current
         self.consume("IMPORT")
         module_token = self.consume("NAME")
         module_name = module_token[1]
 
         alias = None
+        end_token = module_token
         if self.peek_kind() == "AS":
             self.advance()
             alias_token = self.consume("NAME")
             alias = alias_token[1]
+            end_token = alias_token
 
-        return ImportAST(module=module_name, symbols=[], alias=alias)
+        line = self._make_line(start_token, end_token)
+        return ImportAST(module=module_name, symbols=[], alias=alias, line=line)
 
     def parse_from(self):
+        start_token = self.current
         self.consume("FROM")
         module_token = self.consume("NAME")
         module_name = module_token[1]
@@ -787,12 +981,15 @@ class Parser:
         self.consume("IMPORT")
 
         symbols = []
+        end_token = module_token
         while self.current is not None and self.peek_kind() != "NEWLINE":
             sym_token = self.consume("NAME")
             alias_token = None
             if self.peek_kind() == "AS":
                 self.advance()
                 alias_token = self.consume("NAME")
+
+            end_token = alias_token or sym_token
 
             symbols.append(
                 {
@@ -805,7 +1002,8 @@ class Parser:
             else:
                 break
 
-        return ImportAST(module=module_name, symbols=symbols, alias=None)
+        line = self._make_line(start_token, end_token)
+        return ImportAST(module=module_name, symbols=symbols, alias=None, line=line)
 
     def parse_kind(self, kind):
         if kind is None:
@@ -820,7 +1018,7 @@ class Parser:
             if accept_decorators:
                 return func(decorators=self.last_decorators)
             elif not accept_decorators and self.last_decorators:
-                raise self.print_error("Syntax Error: Unexpected decorator")
+                self.print_error("Syntax Error: Unexpected decorator")
             else:
                 return func()
 
@@ -834,7 +1032,7 @@ class Parser:
             return None
 
         if self.last_decorators:
-            raise self.print_error("Syntax Error: Unexpected decorator")
+            self.print_error("Syntax Error: Unexpected decorator")
 
         if kind == "RETURN":
             return self.parse_return()
@@ -853,21 +1051,26 @@ class Parser:
 
         if kind == "STRING":
             token = self.advance()
-            return StringAST(value=token[1])
+            line = self._make_line(token)
+            return StringAST(value=token[1], line=line)
 
         if kind == "PASS":
-            self.advance()
-            return PassAST()
+            token = self.advance()
+            line = self._make_line(token)
+            return PassAST(line=line)
 
         if kind == "LPAREN":
+            start_token = self.current
             self.advance()
             expr = self.parse_kind(self.peek_kind())
+            end_token = self.current
             self.consume("RPAREN")
             return expr
 
         if kind in ("PLUS", "MINUS", "STAR", "SLASH", "EQEQ", "NEQ", "GT", "LT"):
             token = self.advance()
-            return OperatorAST(op=token[1])
+            line = self._make_line(token)
+            return OperatorAST(op=token[1], line=line)
 
         return None
 
