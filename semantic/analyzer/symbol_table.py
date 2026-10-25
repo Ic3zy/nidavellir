@@ -1,5 +1,6 @@
 from .symbol_types import *
 from nida_ast.base import *
+from utils.errors import *
 
 
 class Scope:
@@ -17,8 +18,9 @@ class Scope:
 
     def add_symbol(self, symbol, replace=False):
         if symbol.name in self.symbols and not replace:
-            raise SyntaxError(
-                f"Symbol {symbol.name} already exists in scope and cannot be redefined"
+            raise NidavellirSemanticError(
+                f"Symbol {symbol.name} already exists in scope and cannot be redefined",
+                symbol.ast_node.line,
             )
 
         self.symbols[symbol.name] = symbol
@@ -39,7 +41,7 @@ class SymbolTableManager:
         if self.current_scope.parent is not None:
             self.current_scope = self.current_scope.parent
         else:
-            raise SyntaxError("Cannot exit global scope")
+            raise NidavellirInternalError("Cannot exit global scope")
 
     def lookup(self, name):
         return self.current_scope.lookup(name)

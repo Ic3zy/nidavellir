@@ -79,8 +79,6 @@ class TypeUpdate:
         return self.sym
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is None:
-            self.sym.set_type_to_AST()
         return False
 
 

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from lexer import Lexer
 from nida_ast import Parser
-from semantic import SimpleAnalyzer, FunctionAllocator
+from semantic import semantic_analyze, FunctionAllocator
 from import_systems import ImportSystem
 
 from type_systems.main import TypeSystem
@@ -135,10 +135,9 @@ class Nidac:
         if not self.asts:
             self.parse()
 
-        analyzer = SimpleAnalyzer(self.asts, self.ctx)
-        analyzer.analyze_all()
+        self.symbol_table = semantic_analyze(self.asts)
+        self.symbol_tree = self.symbol_table.st
 
-        self.symbol_table = analyzer.stm
         if SysArgs.dump_ast_after_semantic:
             print("===== AST (after semantic analysis) =====")
             print(self.asts)
@@ -146,10 +145,10 @@ class Nidac:
         return self.symbol_table
 
     def type_def(self):
-        if not self.symbol_table:
+        if not self.symbol_tree:
             self.analyze()
 
-        TypeSystem(self.asts)
+        TypeSystem(self.symbol_tree)
 
     # ------------------------------------------------------------------
     # Middleend

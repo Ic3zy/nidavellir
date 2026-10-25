@@ -3,6 +3,14 @@ from .tree_printer import render_node
 from .symbol_types import *
 from nida_ast.base import *
 from type_systems.types import resolve_type, ClassType, ListType, NoneType
+from utils.errors import *
+from ..intrinsics import INTRINSICS
+
+
+class TreeBuilderHelpers:
+    @classmethod
+    def check_intrinsic_call(cls, name):
+        return name in INTRINSICS
 
 
 class SymbolTreeBuilder:
@@ -18,12 +26,6 @@ class SymbolTreeBuilder:
 
         self.run()
 
-    def error(self, node, message):
-        line = getattr(node, "line", None)
-        col = getattr(node, "column", None)
-        loc = f" [Line {line}:{col}]" if line is not None else ""
-        raise SyntaxError(f"Nidavellir Error{loc}: {message}")
-
     def resolve(self, type_val):
         resolved = resolve_type(type_val)
 
@@ -36,7 +38,7 @@ class SymbolTreeBuilder:
     def eval_VariableAST(self, ast):
         var = self.stm.lookup(ast.name)
         if var is None:
-            self.error(ast, f"Variable '{ast.name}' is not defined")
+            raise NidavellirNameError(f"Variable '{ast.name}' is not defined", ast.line)
 
         return VariableSymbol(ast.name, var, ast)
 
@@ -139,7 +141,9 @@ class SymbolTreeBuilder:
     def stmt_DefinitionAST(self, ast):
         lk = self.stm.lookup(ast.target)
         if lk is not None:
-            raise SyntaxError(f"Definition of variable '{ast.target}' already exists")
+            raise NidavellirSemanticError(
+                f"Definition of variable '{ast.target}' already exists", ast.line
+            )
 
         val = ast.value
         val_sym = self.process_eval(val)
@@ -192,7 +196,9 @@ class SymbolTreeBuilder:
             lookup_func_arg = None
             if not is_intrinsic:
                 if idx >= len(arg_symbols):
-                    self.error(arg, f"Too many arguments for function '{func_name}'")
+                    NidavellirSemanticError(
+                        f"Function '{func_name}' received too many arguments", arg.line
+                    )
 
                 lookup_func_arg = arg_symbols[idx]
 
@@ -215,6 +221,15 @@ class SymbolTreeBuilder:
 
         return getattr(lookup, "args", None) or []
 
+    def process_intrinsic_call(self, ast):
+        intrinsic = INTRINSICS[ast.target]
+        name = intrinsic.name
+        args = ast.args
+
+        n_args = self.process_call_args(args, intrinsic, name, is_intrinsic=True)
+
+        return IntrinsicCallSymbol(intrinsic, name, n_args, ast)
+
     def stmt_CallAST(self, ast):
         func_name = ast.target
 
@@ -222,9 +237,14 @@ class SymbolTreeBuilder:
             return self._method_call(ast)
 
         lookup = self.stm.lookup(func_name)
+        is_intrinsic = TreeBuilderHelpers.check_intrinsic_call(func_name)
+        if is_intrinsic:
+            return self.process_intrinsic_call(ast)
 
         if lookup is None:
-            self.error(ast, f"Function '{func_name}' is not defined")
+            raise NidavellirNameError(
+                f"Function '{func_name}' is not defined", ast.line
+            )
 
         skip = 1 if isinstance(lookup, ClassSymbol) else 0
 
@@ -257,7 +277,9 @@ class SymbolTreeBuilder:
             base = self.stm.lookup(ast.target)
 
             if base is None:
-                self.error(ast, f"Variable '{ast.target}' is not defined")
+                raise NidavellirNameError(
+                    f"Variable '{ast.target}' is not defined", ast.line
+                )
 
             class_name = base.type.name if isinstance(base.type, ClassType) else None
 
@@ -265,7 +287,9 @@ class SymbolTreeBuilder:
             return self._list_method_call(ast, base)
 
         if class_name is None:
-            self.error(ast, f"Cannot call method '{chain[0]}' on a non-class value")
+            raise NidavellirSemanticError(
+                f"Cannot call method '{chain[0]}' on a non-class value", ast.line
+            )
 
         field_chain = chain[:-1]
         method_name = chain[-1]
@@ -273,32 +297,37 @@ class SymbolTreeBuilder:
         for field_name in field_chain:
             class_sym = self._find_class(class_name)
             if class_sym is None:
-                self.error(ast, f"Class '{class_name}' is not defined")
+                raise NidavellirNameError(
+                    f"Class '{class_name}' is not defined", ast.line
+                )
 
             field_ast = class_sym.fields.get(field_name)
 
             if field_ast is None:
-                self.error(
-                    ast, f"Member '{field_name}' is not defined in class '{class_name}'"
+                raise NidavellirNameError(
+                    f"Member '{field_name}' is not defined in class '{class_name}'",
+                    ast.line,
                 )
 
             field_class = self._field_class(field_ast)
 
             if field_class is None:
-                self.error(
-                    ast,
+                raise NidavellirSemanticError(
                     f"Cannot call method on field '{field_name}' of non-class type",
+                    ast.line,
                 )
 
             class_name = field_class
 
         class_sym = self._find_class(class_name)
         if class_sym is None:
-            self.error(ast, f"Class '{class_name}' is not defined")
+            raise NidavellirNameError(f"Class '{class_name}' is not defined", ast.line)
 
         method_ast = class_sym.methods.get(method_name)
         if method_ast is None:
-            self.error(ast, f"Method '{method_name}' is not defined")
+            raise NidavellirNameError(
+                f"Method '{method_name}' is not defined", ast.line
+            )
 
         lookup = class_sym.method_syms.get(method_name)
 
@@ -320,7 +349,9 @@ class SymbolTreeBuilder:
         method_name = chain[-1]
 
         if method_name != "append":
-            self.error(ast, f"List has no method '{method_name}'")
+            raise NidavellirSemanticError(
+                f"List has no method '{method_name}'", ast.line
+            )
 
         params = self.process_call_args(ast.args, None, method_name, is_intrinsic=True)
 
@@ -361,12 +392,13 @@ class SymbolTreeBuilder:
                 loop_count = args[0].value
                 loop_count = int(loop_count)
             else:
-                raise NotImplementedError(
-                    f"For loop source '{target_fn}' is not implemented"
+                raise NidavellirNotImplementedError(
+                    f"For loop source '{target_fn}' is not implemented", ast.line
                 )
         else:
-            raise NotImplementedError(
-                f"For loop source '{type(source).__name__}' is not implemented"
+            raise NidavellirNotImplementedError(
+                f"For loop source '{type(source).__name__}' is not implemented",
+                ast.line,
             )
 
         target.uses.append(NumberSymbol(0, ast))
@@ -484,14 +516,16 @@ class SymbolTreeBuilder:
         method_name = f"eval_{type(ast).__name__}"
         visitor = getattr(self, method_name, None)
         if visitor is None:
-            self.error(ast, f"No function named {method_name}")
+            raise NidavellirSemanticError(f"No function named {method_name}", ast.line)
+
         return visitor(ast)
 
     def process_stmt(self, ast):
         method_name = f"stmt_{type(ast).__name__}"
         visitor = getattr(self, method_name, None)
         if visitor is None:
-            self.error(ast, f"No function named {method_name}")
+            raise NidavellirSemanticError(f"No function named {method_name}", ast.line)
+
         return visitor(ast)
 
     def process_from_list(self, asts):
@@ -508,7 +542,6 @@ class SymbolTreeBuilder:
 
         res = self.process_from_list(self.ast_tree)
         self.st.extend(res)
-        # raise Exception(self.print_scopes())
 
     def declare(self, asts):
         for ast in asts:

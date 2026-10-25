@@ -1,4 +1,4 @@
-from .simple_analyzer import SimpleAnalyzer
-from .function_allocater import FunctionAllocator
+from .function_allocator import FunctionAllocator
+from .analyzer import semantic_analyze
 
-__all__ = ["SimpleAnalyzer", "FunctionAllocater"]
+__all__ = ["semantic_analyze", "FunctionAllocator"]

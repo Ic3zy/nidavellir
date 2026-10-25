@@ -1,5 +1,5 @@
 from ..types import *
-from ..tree_gen.symbol_types import *
+from semantic.analyzer.symbol_types import *
 
 
 def detect_type(value: str):

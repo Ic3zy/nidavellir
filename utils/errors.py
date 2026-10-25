@@ -1,9 +1,10 @@
 import sys
+from .sys_args_parser import SysArgs
 
 
 # nidavellir error handler
 def exception_handler(exc_type, exc_value, exc_traceback):
-    if issubclass(exc_type, NidavellirError):
+    if issubclass(exc_type, NidavellirError) and not SysArgs.verbose_errors:
         print(exc_value)
     else:
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -74,9 +75,33 @@ class NidavellirSyntaxError(NidavellirError):
     pass
 
 
-class NidavellirTypeError(NidavellirError):
+class NidavellirImportError(NidavellirError):
     pass
 
 
-class NidavellirImportError(NidavellirError):
+class NidavellirSemanticError(NidavellirError):
+    pass
+
+
+class NidavellirTypeError(NidavellirSemanticError):
+    pass
+
+
+class NidavellirNameError(NidavellirSemanticError):
+    pass
+
+
+class NidavellirMemoryError(NidavellirSemanticError):
+    pass
+
+
+class NidavellirCodegenError(NidavellirError):
+    pass
+
+
+class NidavellirInternalError(NidavellirError):
+    pass
+
+
+class NidavellirNotImplementedError(NidavellirError):
     pass

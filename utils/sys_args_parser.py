@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 
-class SysArgs:
+class SysArgsClass:
 
     def __init__(self, args=None):
 
@@ -161,6 +161,13 @@ class SysArgs:
             help="Set the time limit for the compilation (in seconds)",
         )
 
+        parser.add_argument(
+            "-ve",
+            "--verbose-errors",
+            action="store_true",
+            help="Enable verbose output",
+        )
+
         parsed, _ = parser.parse_known_args(args)
 
         temp_dir = Path(tempfile.gettempdir())
@@ -191,3 +198,6 @@ class SysArgs:
     def add_extra_c_include(self, name: str) -> None:
         if name not in self.extra_c_includes:
             self.extra_c_includes.append(name)
+
+
+SysArgs = SysArgsClass()

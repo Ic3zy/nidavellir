@@ -6,6 +6,7 @@ __nidacache__/
 *.o
 *test_.py
 *ignore/
+*ignore.*
 !runtime/
 !runtime/*.c
 !runtime/**/*.c

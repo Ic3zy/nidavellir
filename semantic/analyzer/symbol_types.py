@@ -1,9 +1,89 @@
-from ..types import resolve_type, StringType, NoneType, ClassType
+from type_systems.types import resolve_type, StringType, NoneType, ClassType
 
 
 class Symbol:
-    def set_type_to_AST(self):
-        pass
+    def _format(self, indent=0, seen=None):
+        if seen is None:
+            seen = set()
+
+        prefix = "  " * indent
+        class_name = self.__class__.__name__
+
+        if id(self) in seen:
+            return f"{prefix}{class_name}(...)"
+
+        seen.add(id(self))
+
+        attrs = {
+            k: v
+            for k, v in self.__dict__.items()
+            if not k.startswith("_") and k != "ast_node"
+        }
+
+        if not attrs:
+            return f"{prefix}{class_name}()"
+
+        lines = [f"{prefix}{class_name}:"]
+
+        for key, value in attrs.items():
+            field_prefix = f"{prefix}  {key}:"
+
+            if isinstance(value, Symbol):
+                lines.append(field_prefix)
+                lines.append(value._format(indent + 2, seen))
+
+            elif isinstance(value, list):
+                if not value:
+                    lines.append(f"{field_prefix} []")
+                    continue
+
+                lines.append(field_prefix)
+
+                for item in value:
+                    if isinstance(item, Symbol):
+                        lines.append(f"{prefix}    -")
+                        lines.append(item._format(indent + 3, seen))
+                    else:
+                        lines.append(f"{prefix}    - {self._format_value(item)}")
+
+            elif isinstance(value, dict):
+                if not value:
+                    lines.append(f"{field_prefix} {{}}")
+                    continue
+
+                lines.append(field_prefix)
+
+                for k, v in value.items():
+                    if isinstance(v, Symbol):
+                        lines.append(f"{prefix}    {k}:")
+                        lines.append(v._format(indent + 3, seen))
+                    else:
+                        lines.append(f"{prefix}    {k}: {self._format_value(v)}")
+
+            else:
+                lines.append(f"{field_prefix} {self._format_value(value)}")
+
+        seen.remove(id(self))
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_value(value):
+        if isinstance(value, Symbol):
+            return f"<{type(value).__name__}>"
+
+        if isinstance(value, list):
+            return repr(value)
+
+        if isinstance(value, dict):
+            return repr(value)
+
+        if hasattr(value, "__class__") and (value.__class__.__name__.endswith("Type")):
+            return repr(value)
+
+        return repr(value)
+
+    def __repr__(self):
+        return self._format()
 
 
 class AssignSymbol(Symbol):
