@@ -2,7 +2,7 @@ from pathlib import Path
 
 from lexer import Lexer
 from nida_ast import Parser
-from semantic import semantic_analyze, FunctionAllocator
+from semantic import semantic_analyze
 from import_systems import ImportSystem
 
 from type_systems.main import TypeSystem
@@ -10,7 +10,7 @@ from IR_gen import IRGen
 from LIR_gen import IRLowerer
 from C_gen import C_Gen
 from C_gen import HeaderGenerator
-from utils import SysArgs, ExecutionTimer
+from utils import SysArgs, ExecutionTimer, NodeIdAllocator
 from .gcc import compile_c_file, run_compiled_file
 
 import sys
@@ -32,7 +32,7 @@ class Nidac:
         debug: bool = False,
     ):
         self.ctx = {
-            "f_alloc": FunctionAllocator(),
+            "id_alloc": NodeIdAllocator(),
         }
 
         self.source = source
@@ -117,7 +117,7 @@ class Nidac:
         if not self.lexer:
             self.lex()
 
-        parser = Parser(self.lexer)
+        parser = Parser(self.lexer, self.ctx)
 
         self.asts = parser.run()
         if SysArgs.dump_ast:
@@ -135,8 +135,10 @@ class Nidac:
         if not self.asts:
             self.parse()
 
-        self.symbol_table = semantic_analyze(self.asts)
-        self.symbol_tree = self.symbol_table.st
+        self.symbol_table_b = semantic_analyze(self.asts, self.ctx)
+        self.symbol_tree = self.symbol_table_b.st
+
+        self.ctx["stm"] = self.symbol_table_b.stm
 
         if SysArgs.dump_ast_after_semantic:
             print("===== AST (after semantic analysis) =====")

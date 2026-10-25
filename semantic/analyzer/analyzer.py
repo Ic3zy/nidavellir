@@ -14,17 +14,24 @@ class TreeBuilderHelpers:
 
 
 class SymbolTreeBuilder:
-    def __init__(self, ast_tree):
+    def __init__(self, ast_tree, ctx):
+        self.id_alloc = ctx["id_alloc"]
         self.ast_tree = ast_tree
         self.stm = SymbolTableManager()
         self.st = []
-        self.class_syms = {}
 
         self.visited_imports = set()
 
         self.current_class_name = None
 
         self.run()
+
+    def get_id(self, ast):
+        id = ast.node_id
+        if id is None:
+            raise NidavellirInternalError("Node ID is not set", ast.line)
+
+        return id
 
     def resolve(self, type_val):
         resolved = resolve_type(type_val)
@@ -36,17 +43,19 @@ class SymbolTreeBuilder:
         return resolved
 
     def eval_VariableAST(self, ast):
-        var = self.stm.lookup(ast.name)
+        var = self.stm.lookup_assignment_name(ast.name)
         if var is None:
+            print(var.name)
             raise NidavellirNameError(f"Variable '{ast.name}' is not defined", ast.line)
 
-        return VariableSymbol(ast.name, var, ast)
+        return VariableSymbol(var.name, var, ast)
 
     def eval_AssignAST(self, ast):
         return self.stmt_AssignAST(ast)
 
     def eval_NumberAST(self, ast):
-        return NumberSymbol(ast.value, ast)
+        sym = NumberSymbol(ast.value, ast)
+        return sym
 
     def eval_BinaryOpAST(self, ast):
         left_sym = self.process_eval(ast.left)
@@ -91,52 +100,33 @@ class SymbolTreeBuilder:
         pass
 
     def stmt_AssignAST(self, ast):
-        val = ast.value
-        val_sym = None
-        if val is not None:
-            val_sym = self.process_eval(ast.value)
+        target = ast.target
+        re_assign = self.stm.lookup_assignment_name(target)
 
-        final_sym = AssignSymbol(ast.target, ast.type, val_sym, ast)
+        assign_id = re_assign.ast_node.node_id if re_assign is not None else ast.node_id
+        assign_name = self.id_alloc.name_of(assign_id)
+
+        val_sym = self.process_eval(ast.value) if ast.value is not None else None
+
+        final_sym = AssignSymbol(assign_name, ast.type, val_sym, ast, re_assign)
 
         if final_sym.type is None:
             final_sym.type = self.resolve(ast.type)
 
-        target_lookup = self.stm.current_scope.symbols.get(ast.target)
-        if target_lookup is not None:
-            final_sym.parent_assign = target_lookup
-            target_lookup.uses.append(final_sym)
-        elif ast.target != "self":
-            self.stm.add_symbol(final_sym)
+        target_sym = self.stm.current_scope.lookup_assignment_name(target)
+
+        if target_sym is not None:
+            final_sym.parent_assign = target_sym
+            target_sym.uses.append(final_sym)
+        elif target != "self":
+            self.stm.define_assignment(target, ast.node_id, final_sym)
+
+        ast.target = assign_name
 
         if ast.chain:
-            final_sym.chain = ast.chain
-
-            base_type = getattr(ast, "base_type", None)
-
-            if base_type is not None:
-                final_sym.type = self.resolve(base_type)
-
-            if ast.target == "self":
-                final_sym.base_sym = SelfSymbol(ast, self.current_class_name)
-            else:
-                final_sym.base_sym = self.stm.lookup(ast.target)
+            raise NidavellirNotImplementedError("Chained assignments")
 
         return final_sym
-
-    def stmt_IntrinsicAST(self, ast):
-        pass
-
-    def stmt_IntrinsicCallAST(self, ast):
-        name = ast.intrinsic.name
-        args = ast.args
-        intrinsic = ast.intrinsic
-
-        n_args = self.process_call_args(args, intrinsic, name, is_intrinsic=True)
-
-        return IntrinsicCallSymbol(intrinsic, name, n_args, ast)
-
-    def eval_IntrinsicCallAST(self, ast):
-        return self.stmt_IntrinsicCallAST(ast)
 
     def stmt_DefinitionAST(self, ast):
         lk = self.stm.lookup(ast.target)
@@ -196,7 +186,7 @@ class SymbolTreeBuilder:
             lookup_func_arg = None
             if not is_intrinsic:
                 if idx >= len(arg_symbols):
-                    NidavellirSemanticError(
+                    raise NidavellirSemanticError(
                         f"Function '{func_name}' received too many arguments", arg.line
                     )
 
@@ -236,7 +226,7 @@ class SymbolTreeBuilder:
         if ast.chain:
             return self._method_call(ast)
 
-        lookup = self.stm.lookup(func_name)
+        lookup = self.stm.lookup_func_name(func_name)
         is_intrinsic = TreeBuilderHelpers.check_intrinsic_call(func_name)
         if is_intrinsic:
             return self.process_intrinsic_call(ast)
@@ -518,7 +508,10 @@ class SymbolTreeBuilder:
         if visitor is None:
             raise NidavellirSemanticError(f"No function named {method_name}", ast.line)
 
-        return visitor(ast)
+        res = visitor(ast)
+        id = self.get_id(ast)
+        self.stm.define_symbol_id(id, res)
+        return res
 
     def process_stmt(self, ast):
         method_name = f"stmt_{type(ast).__name__}"
@@ -526,7 +519,11 @@ class SymbolTreeBuilder:
         if visitor is None:
             raise NidavellirSemanticError(f"No function named {method_name}", ast.line)
 
-        return visitor(ast)
+        res = visitor(ast)
+        id = self.get_id(ast)
+        self.stm.define_symbol_id(id, res)
+
+        return res
 
     def process_from_list(self, asts):
         st = []

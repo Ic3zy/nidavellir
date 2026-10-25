@@ -16,10 +16,9 @@ class IR_Box:
 
 class IRPasser:
     def __init__(self, irs, ctx):
+        self.id_alloc = ctx["id_alloc"]
         self.irs = irs
         self.ctx = ctx
-        self.f_alloc = ctx["f_alloc"]
-
         self.generated_functions = {}
 
     def run(self):
@@ -109,7 +108,6 @@ class IRPasser:
 
     def expr_CallIR(self, ir):
         return self.process_CallIR(ir, is_expr=True)
-
 
     def stmt_AssignIR(self, ir):
         ir.value = self.run_expr(ir.value)

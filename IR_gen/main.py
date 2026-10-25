@@ -2,16 +2,31 @@ from .irs import *
 from .ir_passer import IRPasser
 from nida_ast.base import *
 from type_systems.types import ClassType, Type, resolve_type
+from utils.errors import *
+from semantic.analyzer.symbol_types import *
 
 
 class IRGen:
     def __init__(self, asts, ctx):
         self.asts = asts
         self.ctx = ctx
-        self.f_alloc = ctx["f_alloc"]
+        self.id_alloc = ctx["id_alloc"]
+        self.stm = ctx["stm"]
 
         self.IRs = []
         self.list_literal_count = 0
+
+    def get_lk(self, node):
+        id = node.node_id
+        if id is None:
+            raise NidavellirInternalError("No node_id for CallAST")
+
+        lk = self.stm.lookup_symbol_id(id)
+
+        if lk is None:
+            raise NidavellirNameError(f"Symbol '{id}' is not defined", node.line)
+
+        return lk
 
     def gen_PassAST(self, ast):
         return PassIR()
@@ -20,6 +35,15 @@ class IRGen:
         target = ast.target
         value = ast.value
         var_type = ast.type
+        is_re_assign = False
+
+        lk = self.get_lk(ast)
+
+        if var_type is None:
+            var_type = lk.type
+
+        is_re_assign = lk.is_re_assign
+
         chain = getattr(ast, "chain", []) or []
 
         if isinstance(value, UnaryOpAST):
@@ -36,7 +60,7 @@ class IRGen:
             target,
             val_res,
             var_type,
-            re_assign=ast.is_re_assign,
+            re_assign=is_re_assign,
             chain=chain,
             base_type=self._type_of(getattr(ast, "base_type", None)),
             chain_types=[self._type_of(t) for t in getattr(ast, "chain_types", [])],
@@ -75,25 +99,14 @@ class IRGen:
         return ReturnIR(res)
 
     def gen_CallAST(self, ast):
-        runtime_target = getattr(ast, "list_runtime_target", None)
+        lk = self.get_lk(ast)
+        if isinstance(lk, IntrinsicCallSymbol):
+            return self.gen_IntrinsicCallAST(ast)
 
-        if runtime_target is not None:
-            args_irs = [VariableIR(ast.target, ast.receiver_type)]
-            for arg in ast.args:
-                args_irs.append(self.gen(arg))
-
-            ir = CallIR(runtime_target, args_irs, ast.type)
-            ir.runtime_call = True
-            return ir
-
-        target = ast.target_function_name
-        if target is not None:
-            target = self.f_alloc.name_of(target)
-        else:
-            target = ast.target
+        target = lk.name
 
         args = ast.args
-        type = ast.type
+        type = lk.type
 
         args_irs = []
         for arg in args:
@@ -105,6 +118,22 @@ class IRGen:
 
         ir = CallIR(target, args_irs, type)
         return ir
+
+    def gen_IntrinsicCallAST(self, ast):
+        lk = self.get_lk(ast)
+        intrinsic = lk.intrinsic
+        name = intrinsic.name
+        args = ast.args
+        type = lk.type
+
+        n_args = []
+        for arg in args:
+            n_args.append(self.gen(arg))
+
+        ir = IntrinsicCallIR(intrinsic, name, n_args, type)
+        handler = intrinsic.handler
+        new_ir = handler(ir)
+        return new_ir
 
     def _gen_receiver(self, ast):
         receiver_type = getattr(ast, "receiver_type", None)
@@ -125,30 +154,26 @@ class IRGen:
             chain_types,
         )
 
-    def gen_IntrinsicCallAST(self, ast):
-        name = ast.intrinsic.name
-        args = ast.args
-        type = ast.type
-        intrinsic = ast.intrinsic
-
-        n_args = []
-        for arg in args:
-            n_args.append(self.gen(arg))
-
-        ir = IntrinsicCallIR(intrinsic, name, n_args, type)
-        handler = intrinsic.handler
-        new_ir = handler(ir)
-        return new_ir
-
     def gen_StringAST(self, ast):
         return StringLiteralIR(ast.value)
 
     def gen_NumberAST(self, ast):
-        return NumberIR(ast.value, ast.type)
+        id = ast.node_id
+        if id is None:
+            raise NidavellirInternalError("No node_id for NumberAST")
+
+        lk = self.stm.lookup_symbol_id(id)
+        if lk is None:
+            raise NidavellirNameError(f"Symbol '{id}' is not defined", ast.line)
+
+        type = lk.type
+
+        return NumberIR(ast.value, type)
 
     def gen_VariableAST(self, ast):
-        name = ast.name
-        type = ast.type
+        lk = self.get_lk(ast)
+        name = lk.name
+        type = lk.type
         return VariableIR(name, type)
 
     def gen_BinaryOpAST(self, ast):

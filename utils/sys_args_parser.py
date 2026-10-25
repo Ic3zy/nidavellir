@@ -125,8 +125,8 @@ class SysArgsClass:
         )
 
         parser.add_argument(
-            "-dptt",
-            "--dump-type-tree",
+            "-dpst",
+            "--dump-sym-tree",
             action="store_true",
             help="Dump type engine tree (befor type inference)",
         )

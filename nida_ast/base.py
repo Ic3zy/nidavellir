@@ -1,46 +1,66 @@
+from dataclasses import dataclass, fields, field
+from utils.errors import Line
+
+
+@dataclass(slots=True, repr=False, kw_only=True)
 class AST:
-    def __init__(self, line=None):
-        self.line = line
+    line: Line = None
+    node_id: int = None
 
     def _format(self, indent=0):
         lines = []
         prefix = "  " * indent
-        class_name = self.__class__.__name__
+        class_name = type(self).__name__
 
-        attrs = {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+        attrs = {
+            f.name: getattr(self, f.name)
+            for f in fields(self)
+            if not f.name.startswith("_")
+        }
 
         if not attrs:
             return f"{prefix}{class_name}()"
 
         lines.append(f"{prefix}{class_name}:")
+
         for key, value in attrs.items():
             field_prefix = f"{prefix}  {key}:"
 
             if isinstance(value, AST):
                 lines.append(field_prefix)
                 lines.append(value._format(indent + 2))
+
             elif isinstance(value, list):
                 if not value:
                     lines.append(f"{field_prefix} []")
-                else:
-                    lines.append(field_prefix)
-                    for item in value:
-                        if isinstance(item, AST):
-                            lines.append(f"{prefix}    -")
-                            lines.append(item._format(indent + 3))
-                        elif isinstance(item, list):
-                            for sub_item in item:
-                                if isinstance(sub_item, AST):
-                                    lines.append(f"{prefix}    -")
-                                    lines.append(sub_item._format(indent + 3))
-                                else:
-                                    lines.append(f"{prefix}    - {repr(sub_item)}")
-                        else:
-                            lines.append(f"{prefix}    - {repr(item)}")
+                    continue
+
+                lines.append(field_prefix)
+
+                for item in value:
+                    if isinstance(item, AST):
+                        lines.append(f"{prefix}    -")
+                        lines.append(item._format(indent + 3))
+
+                    elif isinstance(item, list):
+                        if not item:
+                            lines.append(f"{prefix}    - []")
+
+                        for sub_item in item:
+                            if isinstance(sub_item, AST):
+                                lines.append(f"{prefix}    -")
+                                lines.append(sub_item._format(indent + 3))
+                            else:
+                                lines.append(f"{prefix}    - {sub_item!r}")
+
+                    else:
+                        lines.append(f"{prefix}    - {item!r}")
+
             elif value is None:
                 lines.append(f"{field_prefix} None")
+
             else:
-                lines.append(f"{field_prefix} {repr(value)}")
+                lines.append(f"{field_prefix} {value!r}")
 
         return "\n".join(lines)
 
@@ -48,259 +68,185 @@ class AST:
         return self._format()
 
 
+@dataclass(slots=True, repr=False)
 class FunctionAST(AST):
-    def __init__(self, decorators, name, args, body, type, line=None):
-        super().__init__(line)
-        self.decorators = decorators
-        self.name = name
-        self.args = args
-        self.body = body
-        self.type = type
-
-        self.is_imported = False
-
-        self.func_id = None
+    name: str | int
+    args: list
+    body: list
+    type: str = None
+    decorators: list = field(default_factory=list)
+    is_imported: bool = False
 
 
+@dataclass(slots=True, repr=False)
 class BlockAST(AST):
-    def __init__(self, body, line=None):
-        super().__init__(line)
-        self.body = body
+    body: list
 
 
+@dataclass(slots=True, repr=False)
 class ElifAST(AST):
-    def __init__(self, cond, body, line=None):
-        super().__init__(line)
-        self.cond = cond
-        self.body = body
+    cond: AST
+    body: list
 
 
+@dataclass(slots=True, repr=False)
 class IfAST(AST):
-    def __init__(self, cond, body, elifs, else_body, line=None):
-        super().__init__(line)
-        self.cond = cond
-        self.body = body
-        self.elifs = elifs
-        self.else_body = else_body
+    cond: AST
+    body: list
+    elifs: list
+    else_body: list
 
 
+@dataclass(slots=True, repr=False)
 class NumberAST(AST):
-    def __init__(self, value, type=None, line=None):
-        super().__init__(line)
-        self.value = value
-        self.type = type if type is not None else "idyn"
+    value: int | float
 
 
+@dataclass(slots=True, repr=False)
 class StringAST(AST):
-    def __init__(self, value, line=None):
-        super().__init__(line)
-        self.value = value
-        self.type = "str"
+    value: str
 
 
+@dataclass(slots=True, repr=False)
 class VariableAST(AST):
-    def __init__(self, name, line=None):
-        super().__init__(line)
-        self.name = name
-        self.type = None
+    name: str
 
 
+@dataclass(slots=True, repr=False)
 class IndexAccessAST(AST):
-    def __init__(self, target, index, line=None):
-        super().__init__(line)
-        self.target = target
-        self.index = index
+    target: AST
+    index: AST
 
 
+@dataclass(slots=True, repr=False)
 class CallAST(AST):
-    def __init__(self, target, chain, args, line=None):
-        super().__init__(line)
-        self.target = target
-        self.chain = chain
-        self.args = args
-        self.type = None
-        self.target_function = None
-
-        self.list_runtime_target = None
-
-        # The type of the object a method is called on.
-        self.receiver_type = None
-
-        self.receiver_chain = []
-
-        self.receiver_base_type = None
-        self.receiver_chain_types = []
-
-    @property
-    def target_function_name(self):
-        return self.target_function.func_id
+    target: str
+    chain: list
+    args: list
 
 
+@dataclass(slots=True, repr=False)
 class ReturnAST(AST):
-    def __init__(self, value, line=None):
-        super().__init__(line)
-        self.value = value
+    value: AST
 
 
+@dataclass(slots=True, repr=False)
 class AssignAST(AST):
-    def __init__(self, target, chain, type, value, line=None):
-        super().__init__(line)
-        self.target = target
-        self.chain = chain
-        self.type = type
-        self.value = value
-
-        self.is_re_assign = None
-
-        self.chain_types = []
-        self.base_type = None
+    target: str
+    chain: list
+    value: AST
+    type: str
 
 
+@dataclass(slots=True, repr=False)
 class DefinitionAST(AST):
-    def __init__(self, target, type, value, line=None):
-        super().__init__(line)
-        self.target = target
-        self.type = type
-        self.value = value
+    target: str
+    value: AST
+    type: str
 
 
+@dataclass(slots=True, repr=False)
 class WhileAST(AST):
-    def __init__(self, cond, body, line=None):
-        super().__init__(line)
-        self.cond = cond
-        self.body = body
+    cond: AST
+    body: list
 
 
+@dataclass(slots=True, repr=False)
 class ForAST(AST):
-    def __init__(self, target, source, body, line=None):
-        super().__init__(line)
-        self.target = target
-        self.source = source
-        self.body = body
+    target: AST
+    source: AST
+    body: list
 
 
+@dataclass(slots=True, repr=False)
 class ListAST(AST):
-    def __init__(self, body, line=None):
-        super().__init__(line)
-        self.body = body
+    body: list
 
 
+@dataclass(slots=True, repr=False)
 class OperatorAST(AST):
-    def __init__(self, op, line=None):
-        super().__init__(line)
-        self.op = op
+    op: str
 
 
+@dataclass(slots=True, repr=False)
 class PassAST(AST):
-    def __init__(self, line=None):
-        super().__init__(line)
+    pass
 
 
+@dataclass(slots=True, repr=False)
 class BinaryOpAST(AST):
-    def __init__(self, left, op, right, line=None):
-        super().__init__(line)
-        self.left = left
-        self.op = op
-        self.right = right
-        self.type = None
+    left: AST
+    op: str
+    right: AST
 
 
+@dataclass(slots=True, repr=False)
 class BooleanAST(AST):
-    def __init__(self, value, line=None):
-        super().__init__(line)
-        self.value = value
+    value: bool
 
 
+@dataclass(slots=True, repr=False)
 class ClassAST(AST):
-    def __init__(self, decorators, name, body, line=None):
-        super().__init__(line)
-        self.decorators = decorators
-        self.name = name
-        self.body = body
-
-        self.fields = {}
-        self.methods = {}
-
-        self.func_id = None
+    name: str
+    body: list
+    decorators: list
 
 
+@dataclass(slots=True, repr=False)
 class SelfAST(AST):
-    def __init__(self, line=None):
-        super().__init__(line)
-        self.target = "self"
-        self.type = None
+    pass
 
 
+@dataclass(slots=True, repr=False)
 class UnaryOpAST(AST):
-    def __init__(self, op, right, line=None):
-        super().__init__(line)
-        self.op = op
-        self.right = right
-
-        self.type = None
+    op: str
+    right: AST
 
 
+@dataclass(slots=True, repr=False)
 class DecoratorAST(AST):
-    def __init__(self, name, args, line=None):
-        super().__init__(line)
-        self.name = name
-        self.args = args
+    name: str
+    args: list
 
 
+@dataclass(slots=True, repr=False)
 class FieldAccessAST(AST):
-    def __init__(self, target, chain, line=None):
-        super().__init__(line)
-        self.target = target
-        self.chain = chain
-
-        self.type = None
-        self.chain_types = []
+    target: AST
+    chain: list
 
 
+@dataclass(slots=True, repr=False)
 class ListLiteralAST(AST):
-    def __init__(self, elements, line=None):
-        super().__init__(line)
-        self.elements = elements
-
-        self.type = None
+    elements: list
 
 
+@dataclass(slots=True, repr=False)
 class IntrinsicAST(AST):
-    def __init__(self, name, type, params, handler, line=None):
-        super().__init__(line)
-        self.name = name
-        self.type = type
-        self.params = params
-        self.handler = handler
+    name: str
+    params: list
+    handler: str
+    type: str
 
 
+@dataclass(slots=True, repr=False)
 class IntrinsicCallAST(AST):
-    def __init__(self, intrinsic: IntrinsicAST, name, args, line=None):
-        super().__init__(line)
-        self.intrinsic = intrinsic
-        self.name = name
-        self.args = args
-        self.type = None
+    intrinsic: IntrinsicAST
+    name: str
+    args: list
 
 
+@dataclass(slots=True, repr=False)
 class ImportAST(AST):
-    def __init__(
-        self, module: str, symbols: list = None, alias: str = None, line=None
-    ):
-        super().__init__(line)
-        self.module = module
-        self.symbols = symbols or []
-        self.alias = alias
-        # keep old line param name for compat
-        self.line = line
+    module: str
+    symbols: list
+    alias: str
 
 
+@dataclass(slots=True, repr=False)
 class GroupAST(AST):
-    def __init__(self, expr, line=None):
-        super().__init__(line)
-        self.expr = expr
+    expr: AST
 
 
+@dataclass(slots=True, repr=False)
 class NoneAST(AST):
-    def __init__(self, line=None):
-        super().__init__(line)
+    pass

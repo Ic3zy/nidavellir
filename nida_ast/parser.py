@@ -5,7 +5,9 @@ from utils.errors import NidavellirSyntaxError, Line
 
 
 class Parser:
-    def __init__(self, lexer):
+    def __init__(self, lexer, ctx):
+        self.id_alloc = ctx["id_alloc"]
+
         self.tokens = lexer.tokenize()
         self.lines = lexer.sp
         self.index = 0
@@ -54,9 +56,7 @@ class Parser:
         if start_token is None:
             return Line(self.lines, 1, 1, 1)
 
-        line_num = (
-            start_token[2] if len(start_token) > 2 and start_token[2] else 1
-        )
+        line_num = start_token[2] if len(start_token) > 2 and start_token[2] else 1
         col_start = self._col_of(start_token) or 1
 
         end_line = None
@@ -66,7 +66,9 @@ class Parser:
         if end_token is not None and end_line == line_num and end_token[1] is not None:
             end_col = self._col_of(end_token, col_start)
             col_end = (
-                end_col + len(str(end_token[1])) if end_col is not None else col_start + 1
+                end_col + len(str(end_token[1]))
+                if end_col is not None
+                else col_start + 1
             )
         elif end_token is None and start_token[1] is not None:
             # Single token: the range is exactly that token's text.
@@ -99,9 +101,7 @@ class Parser:
                 max(left_line.col_start + 1, len(self.lines[left_line.line - 1]) + 1),
             )
 
-        return Line(
-            self.lines, left_line.line, left_line.col_start, right_line.col_end
-        )
+        return Line(self.lines, left_line.line, left_line.col_start, right_line.col_end)
 
     def _current_line(self):
         """Get Line object for current token."""
@@ -155,7 +155,12 @@ class Parser:
     def parse_number(self, data_type=None):
         token_value = self.advance()
         line = self._make_line(token_value)
-        return NumberAST(value=token_value[1], type=data_type, line=line)
+        return NumberAST(
+            value=token_value[1],
+            type=data_type,
+            line=line,
+            node_id=self.id_alloc.alloc(),
+        )
 
     def check_index_access(self):
         start_index = self.index
@@ -217,9 +222,13 @@ class Parser:
         line = self._make_line(start_token, end_token)
 
         if index_access:
-            return IndexAccessAST(target=None, index=elements[0], line=line)
+            return IndexAccessAST(
+                target=None, index=elements[0], line=line, node_id=self.id_alloc.alloc()
+            )
         else:
-            return ListLiteralAST(elements=elements, line=line)
+            return ListLiteralAST(
+                elements=elements, line=line, node_id=self.id_alloc.alloc()
+            )
 
     def parse_primary(self):
         kind = self.peek_kind()
@@ -227,12 +236,12 @@ class Parser:
         if kind == "NUMBER":
             token = self.advance()
             line = self._make_line(token)
-            return NumberAST(value=token[1], line=line)
+            return NumberAST(value=token[1], line=line, node_id=self.id_alloc.alloc())
 
         if kind == "STRING":
             token = self.advance()
             line = self._make_line(token)
-            return StringAST(value=token[1], line=line)
+            return StringAST(value=token[1], line=line, node_id=self.id_alloc.alloc())
 
         if kind == "NAME":
             return self.parse_name()
@@ -247,22 +256,22 @@ class Parser:
             end_token = self.current
             self.consume("RPAREN")
             line = self._make_line(start_token, end_token)
-            return GroupAST(expr, line=line)
+            return GroupAST(expr, line=line, node_id=self.id_alloc.alloc())
 
         if kind == "TRUE":
             token = self.advance()
             line = self._make_line(token)
-            return BooleanAST(True, line=line)
+            return BooleanAST(True, line=line, node_id=self.id_alloc.alloc())
 
         if kind == "FALSE":
             token = self.advance()
             line = self._make_line(token)
-            return BooleanAST(False, line=line)
+            return BooleanAST(False, line=line, node_id=self.id_alloc.alloc())
 
         if kind == "NONE":
             token = self.advance()
             line = self._make_line(token)
-            return NoneAST(line=line)
+            return NoneAST(line=line, node_id=self.id_alloc.alloc())
 
         self.print_error(f"Unexpected token in expression")
 
@@ -283,7 +292,9 @@ class Parser:
                 line = self._span_line(
                     left.line, self._make_line(member_token), member_token
                 )
-                left = FieldAccessAST(target=left, chain=chain, line=line)
+                left = FieldAccessAST(
+                    target=left, chain=chain, line=line, node_id=self.id_alloc.alloc()
+                )
 
             elif kind == "LBRACKET":
                 self.advance()
@@ -293,7 +304,12 @@ class Parser:
                 line = self._span_line(
                     left.line, self._make_line(index_expr.line or end_token), end_token
                 )
-                left = IndexAccessAST(target=left, index=index_expr, line=line)
+                left = IndexAccessAST(
+                    target=left,
+                    index=index_expr,
+                    line=line,
+                    node_id=self.id_alloc.alloc(),
+                )
 
             elif kind == "LPAREN":
                 self.advance()
@@ -304,7 +320,9 @@ class Parser:
                 start_line = left.line or self._make_line(end_token)
                 end_line = last or self._make_line(end_token)
                 line = self._span_line(start_line, end_line, end_token)
-                left = CallAST(target=left, args=args, line=line)
+                left = CallAST(
+                    target=left, args=args, line=line, node_id=self.id_alloc.alloc()
+                )
 
             else:
                 break
@@ -314,7 +332,9 @@ class Parser:
     def _binary_line(self, left, right, op_token):
         """Range of a binary op spanning both operands."""
         if left is not None and left.line is not None:
-            return self._span_line(left.line, right.line if right is not None else None, op_token)
+            return self._span_line(
+                left.line, right.line if right is not None else None, op_token
+            )
         return self._make_line(op_token)
 
     def parse_unary(self):
@@ -324,9 +344,13 @@ class Parser:
             op_token = self.advance()
             right = self.parse_unary()
             line = self._span_line(
-                self._make_line(op_token), right.line if right is not None else None, op_token
+                self._make_line(op_token),
+                right.line if right is not None else None,
+                op_token,
             )
-            return UnaryOpAST(op=op_token[1], right=right, line=line)
+            return UnaryOpAST(
+                op=op_token[1], right=right, line=line, node_id=self.id_alloc.alloc()
+            )
 
         return self.parse_postfix()
 
@@ -337,8 +361,11 @@ class Parser:
             op_token = self.advance()
             right = self.parse_unary()
             left = BinaryOpAST(
-                left=left, op=op_token[1], right=right,
+                left=left,
+                op=op_token[1],
+                right=right,
                 line=self._binary_line(left, right, op_token),
+                node_id=self.id_alloc.alloc(),
             )
 
         return left
@@ -350,8 +377,11 @@ class Parser:
             op_token = self.advance()
             right = self.parse_and()
             left = BinaryOpAST(
-                left=left, op=op_token[1], right=right,
+                left=left,
+                op=op_token[1],
+                right=right,
                 line=self._binary_line(left, right, op_token),
+                node_id=self.id_alloc.alloc(),
             )
 
         return left
@@ -363,8 +393,11 @@ class Parser:
             op_token = self.advance()
             right = self.parse_equality()
             left = BinaryOpAST(
-                left=left, op=op_token[1], right=right,
+                left=left,
+                op=op_token[1],
+                right=right,
                 line=self._binary_line(left, right, op_token),
+                node_id=self.id_alloc.alloc(),
             )
 
         return left
@@ -376,8 +409,11 @@ class Parser:
             op_token = self.advance()
             right = self.parse_factor()
             left = BinaryOpAST(
-                left=left, op=op_token[1], right=right,
+                left=left,
+                op=op_token[1],
+                right=right,
                 line=self._binary_line(left, right, op_token),
+                node_id=self.id_alloc.alloc(),
             )
 
         return left
@@ -392,8 +428,11 @@ class Parser:
                 op_token = self.advance()
                 right = self.parse_term()
                 left = BinaryOpAST(
-                    left=left, op=op_token[1], right=right,
+                    left=left,
+                    op=op_token[1],
+                    right=right,
                     line=self._binary_line(left, right, op_token),
+                    node_id=self.id_alloc.alloc(),
                 )
 
             elif (
@@ -407,8 +446,11 @@ class Parser:
                 self.advance()  # in
                 right = self.parse_term()
                 left = BinaryOpAST(
-                    left=left, op="is not in", right=right,
+                    left=left,
+                    op="is not in",
+                    right=right,
                     line=self._binary_line(left, right, op_token),
+                    node_id=self.id_alloc.alloc(),
                 )
 
             elif kind == "IS" and self.peek_kind_at(1) == "NOT":
@@ -417,16 +459,22 @@ class Parser:
                 self.advance()  # not
                 right = self.parse_term()
                 left = BinaryOpAST(
-                    left=left, op="is not", right=right,
+                    left=left,
+                    op="is not",
+                    right=right,
                     line=self._binary_line(left, right, op_token),
+                    node_id=self.id_alloc.alloc(),
                 )
 
             elif kind == "IS":
                 op_token = self.advance()  # is
                 right = self.parse_term()
                 left = BinaryOpAST(
-                    left=left, op="is", right=right,
+                    left=left,
+                    op="is",
+                    right=right,
                     line=self._binary_line(left, right, op_token),
+                    node_id=self.id_alloc.alloc(),
                 )
 
             elif kind == "NOT" and self.peek_kind_at(1) == "IN":
@@ -435,16 +483,22 @@ class Parser:
                 self.advance()  # in
                 right = self.parse_term()
                 left = BinaryOpAST(
-                    left=left, op="not in", right=right,
+                    left=left,
+                    op="not in",
+                    right=right,
                     line=self._binary_line(left, right, op_token),
+                    node_id=self.id_alloc.alloc(),
                 )
 
             elif kind == "IN":
                 op_token = self.advance()  # in
                 right = self.parse_term()
                 left = BinaryOpAST(
-                    left=left, op="in", right=right,
+                    left=left,
+                    op="in",
+                    right=right,
                     line=self._binary_line(left, right, op_token),
+                    node_id=self.id_alloc.alloc(),
                 )
 
             else:
@@ -601,7 +655,11 @@ class Parser:
             if self.peek_kind() == "COMMA":
                 self.advance()
 
-            decorators.append(DecoratorAST(decorator_name, args, line=line))
+            decorators.append(
+                DecoratorAST(
+                    decorator_name, args, line=line, node_id=self.id_alloc.alloc()
+                )
+            )
 
         return decorators
 
@@ -671,6 +729,7 @@ class Parser:
                     op=comp,
                     right=value_ast,
                     line=op_line,
+                    node_id=self.id_alloc.alloc(),
                 )
 
         end_token = self.current
@@ -682,10 +741,21 @@ class Parser:
                     f"Syntax Error: Cannot use type annotation '{data_type}' on member access '{target_path}'.\n"
                     f"  --> Fields already have a type defined in their class."
                 )
-            return DefinitionAST(target=target_name, type=data_type, value=value_ast, line=line)
+            return DefinitionAST(
+                target=target_name,
+                type=data_type,
+                value=value_ast,
+                line=line,
+                node_id=self.id_alloc.alloc(),
+            )
 
         return AssignAST(
-            target=target_name, chain=chain, type=data_type, value=value_ast, line=line
+            target=target_name,
+            chain=chain,
+            type=data_type,
+            value=value_ast,
+            line=line,
+            node_id=self.id_alloc.alloc(),
         )
 
     def parse_args(self):
@@ -712,7 +782,13 @@ class Parser:
         self.consume("RPAREN")
         line = self._make_line(start_token, end_token)
 
-        return CallAST(target=target_name, chain=chain, args=args, line=line)
+        return CallAST(
+            target=target_name,
+            chain=chain,
+            args=args,
+            line=line,
+            node_id=self.id_alloc.alloc(),
+        )
 
     def parse_name(self, is_func_arg=False):
         token = self.current
@@ -726,13 +802,13 @@ class Parser:
         elif token[1] == "self":
             self.advance()
             line = self._make_line(token)
-            return SelfAST(line=line)
+            return SelfAST(line=line, node_id=self.id_alloc.alloc())
         elif is_func_arg:
             return self.parse_assignment()
         else:
             self.advance()
             line = self._make_line(token)
-            return VariableAST(name=token[1], line=line)
+            return VariableAST(name=token[1], line=line, node_id=self.id_alloc.alloc())
 
     def parse_else(self):
         start_token = self.current
@@ -752,7 +828,7 @@ class Parser:
         end_token = self.current
         self.consume("DEDENT")
         line = self._block_line(start_token, end_token)
-        return BlockAST(body, line=line)
+        return BlockAST(body, line=line, node_id=self.id_alloc.alloc())
 
     def parse_elif(self):
         start_token = self.current
@@ -775,7 +851,7 @@ class Parser:
         self.consume("DEDENT")
         line = self._block_line(start_token, end_token)
 
-        return ElifAST(cond, body, line=line)
+        return ElifAST(cond, body, line=line, node_id=self.id_alloc.alloc())
 
     def parse_if(self):
         start_token = self.current
@@ -809,7 +885,9 @@ class Parser:
         end_token = self.current
         line = self._block_line(start_token, end_token)
 
-        return IfAST(cond, body, elifs, else_body, line=line)
+        return IfAST(
+            cond, body, elifs, else_body, line=line, node_id=self.id_alloc.alloc()
+        )
 
     def parse_def(self, decorators=None):
         start_token = self.current
@@ -861,7 +939,13 @@ class Parser:
         line = self._block_line(start_token, end_token)
 
         return FunctionAST(
-            decorators=decorators, name=name[1], args=args, body=body, type=type, line=line
+            name=name[1],
+            args=args,
+            body=body,
+            type=type,
+            decorators=decorators,
+            line=line,
+            node_id=self.id_alloc.alloc(),
         )
 
     def parse_return(self):
@@ -871,10 +955,12 @@ class Parser:
         if self.peek_kind() != "NEWLINE":
             value = self.parse_expression()
         if value is not None and value.line is not None:
-            line = self._span_line(self._make_line(start_token), value.line, start_token)
+            line = self._span_line(
+                self._make_line(start_token), value.line, start_token
+            )
         else:
             line = self._make_line(start_token)
-        return ReturnAST(value, line=line)
+        return ReturnAST(value, line=line, node_id=self.id_alloc.alloc())
 
     def parse_class(self, decorators=None):
         start_token = self.current
@@ -898,7 +984,13 @@ class Parser:
         end_token = self.current
         self.consume("DEDENT")
         line = self._block_line(start_token, end_token)
-        return ClassAST(decorators=decorators, name=name[1], body=body, line=line)
+        return ClassAST(
+            name=name[1],
+            body=body,
+            decorators=decorators,
+            line=line,
+            node_id=self.id_alloc.alloc(),
+        )
 
     def parse_while(self):
         start_token = self.current
@@ -920,7 +1012,7 @@ class Parser:
         self.consume("DEDENT")
         line = self._block_line(start_token, end_token)
 
-        return WhileAST(cond, body, line=line)
+        return WhileAST(cond, body, line=line, node_id=self.id_alloc.alloc())
 
     def parse_for(self):
         start_token = self.current
@@ -947,7 +1039,7 @@ class Parser:
         self.consume("DEDENT")
         line = self._block_line(start_token, end_token)
 
-        return ForAST(target, source, body, line=line)
+        return ForAST(target, source, body, line=line, node_id=self.id_alloc.alloc())
 
     def accepts_decorators(self, func):
         sig = inspect.signature(func)
@@ -970,7 +1062,13 @@ class Parser:
             end_token = alias_token
 
         line = self._make_line(start_token, end_token)
-        return ImportAST(module=module_name, symbols=[], alias=alias, line=line)
+        return ImportAST(
+            module=module_name,
+            symbols=[],
+            alias=alias,
+            line=line,
+            node_id=self.id_alloc.alloc(),
+        )
 
     def parse_from(self):
         start_token = self.current
@@ -1003,7 +1101,13 @@ class Parser:
                 break
 
         line = self._make_line(start_token, end_token)
-        return ImportAST(module=module_name, symbols=symbols, alias=None, line=line)
+        return ImportAST(
+            module=module_name,
+            symbols=symbols,
+            alias=None,
+            line=line,
+            node_id=self.id_alloc.alloc(),
+        )
 
     def parse_kind(self, kind):
         if kind is None:
@@ -1052,12 +1156,12 @@ class Parser:
         if kind == "STRING":
             token = self.advance()
             line = self._make_line(token)
-            return StringAST(value=token[1], line=line)
+            return StringAST(value=token[1], line=line, node_id=self.id_alloc.alloc())
 
         if kind == "PASS":
             token = self.advance()
             line = self._make_line(token)
-            return PassAST(line=line)
+            return PassAST(line=line, node_id=self.id_alloc.alloc())
 
         if kind == "LPAREN":
             start_token = self.current
@@ -1070,7 +1174,7 @@ class Parser:
         if kind in ("PLUS", "MINUS", "STAR", "SLASH", "EQEQ", "NEQ", "GT", "LT"):
             token = self.advance()
             line = self._make_line(token)
-            return OperatorAST(op=token[1], line=line)
+            return OperatorAST(op=token[1], line=line, node_id=self.id_alloc.alloc())
 
         return None
 

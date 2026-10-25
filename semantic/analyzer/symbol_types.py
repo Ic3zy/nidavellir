@@ -87,7 +87,7 @@ class Symbol:
 
 
 class AssignSymbol(Symbol):
-    def __init__(self, name, type, value, ast_node):
+    def __init__(self, name, type, value, ast_node, re_assign=None):
         self.name = name
         self.type = resolve_type(type)
         self.value = value
@@ -100,6 +100,8 @@ class AssignSymbol(Symbol):
 
         self.chain = []
         self.base_sym = None
+
+        self.is_re_assign = re_assign
 
     def set_type_to_AST(self):
         self.ast_node.type = self.type
