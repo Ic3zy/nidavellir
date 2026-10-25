@@ -2,7 +2,7 @@ from .symbol_table import SymbolTableManager
 from .tree_printer import render_node
 from .symbol_types import *
 from nida_ast.base import *
-from type_systems.types import resolve_type, ClassType, ListType, NoneType
+from type_systems.types import *
 from utils.errors import *
 from ..intrinsics import INTRINSICS
 
@@ -45,7 +45,6 @@ class SymbolTreeBuilder:
     def eval_VariableAST(self, ast):
         var = self.stm.lookup_assignment_name(ast.name)
         if var is None:
-            print(var.name)
             raise NidavellirNameError(f"Variable '{ast.name}' is not defined", ast.line)
 
         return VariableSymbol(var.name, var, ast)
@@ -215,7 +214,6 @@ class SymbolTreeBuilder:
         intrinsic = INTRINSICS[ast.target]
         name = intrinsic.name
         args = ast.args
-
         n_args = self.process_call_args(args, intrinsic, name, is_intrinsic=True)
 
         return IntrinsicCallSymbol(intrinsic, name, n_args, ast)
@@ -373,22 +371,26 @@ class SymbolTreeBuilder:
     def stmt_ForAST(self, ast):
         self.stm.enter_scope()
         target = self.process_stmt(ast.target)
+
         source = ast.source
         loop_count = None
         if isinstance(source, (CallAST, IntrinsicAST, IntrinsicCallAST)):
             target_fn = getattr(source, "target", getattr(source, "name", None))
             args = getattr(source, "args", [])
-            if target_fn == "range" and args and isinstance(args[0], NumberAST):
-                loop_count = args[0].value
-                loop_count = int(loop_count)
+            if target_fn == "range" and args:
+                if isinstance(args[0], NumberAST):
+                    loop_count = args[0].value
+                    loop_count = int(loop_count)
+                else:
+                    loop_count = Infinity
             else:
                 raise NidavellirNotImplementedError(
-                    f"For loop source '{target_fn}' is not implemented", ast.line
+                    f"For loop source '{target_fn}' is not implemented", ast.source.line
                 )
         else:
             raise NidavellirNotImplementedError(
                 f"For loop source '{type(source).__name__}' is not implemented",
-                ast.line,
+                ast.source.line,
             )
 
         target.uses.append(NumberSymbol(0, ast))

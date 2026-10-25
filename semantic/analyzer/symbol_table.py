@@ -31,7 +31,7 @@ class SymbolRegistry:
     # Analyzer API: normal names.
 
     def define_assignment(self, name, symbol):
-        return self._define(self.norm_assignments, name, symbol, "Assignment")
+        self._define(self.norm_assignments, name, symbol, "Assignment")
 
     def define_func(self, name, symbol):
         return self._define(self.norm_functions, name, symbol, "Function")
@@ -73,7 +73,6 @@ class Scope:
 
     def _lookup_name(self, name, category):
         scope = self
-
         while scope is not None:
             symbol = getattr(scope.registry, category).get(name)
             if symbol is not None:

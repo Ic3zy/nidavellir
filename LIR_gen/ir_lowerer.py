@@ -429,6 +429,25 @@ class IRLowerer:
 
         return lirs
 
+    def _coerce_numeric(self, value_id, source_type, target_type):
+        if source_type is None or target_type is None:
+            return value_id
+
+        if type(source_type) is type(target_type):
+            return value_id
+
+        if not isinstance(source_type, NumberType):
+            return value_id
+
+        if not isinstance(target_type, NumberType):
+            return value_id
+
+        cast_id = self.get_value_id()
+        cast_lir = CastLIR(cast_id, str(target_type), value_id)
+        self.blocks.emit(cast_lir)
+
+        return cast_id
+
     def _get_operator_rules(self, typex):
         if isinstance(typex, StringType):
             return STR_OPS
@@ -470,22 +489,36 @@ class IRLowerer:
     def process_BinaryOpIR(self, hir):
         left = hir.left
         right = hir.right
-        type_str = str(self.type_of(hir))
+        result_type = self.type_of(hir)
         op = hir.op
 
         lirs = LIRs()
 
         left_lir = self.process(left)
         left_id = self.get_current_value_id()
+
         right_lir = self.process(right)
         right_id = self.get_current_value_id()
 
-        op_lir = self._op_to_lir(self.type_of(hir), left_id, right_id, op)
+        left_type = self.type_of(left)
+        right_type = self.type_of(right)
+
+        if op == "/" and isinstance(result_type, FloatType):
+            left_id = self._coerce_numeric(left_id, left_type, result_type)
+            right_id = self._coerce_numeric(right_id, right_type, result_type)
+
+        op_lir = self._op_to_lir(
+            result_type,
+            left_id,
+            right_id,
+            op,
+        )
         self.blocks.emit(op_lir)
 
         lirs.append(left_lir)
         lirs.append(right_lir)
         lirs.append(op_lir)
+
         return lirs
 
     def process_BooleanIR(self, hir):

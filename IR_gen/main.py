@@ -135,25 +135,6 @@ class IRGen:
         new_ir = handler(ir)
         return new_ir
 
-    def _gen_receiver(self, ast):
-        receiver_type = getattr(ast, "receiver_type", None)
-        receiver_chain = getattr(ast, "receiver_chain", None) or []
-
-        if not receiver_chain:
-            return VariableIR(ast.target, receiver_type)
-
-        base_type = getattr(ast, "receiver_base_type", None)
-        target_ir = VariableIR(ast.target, base_type)
-
-        chain_types = list(getattr(ast, "receiver_chain_types", None) or [])
-
-        return FieldAccessIR(
-            target_ir,
-            list(receiver_chain),
-            receiver_type,
-            chain_types,
-        )
-
     def gen_StringAST(self, ast):
         return StringLiteralIR(ast.value)
 
@@ -182,19 +163,22 @@ class IRGen:
         right = ast.right
         right_ir = self.gen(right)
         op = ast.op
-        type = ast.type
+
+        lk = self.get_lk(ast)
+        type = lk.type
+
         return BinaryOpIR(left_ir, right_ir, op, type)
 
     def gen_FunctionAST(self, ast):
-        decs = ast.decorators
-        name = ast.func_id
-        if name is None:
-            raise Exception(f"No func_id for function {ast}")
-        name = self.f_alloc.name_of(name)
+        lk = self.get_lk(ast)
 
+        name = lk.name
+        type = lk.type
+
+        decs = ast.decorators
         args = ast.args
         body = ast.body
-        type = ast.type
+
         args_irs = []
         for arg in args:
             args_irs.append(self.gen(arg))
@@ -305,9 +289,11 @@ class IRGen:
         return NoneIR()
 
     def gen_DefinitionAST(self, ast):
-        target = ast.target
+        lk = self.get_lk(ast)
+        target = lk.name
+        type = lk.type
+
         value = ast.value
-        type = ast.type
 
         value_ir = self.gen(value)
         return DefinitionIR(target, value_ir, type)
@@ -315,7 +301,9 @@ class IRGen:
     def gen_UnaryOpAST(self, ast):
         op = ast.op
         value = ast.right
-        type = ast.type
+
+        lk = self.get_lk(ast)
+        type = lk.type
 
         value_ir = self.gen(value)
         return UnaryOpIR(op, value_ir, type)
@@ -327,7 +315,10 @@ class IRGen:
             element_ir = self.gen(e)
             elements.append(element_ir)
 
-        literal_ir = ListLiteralIR(elements, ast.type)
+        lk = self.get_lk(ast)
+        type = lk.type
+
+        literal_ir = ListLiteralIR(elements, type)
         literal_ir.element_list_id = self._next_list_id()
         return literal_ir
 
@@ -366,30 +357,6 @@ class IRGen:
         new_body = self.process_class_body(body)
 
         return ClassIR(name, new_body, self._class_fields(ast))
-
-    def _class_fields(self, ast):
-        """The fields of a class: [(name, type)] in declaration order."""
-        fields = []
-
-        for field_name, field_ast in ast.fields.items():
-            info_tuple = [field_name]
-            field_type = field_ast.type
-
-            if field_type is None and field_ast.value is not None:
-                field_type = field_ast.value.type
-
-            info_tuple.append(field_type)
-
-            value_ir = None
-
-            if getattr(field_ast, "value", None) is not None:
-                value_ir = self.gen(field_ast.value)
-
-            info_tuple.append(value_ir)
-
-            fields.append(tuple(info_tuple))
-
-        return fields
 
     def _gen_unary_op(self, target, ast):
         op = ast.op

@@ -208,6 +208,14 @@ class C_Gen:
         value = CVariable(val_name)
         return CAssign(name, value, type, re_assign=True)
 
+    def process_CastLIR(self, lir):
+        name = self.name_maper(lir.name)
+        target_type = CTypeTranslator.translate(lir.target_type)
+        value_name = self.name_maper(lir.value)
+
+        cast = CCast(target_type, CVariable(value_name))
+        return CAssign(name, cast, target_type)
+
     def process_ReturnLIR(self, lir):
         value = lir.value
         if value is None:

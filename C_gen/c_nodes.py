@@ -334,3 +334,12 @@ class CUnaryOp(CNode):
 
     def __str__(self):
         return f"{self.type} {self.name} = {self.op}{self.value}"
+
+
+class CCast:
+    def __init__(self, target_type, value):
+        self.target_type = target_type
+        self.value = value
+
+    def __str__(self):
+        return f"({self.target_type.str()}){self.value.str()}"

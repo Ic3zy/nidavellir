@@ -255,3 +255,10 @@ class UnaryOpLIR(LIR):
         self.op = op
         self.value = value
         self.type = type
+
+
+class CastLIR:
+    def __init__(self, name, target_type, value):
+        self.name = name
+        self.target_type = target_type
+        self.value = value

@@ -71,6 +71,10 @@ class Type:
         return self.__class__.__name__
 
 
+class NumberType(Type):
+    pass
+
+
 class TypeUpdate:
     def __init__(self, sym):
         self.sym = sym
@@ -101,7 +105,7 @@ class ListType(Type):
         return "List"
 
 
-class IntType(Type):
+class IntType(NumberType):
     I64_MIN, I64_MAX = -9_223_372_036_854_775_808, 9_223_372_036_854_775_807
     U64_MAX = 18_446_744_073_709_551_615
 
@@ -183,7 +187,7 @@ class IntType(Type):
         return hash((self.signed, self.byte_size))
 
 
-class FloatType(Type):
+class FloatType(NumberType):
     def __init__(self, byte_size=DynamicType):
         self.byte_size = byte_size
         self.is_dynamic = byte_size == DynamicType

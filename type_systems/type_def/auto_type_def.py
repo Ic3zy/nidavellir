@@ -1,5 +1,6 @@
 from ..types import *
 from semantic.analyzer.symbol_types import *
+from utils.errors import *
 
 
 def detect_type(value: str):
@@ -30,7 +31,9 @@ class AutoTypeDefEngine:
             elif val is float:
                 sym.type = FloatType()
             else:
-                raise Exception(sym, f"Cannot determine type of number {sym.value}")
+                raise NidavellirTypeError(
+                    f"Cannot determine type of number {sym.value}", sym.ast_node.line
+                )
 
     def process_VariableSymbol(self, sym):
         if sym.type is None:
@@ -40,8 +43,9 @@ class AutoTypeDefEngine:
                 lk_type = sym.lookup.type
 
             if lk_type is None:
-                raise Exception(sym.lookup.ast_node)
-                raise Exception(sym, "Cannot determine type of variable")
+                raise NidavellirTypeError(
+                    "Cannot determine type of variable", sym.ast_node.line
+                )
 
             with TypeUpdate(sym):
                 sym.type = lk_type
@@ -50,15 +54,26 @@ class AutoTypeDefEngine:
         pass
 
     def process_AssignSymbol(self, sym):
-        if sym.type is None and sym.value is not None:
+        if sym.value is not None:
+            if sym.type is not None:
+                with TypeUpdate(sym.value):
+                    sym.value.type = sym.type
+
             self.process(sym.value)
-            with TypeUpdate(sym):
-                sym.type = sym.value.type
-                if sym.type is None:
-                    raise Exception(sym, "Cannot determine type of assigned value")
+
+            if sym.type is None:
+                with TypeUpdate(sym):
+                    sym.type = sym.value.type
+
+                    if sym.type is None:
+                        raise NidavellirTypeError(
+                            "Cannot determine type of assigned value",
+                            sym.ast_node.line,
+                        )
 
         if sym.chain:
             base = sym.base_sym
+
             if base.type is None:
                 self.process(base)
 
@@ -70,11 +85,16 @@ class AutoTypeDefEngine:
             with TypeUpdate(sym):
                 sym.type = sym.value.type
                 if sym.type is None:
-                    raise Exception(sym, "Cannot determine type of assigned value")
+                    raise NidavellirTypeError(
+                        "Cannot determine type of assigned value", sym.ast_node.line
+                    )
 
     def process_BinaryOpSymbol(self, sym):
+        expected_type = sym.type
+
         right = sym.right_sym
         left = sym.left_sym
+
         if right.type is None:
             self.process(right)
 
@@ -82,18 +102,30 @@ class AutoTypeDefEngine:
             self.process(left)
 
         if right.type is None or left.type is None:
-            raise Exception(sym, "Cannot determine type of binary operation")
+            raise NidavellirTypeError(
+                "Cannot determine type of binary operation",
+                sym.ast_node.line,
+            )
 
-        if type(left.type) != type(right.type):
-            raise Exception(
-                sym,
+        if isinstance(left.type, NumberType) and isinstance(right.type, NumberType):
+            if isinstance(expected_type, FloatType):
+                result_type = FloatType()
+            elif isinstance(left.type, FloatType) or isinstance(right.type, FloatType):
+                result_type = FloatType()
+            else:
+                result_type = left.type
+
+        elif type(left.type) == type(right.type):
+            result_type = left.type
+
+        else:
+            raise NidavellirTypeError(
                 f"Incompatible operand types: {left.type} and {right.type}",
+                sym.ast_node.line,
             )
 
         with TypeUpdate(sym):
-            sym.type = left.type
-            if sym.type is None:
-                raise Exception(sym, "Cannot determine type of binary operation")
+            sym.type = result_type
 
     def process_UnaryOpSymbol(self, sym):
         right = sym.right_sym
@@ -101,7 +133,9 @@ class AutoTypeDefEngine:
             self.process(right)
 
         if right.type is None:
-            raise Exception(sym, "Cannot determine type of unary operation")
+            raise NidavellirTypeError(
+                "Cannot determine type of unary operation", sym.ast_node.line
+            )
 
         with TypeUpdate(sym):
             sym.type = right.type
@@ -135,21 +169,20 @@ class AutoTypeDefEngine:
 
                 arg_type = arg.type
                 if arg_type is None:
-                    raise Exception(
-                        sym,
-                        f"Cannot infer argument type at position {idx} "
-                        f"in call {call.name}",
+                    raise NidavellirTypeError(
+                        f"Cannot infer argument type at position {idx} in call {call.name}",
+                        sym.ast_node.line,
                     )
 
                 if (previous_type := arg_types.get(idx + offset)) is not None:
                     if arg_type != previous_type:
-                        raise Exception(
-                            sym,
-                            f"Incompatible argument types in call {call.name}: "
-                            f"{arg_type} and {previous_type}",
+                        raise NidavellirTypeError(
+                            f"Incompatible argument types in call {call.name}: {arg_type} and {previous_type}",
+                            sym.ast_node.line,
                         )
 
                 arg_types[idx + offset] = arg_type
+
         for idx, arg in enumerate(sym.args):
             if arg.type is None:
                 arg_type = arg_types.get(idx)
@@ -168,9 +201,9 @@ class AutoTypeDefEngine:
                 continue
 
             if type(node.type) != type(inferred_type):
-                raise Exception(
-                    f"Incompatible return types in function '{sym.name}': "
-                    f"{inferred_type} and {node.type}",
+                raise NidavellirTypeError(
+                    f"Incompatible return types in function '{sym.name}': {inferred_type} and {node.type}",
+                    sym.ast_node.line,
                 )
             inferred_type = node.type
 
@@ -189,7 +222,9 @@ class AutoTypeDefEngine:
             self.process(sym.value)
 
         if sym.value.type is None:
-            raise Exception(sym, "Cannot determine type of return value")
+            raise NidavellirTypeError(
+                "Cannot determine type of return value", sym.ast_node.line
+            )
 
         with TypeUpdate(sym):
             sym.type = sym.value.type
@@ -207,7 +242,9 @@ class AutoTypeDefEngine:
                 self.process(sym.lookup)
 
             if sym.lookup.type is None:
-                raise Exception(sym, "Cannot determine type of call")
+                raise NidavellirTypeError(
+                    "Cannot determine type of call", sym.ast_node.line
+                )
 
             with TypeUpdate(sym):
                 sym.type = sym.lookup.type
@@ -230,7 +267,9 @@ class AutoTypeDefEngine:
 
     def process_SelfSymbol(self, sym):
         if sym.class_name is None:
-            raise Exception(sym, "'self' is only valid inside a class")
+            raise NidavellirTypeError(
+                "'self' is only valid inside a class", sym.ast_node.line
+            )
 
         with TypeUpdate(sym):
             sym.type = ClassType(sym.class_name)
@@ -245,27 +284,29 @@ class AutoTypeDefEngine:
     def _resolve_chain(self, base_type, chain, sym):
         for name in chain:
             if not isinstance(base_type, ClassType):
-                raise Exception(
-                    sym,
+                raise NidavellirTypeError(
                     f"Cannot access member '{name}' on non-class type '{base_type}'",
+                    sym.ast_node.line,
                 )
 
             class_sym = self._find_class(base_type.name)
             if class_sym is None:
-                raise Exception(sym, f"Class '{base_type.name}' is not defined")
+                raise NidavellirTypeError(
+                    f"Class '{base_type.name}' is not defined", sym.ast_node.line
+                )
 
             field_ast = class_sym.fields.get(name)
             if field_ast is None:
-                raise Exception(
-                    sym, f"Member '{name}' is not defined in class '{base_type.name}'"
+                raise NidavellirTypeError(
+                    f"Member '{name}' is not defined in class '{base_type.name}'",
+                    sym.ast_node.line,
                 )
 
             base_type = self._field_type(class_sym, field_ast)
             if base_type is None:
-                raise Exception(
-                    sym,
-                    f"Cannot determine type of member '{name}' "
-                    f"in class '{base_type.name}'",
+                raise NidavellirTypeError(
+                    f"Cannot determine type of member '{name}' in class '{base_type.name}'",
+                    sym.ast_node.line,
                 )
 
         with TypeUpdate(sym):
@@ -299,13 +340,17 @@ class AutoTypeDefEngine:
         self.process_from_list(args)
         if sym.type is None:
             if intrinsic.type is None:
-                raise Exception(sym, "Cannot determine type of intrinsic call")
+                raise NidavellirTypeError(
+                    "Cannot determine type of intrinsic call", sym.ast_node.line
+                )
 
             with TypeUpdate(sym):
                 sym.type = intrinsic.type
 
         if not intrinsic.params.check(args):
-            raise Exception(f"Invalid arguments for intrinsic '{intrinsic.name}'")
+            raise NidavellirTypeError(
+                f"Invalid arguments for intrinsic '{intrinsic.name}'", sym.ast_node.line
+            )
 
     def process_IfSymbol(self, sym):
         self.process(sym.cond)
@@ -335,7 +380,9 @@ class AutoTypeDefEngine:
         method_name = f"process_{type(sym).__name__}"
         visitor = getattr(self, method_name, None)
         if visitor is None:
-            raise Exception(sym, f"No visitor method '{method_name}' for symbol")
+            raise NidavellirInternalError(
+                f"No visitor method '{method_name}' for symbol", sym.ast_node.line
+            )
         return visitor(sym)
 
     def process_from_list(self, syms):
