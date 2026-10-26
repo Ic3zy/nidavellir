@@ -89,3 +89,17 @@ class CTList(CType):
             EXTRA_C_INCLUDES.append("dynix_nida.h")
 
         return "Nida_List *"
+
+
+class CTFuncRef(CType):
+    def __init__(self, param_types, return_type):
+        self.param_types = param_types
+        self.return_type = return_type
+
+    def declare(self, name):
+        params = ", ".join(str(t) for t in self.param_types) or "void"
+        return f"{self.return_type} (*{name})({params})"
+
+    def __str__(self):
+        params = ", ".join(str(t) for t in self.param_types) or "void"
+        return f"{self.return_type} (*)({params})"

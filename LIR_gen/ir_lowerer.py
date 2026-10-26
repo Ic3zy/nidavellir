@@ -149,7 +149,7 @@ class IRLowerer:
 
     def process_VariableIR(self, hir):
         name = hir.name
-        type_str = str(self.type_of(hir))
+        type_str = self.str_of(hir)
 
         const_id = self.get_value_id()
         lirs = LIRs()
@@ -171,7 +171,7 @@ class IRLowerer:
                 raise Exception(f"Invalid number type: {hir.type}")
 
         const_id = self.get_value_id()
-        type_str = str(types)
+        type_str = self.type_to_str(types)
         const_lir = ConstLIR(const_id, type_str, val)
         self.blocks.emit(const_lir)
 
@@ -199,7 +199,7 @@ class IRLowerer:
 
         target = hir.target
         value = hir.value
-        type_str = str(self.type_of(hir))
+        type_str = self.str_of(hir)
         is_reassign = hir.re_assign
         chain = hir.chain or []
 
@@ -268,7 +268,7 @@ class IRLowerer:
 
         for arg in args:
             value_id = self.get_value_id()
-            type_str = str(arg.type)
+            type_str = self.str_of(arg)
 
             args_lir.append(ArgLIR(value_id, type_str))
             arg_loads.append(LoadLIR(arg.target, value_id, type_str))
@@ -281,7 +281,7 @@ class IRLowerer:
         name = hir.name
         args = hir.args
         is_static = hir.is_static
-        type_str = str(self.type_of(hir))
+        type_str = self.str_of(hir)
         body = hir.body
 
         prev_blocks = self.blocks
@@ -402,8 +402,8 @@ class IRLowerer:
         is_not_return = (
             isinstance(self.type_of(hir), NoneType) or self.type_of(hir) is None
         )
-
-        type_str = str(self.type_of(hir))
+        print(hir)
+        type_str = self.str_of(hir)
         target = hir.target
         args = hir.args
 
@@ -443,7 +443,7 @@ class IRLowerer:
             return value_id
 
         cast_id = self.get_value_id()
-        cast_lir = CastLIR(cast_id, str(target_type), value_id)
+        cast_lir = CastLIR(cast_id, self.type_to_str(target_type), value_id)
         self.blocks.emit(cast_lir)
 
         return cast_id
@@ -469,7 +469,7 @@ class IRLowerer:
             raise Exception(f"Unsupported operator: {typex} {op}")
 
         result_id = self.get_value_id()
-        result_type = rule.result_type or str(typex)
+        result_type = rule.result_type or self.type_to_str(typex)
 
         if rule.runtime is not None:
             return CallLIR(
@@ -594,7 +594,7 @@ class IRLowerer:
         if not isinstance(source, RangeIR):
             raise NotImplementedError("Only range-based for loops are supported")
 
-        target_type = str(hir.target.type or source.end.type)
+        target_type = self.type_to_str(hir.target.type or source.end.type)
         hir.target.type = source.end.type
 
         source.start.type = hir.target.type
@@ -689,7 +689,7 @@ class IRLowerer:
     def process_DefinitionIR(self, hir):
         target = hir.target
         value = hir.value
-        type_str = str(self.type_of(hir))
+        type_str = self.str_of(hir)
 
         init_fn = hir.initializer
 
@@ -703,7 +703,7 @@ class IRLowerer:
         fields = []
 
         for name, field_type, _ in hir.class_fields:
-            fields.append(FieldDeclLIR(name, str(field_type)))
+            fields.append(FieldDeclLIR(name, self.type_to_str(field_type)))
 
         struct_lir = StructLIR(hir.name, fields)
 
@@ -718,37 +718,17 @@ class IRLowerer:
         return struct_lir
 
     def process_NewIR(self, hir):
-        new_lir = NewLIR(self.get_value_id(), hir.class_name, str(self.type_of(hir)))
+        new_lir = NewLIR(
+            self.get_value_id(), hir.class_name, self.type_to_str(self.type_of(hir))
+        )
         self.blocks.emit(new_lir)
 
         return new_lir
 
-    def process_FieldAccessIR(self, hir):
-        self.process(hir.target)
-
-        base = self.get_current_value_id()
-
-        chain_types = hir.chain_types or []
-
-        access = None
-
-        for idx, field in enumerate(hir.chain):
-            type_str = (
-                self.type_str_of(chain_types[idx], str(self.type_of(hir)))
-                if idx < len(chain_types)
-                else str(self.type_of(hir))
-            )
-
-            access = FieldAccessLIR(self.get_value_id(), base, field, type_str)
-            self.blocks.emit(access)
-            base = access.name
-
-        return access
-
     def process_UnaryOpIR(self, hir):
         op = hir.op
         value_lir = self.process(hir.value)
-        type_str = str(self.type_of(hir))
+        type_str = self.str_of(hir)
 
         result_id = self.get_value_id()
         lir = UnaryOpLIR(result_id, op, value_lir.name, type_str)
@@ -799,7 +779,7 @@ class IRLowerer:
             return fallback
 
         if isinstance(type_val, Type):
-            return str(type_val)
+            return self.type_to_str(type_val)
 
         resolved = resolve_type(type_val)
 
@@ -811,10 +791,26 @@ class IRLowerer:
 
         return str(type_val)
 
+    def type_to_str(self, type_val):
+        if isinstance(type_val, FuncRefType):
+            return type_val
+
+        if isinstance(type_val, Type):
+            return str(type_val)
+
+        raise Exception(f"Invalid type: {type_val}")
+
+    def str_of(self, hir):
+        type = self.type_of(hir)
+        return self.type_to_str(type)
+
     def type_of(self, hir):
         type_val = getattr(hir, "type", None)
 
         if type_val is None or isinstance(type_val, Type):
+            return type_val
+
+        if isinstance(type_val, FuncRefType):
             return type_val
 
         resolved = resolve_type(type_val)

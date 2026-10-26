@@ -1,3 +1,6 @@
+from .c_types import CTFuncRef
+
+
 class CNode:
     def __str__(self):
         raise NotImplementedError
@@ -46,7 +49,16 @@ class CAssign(CNode):
         else:
             val_str = str(self.value)
 
-        type_prefix = f"{str(self.type)} " if not self.re_assign else ""
+        if self.re_assign:
+            eq_sign = " = " if val_str else ""
+            return f"{self.target}{eq_sign}{val_str}".strip()
+
+        if isinstance(self.type, CTFuncRef):
+            declaration = self.type.declare(self.target)
+            eq_sign = " = " if val_str else ""
+            return f"{declaration}{eq_sign}{val_str}".strip()
+
+        type_prefix = f"{self.type} "
         eq_sign = " = " if val_str else ""
         return f"{type_prefix}{self.target}{eq_sign}{val_str}".strip()
 

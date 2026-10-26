@@ -1,11 +1,9 @@
 from IR_gen.irs import *
 from LIR_gen.lirs import *
 from .c_nodes import *
-from .header_generator import HeaderGenerator
 from .c_types import *
 from .extra_c_includes import EXTRA_C_INCLUDES
-from semantic.symbol_table import SymbolTableManager
-from type_systems.types import ClassType
+from type_systems.types import ClassType, FuncRefType
 
 
 class CExprTranslator:
@@ -63,7 +61,16 @@ class CTypeTranslator:
             if isinstance(type_name, str) and type_name.isidentifier():
                 return CTStruct(type_name)
 
-            raise Exception(f"Unsupported C translation for type: {type_name}")
+            if isinstance(type_name, FuncRefType):
+                param_types, return_type = type_name.get_types()
+
+                param_c_types = [CTypeTranslator.translate(p) for p in param_types]
+                return_c_type = CTypeTranslator.translate(return_type)
+                return CTFuncRef(param_c_types, return_c_type)
+
+            raise Exception(
+                f"Unsupported C translation for type: {type_name}, {type(type_name)}"
+            )
 
 
 class C_Gen:

@@ -37,10 +37,18 @@ class AutoTypeDefEngine:
 
     def process_VariableSymbol(self, sym):
         if sym.type is None:
-            lk_type = sym.lookup.type
+            lk = sym.lookup
+            if isinstance(lk, FunctionSymbol):
+                type = FuncRefType(lk)
+                with TypeUpdate(sym):
+                    sym.type = type
+
+                return
+
+            lk_type = lk.type
             if lk_type is None:
-                self.process(sym.lookup)
-                lk_type = sym.lookup.type
+                self.process(lk)
+                lk_type = lk.type
 
             if lk_type is None:
                 raise NidavellirTypeError(
@@ -63,8 +71,8 @@ class AutoTypeDefEngine:
 
             if sym.type is None:
                 with TypeUpdate(sym):
-                    sym.type = sym.value.type
-
+                    type = sym.value.type
+                    sym.type = type
                     if sym.type is None:
                         raise NidavellirTypeError(
                             "Cannot determine type of assigned value",
@@ -152,7 +160,7 @@ class AutoTypeDefEngine:
         return returns
 
     def process_FunctionSymbol(self, sym: FunctionSymbol):
-        self._process_FunctionSymbol(sym)
+        pass
 
     def _process_FunctionSymbol(self, sym):
         arg_types = {}
@@ -229,13 +237,52 @@ class AutoTypeDefEngine:
         with TypeUpdate(sym):
             sym.type = sym.value.type
 
-    def process_CallSymbol(self, sym):
-        if getattr(sym, "is_list_method", False):
-            self.process_from_list(sym.args)
-            return
+    def _get_calls_from_value(self, val_sym):
+        uses = val_sym.uses if hasattr(val_sym, "uses") else []
+        calls = []
+        for use in uses:
+            if isinstance(use, CallSymbol):
+                calls.append(use)
 
+        return calls
+
+    def _get_function_from_target(self, target):
+        if isinstance(target, FunctionSymbol):
+            return target
+
+        if isinstance(target, VariableSymbol):
+            lookup = target.lookup
+            if isinstance(lookup, FunctionSymbol):
+                return lookup
+
+        if hasattr(target, "value"):
+            return self._get_function_from_target(target.value)
+
+    def _set_arg_uses(self, sym, uses: list):
+        for idx, arg in enumerate(sym.args):
+            arg.uses.append(uses[idx])
+
+    def process_CallSymbol(self, sym):
         lk = sym.lookup
-        self._process_FunctionSymbol(lk)
+        if isinstance(lk, FunctionSymbol):
+            self._process_FunctionSymbol(lk)
+        else:
+            fn = self._get_function_from_target(lk)
+            calls = self._get_calls_from_value(lk)
+            for call in calls:
+                arg_uses = []
+                for arg in call.args:
+                    arg_uses.append(arg)
+
+                self._set_arg_uses(fn, arg_uses)
+
+            self._set_arg_uses(fn, sym.args)
+
+            fn.uses.extend(calls)
+            self._process_FunctionSymbol(fn)
+
+            if sym.type is None:
+                sym.type = fn.type
 
         if sym.type is None:
             if sym.lookup.type is None:
@@ -249,8 +296,9 @@ class AutoTypeDefEngine:
             with TypeUpdate(sym):
                 sym.type = sym.lookup.type
 
-        for arg in sym.args:
-            self.process(arg)
+        if sym.args is not None:
+            for arg in sym.args:
+                self.process(arg)
 
     def process_ConstructorCallSymbol(self, sym):
         for arg in sym.args:

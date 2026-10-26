@@ -236,3 +236,29 @@ class ClassType(Type):
 
     def __str__(self):
         return self.name
+
+
+class FuncRefType(Type):
+    def __init__(self, lk):
+        self.lk = lk
+
+    def get_param_types(self):
+        params = self.lk.args
+        param_types = []
+        for p in params:
+            type = p.type
+            param_types.append(str(type))
+
+        return param_types
+
+    def get_return_type(self):
+        return str(self.lk.type) if self.lk.type is not None else None
+
+    def get_types(self):
+        return self.get_param_types(), self.get_return_type()
+
+    def __str__(self):
+        param_types, return_type = self.get_types()
+
+        params = ", ".join(map(str, param_types))
+        return f"FuncRef[({params}) -> {return_type}]"

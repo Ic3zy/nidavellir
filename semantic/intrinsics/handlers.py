@@ -1,5 +1,6 @@
 from utils import SysArgs
 from IR_gen.irs import *
+from type_systems.types import *
 
 
 def print_intrinsic(Hir):
@@ -22,7 +23,7 @@ def print_intrinsic(Hir):
             is_last = (top_c * 4) == len(args)
             temp_args.append(BooleanIR(is_last))
 
-            c_call_node = CallIR("_Nida_print_a4", temp_args)
+            c_call_node = CallIR("_Nida_print_a4", temp_args, type=NoneType())
             c_call_node.imported_func_call = True
 
             chunks.append(c_call_node)
@@ -35,7 +36,7 @@ def print_intrinsic(Hir):
         temp_args.extend(extra_args)
 
         c_call_node = CallIR(
-            f"_Nida_print_a{len(temp_args)-len(extra_args)}", temp_args
+            f"_Nida_print_a{len(temp_args)-len(extra_args)}", temp_args, type=NoneType()
         )
         c_call_node.imported_func_call = True
 

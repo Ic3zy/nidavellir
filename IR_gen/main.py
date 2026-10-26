@@ -32,12 +32,13 @@ class IRGen:
         return PassIR()
 
     def gen_AssignAST(self, ast):
-        target = ast.target
         value = ast.value
         var_type = ast.type
         is_re_assign = False
 
         lk = self.get_lk(ast)
+
+        target = lk.name
 
         if var_type is None:
             var_type = lk.type
@@ -103,7 +104,7 @@ class IRGen:
         if isinstance(lk, IntrinsicCallSymbol):
             return self.gen_IntrinsicCallAST(ast)
 
-        target = lk.name
+        target = lk.lookup.name
 
         args = ast.args
         type = lk.type

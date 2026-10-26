@@ -24,8 +24,6 @@ class SymbolTreeBuilder:
 
         self.current_class_name = None
 
-        self.run()
-
     def get_id(self, ast):
         id = ast.node_id
         if id is None:
@@ -44,6 +42,9 @@ class SymbolTreeBuilder:
 
     def eval_VariableAST(self, ast):
         var = self.stm.lookup_assignment_name(ast.name)
+        if var is None:
+            var = self.stm.lookup_func_name(ast.name)
+
         if var is None:
             raise NidavellirNameError(f"Variable '{ast.name}' is not defined", ast.line)
 
@@ -107,7 +108,13 @@ class SymbolTreeBuilder:
 
         val_sym = self.process_eval(ast.value) if ast.value is not None else None
 
-        final_sym = AssignSymbol(assign_name, ast.type, val_sym, ast, re_assign)
+        final_sym = AssignSymbol(
+            assign_name,
+            ast.type,
+            val_sym,
+            ast,
+            re_assign if re_assign is not None else None,
+        )
 
         if final_sym.type is None:
             final_sym.type = self.resolve(ast.type)
@@ -119,8 +126,6 @@ class SymbolTreeBuilder:
             target_sym.uses.append(final_sym)
         elif target != "self":
             self.stm.define_assignment(target, ast.node_id, final_sym)
-
-        ast.target = assign_name
 
         if ast.chain:
             raise NidavellirNotImplementedError("Chained assignments")
@@ -141,11 +146,13 @@ class SymbolTreeBuilder:
         return d
 
     def stmt_FunctionAST(self, ast):
-        fn_sym = self.stm.lookup(ast.name)
+        fn_sym = self.stm.lookup_func_name(ast.name)
+        fn_id = self.get_id(ast)
+        fn_name = self.id_alloc.name_of(fn_id)
 
         if fn_sym is None:
-            fn_sym = FunctionSymbol(ast.name, ast.type, None, ast)
-            self.stm.add_symbol(fn_sym)
+            fn_sym = FunctionSymbol(fn_name, ast.type, None, ast)
+            self.stm.define_func(ast.name, self.get_id(ast), fn_sym)
 
         fn_sym.ast_node = ast
         fn_sym.type = self.resolve(ast.type)
@@ -222,151 +229,36 @@ class SymbolTreeBuilder:
         func_name = ast.target
 
         if ast.chain:
-            return self._method_call(ast)
+            raise NidavellirNotImplementedError("Chained calls", ast.line)
 
         lookup = self.stm.lookup_func_name(func_name)
         is_intrinsic = TreeBuilderHelpers.check_intrinsic_call(func_name)
         if is_intrinsic:
             return self.process_intrinsic_call(ast)
 
+        skip = False
+
+        if lookup is None:
+            skip = True
+            lookup = self.stm.lookup_assignment_name(func_name)
+
         if lookup is None:
             raise NidavellirNameError(
                 f"Function '{func_name}' is not defined", ast.line
             )
 
-        skip = 1 if isinstance(lookup, ClassSymbol) else 0
-
-        params = self.process_call_args(ast.args, lookup, func_name, skip=skip)
-
-        if isinstance(lookup, ClassSymbol):
-            sym = ConstructorCallSymbol(func_name, params, lookup, ast)
-            sym.type = lookup.type
-            lookup.uses.append(sym)
-
-            init_sym = lookup.method_syms.get("__init__")
-
-            if init_sym is not None:
-                init_sym.uses.append(sym)
-
-            return sym
+        params = []
+        if not skip:
+            params = self.process_call_args(ast.args, lookup, func_name, skip=skip)
+        else:
+            for arg in ast.args:
+                res = self.process_eval(arg)
+                params.append(res)
 
         sym = CallSymbol(func_name, params, lookup, ast)
         lookup.uses.append(sym)
 
         return sym
-
-    def _method_call(self, ast):
-        chain = ast.chain
-
-        if ast.target == "self":
-            base = None
-            class_name = self.current_class_name
-        else:
-            base = self.stm.lookup(ast.target)
-
-            if base is None:
-                raise NidavellirNameError(
-                    f"Variable '{ast.target}' is not defined", ast.line
-                )
-
-            class_name = base.type.name if isinstance(base.type, ClassType) else None
-
-        if class_name is None and isinstance(getattr(base, "type", None), ListType):
-            return self._list_method_call(ast, base)
-
-        if class_name is None:
-            raise NidavellirSemanticError(
-                f"Cannot call method '{chain[0]}' on a non-class value", ast.line
-            )
-
-        field_chain = chain[:-1]
-        method_name = chain[-1]
-
-        for field_name in field_chain:
-            class_sym = self._find_class(class_name)
-            if class_sym is None:
-                raise NidavellirNameError(
-                    f"Class '{class_name}' is not defined", ast.line
-                )
-
-            field_ast = class_sym.fields.get(field_name)
-
-            if field_ast is None:
-                raise NidavellirNameError(
-                    f"Member '{field_name}' is not defined in class '{class_name}'",
-                    ast.line,
-                )
-
-            field_class = self._field_class(field_ast)
-
-            if field_class is None:
-                raise NidavellirSemanticError(
-                    f"Cannot call method on field '{field_name}' of non-class type",
-                    ast.line,
-                )
-
-            class_name = field_class
-
-        class_sym = self._find_class(class_name)
-        if class_sym is None:
-            raise NidavellirNameError(f"Class '{class_name}' is not defined", ast.line)
-
-        method_ast = class_sym.methods.get(method_name)
-        if method_ast is None:
-            raise NidavellirNameError(
-                f"Method '{method_name}' is not defined", ast.line
-            )
-
-        lookup = class_sym.method_syms.get(method_name)
-
-        if lookup is None:
-            lookup = FunctionSymbol(method_name, method_ast.type, None, method_ast)
-            lookup.args = [None] * len(method_ast.args)
-
-        params = self.process_call_args(ast.args, lookup, method_name, skip=1)
-
-        sym = CallSymbol(method_name, params, lookup, ast)
-        sym.receiver_chain = list(field_chain)
-        sym.arg_offset = 1
-        lookup.uses.append(sym)
-
-        return sym
-
-    def _list_method_call(self, ast, base):
-        chain = ast.chain
-        method_name = chain[-1]
-
-        if method_name != "append":
-            raise NidavellirSemanticError(
-                f"List has no method '{method_name}'", ast.line
-            )
-
-        params = self.process_call_args(ast.args, None, method_name, is_intrinsic=True)
-
-        sym = CallSymbol(method_name, params, base, ast)
-        sym.type = NoneType()
-        sym.is_list_method = True
-        base.uses.append(sym)
-
-        return sym
-
-    def _field_class(self, field_ast):
-        field_type = getattr(field_ast, "type", None)
-
-        if field_type is None:
-            value = getattr(field_ast, "value", None)
-            field_type = getattr(value, "type", None)
-
-        if isinstance(field_type, ClassType):
-            return field_type.name
-
-        if isinstance(field_type, str) and self._find_class(field_type) is not None:
-            return field_type
-
-        return None
-
-    def _find_class(self, name):
-        return self.class_syms.get(name)
 
     def stmt_ForAST(self, ast):
         self.stm.enter_scope()
@@ -537,22 +429,10 @@ class SymbolTreeBuilder:
         return st
 
     def run(self):
-        self.declare(self.ast_tree)
+        # self.declare(self.ast_tree)
 
         res = self.process_from_list(self.ast_tree)
         self.st.extend(res)
-
-    def declare(self, asts):
-        for ast in asts:
-            if isinstance(ast, FunctionAST):
-                if self.stm.lookup(ast.name) is None:
-                    fn_sym = FunctionSymbol(ast.name, ast.type, None, ast)
-                    fn_sym.args = [None] * len(ast.args)
-                    self.stm.add_symbol(fn_sym)
-
-            elif isinstance(ast, ClassAST):
-                if self.stm.lookup(ast.name) is None:
-                    self.stm.add_symbol(ClassSymbol(ast.name, ast))
 
     def print_scopes(self, st=None):
         print("SymbolTree")
