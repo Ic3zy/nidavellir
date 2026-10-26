@@ -402,7 +402,6 @@ class IRLowerer:
         is_not_return = (
             isinstance(self.type_of(hir), NoneType) or self.type_of(hir) is None
         )
-        print(hir)
         type_str = self.str_of(hir)
         target = hir.target
         args = hir.args

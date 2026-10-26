@@ -19,7 +19,8 @@ def compile_c_file(c_path: str | Path, output_path: str | Path) -> bool:
         *gcc_include_flags,
     ]  # TODO: add custom gcc flags
 
-    print(f"Compiling cmd: {' '.join(cmd)}")
+    if SysArgs.verbose_errors:
+        print(f"Compiling cmd: {' '.join(cmd)}")
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -27,7 +28,9 @@ def compile_c_file(c_path: str | Path, output_path: str | Path) -> bool:
         print("GCC error: ", result.stderr)
         return False
 
-    print(f"Compilation successful: {c_path} -> {output_path}")
+    if SysArgs.verbose_errors:
+        print(f"Compilation successful: {c_path} -> {output_path}")
+
     return True
 
 
@@ -37,7 +40,9 @@ def run_compiled_file(
     user_input: str = None,
     timeout: float = 5.0,
 ) -> int:
-    print("\n\n\n")
+    if SysArgs.verbose_errors:
+        print("\n\n\n")
+
     exec_path = Path(bin_path).resolve()
 
     if not exec_path.exists():

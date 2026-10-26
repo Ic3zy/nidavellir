@@ -2,11 +2,23 @@ from .c_types import CTFuncRef
 
 
 class CNode:
+    INDENT = "  "
+
     def __str__(self):
         raise NotImplementedError
 
-    def str(self):
-        return str(self)
+    def str(self, indent_level=0):
+        return self._render(indent_level)
+
+    def _render(self, indent_level=0):
+        return f"{self.INDENT * indent_level}{self}"
+
+    def _line(self, value, indent_level=0):
+        value = str(value)
+        prefix = self.INDENT * indent_level
+        return "\n".join(
+            f"{prefix}{line}" if line else line for line in value.splitlines()
+        )
 
     def _format_item(self, item, indent=0):
         if isinstance(item, CNode):
@@ -17,16 +29,12 @@ class CNode:
             return repr(item)
 
     def _format(self, indent=0):
-        indent_str = ("  ") * (indent + 1)
-        indent_str_parent = ("  ") * indent
+        indent_str = self.INDENT * (indent + 1)
+        indent_str_parent = self.INDENT * indent
 
-        lines = []
+        lines = [f"{indent_str_parent}{self.__class__.__name__}:"]
 
-        class_args = self.__dict__.items()
-        class_name = self.__class__.__name__
-        lines.append(f"{indent_str_parent}{class_name}:")
-
-        for key, value in class_args:
+        for key, value in self.__dict__.items():
             field_prefix = f"{key}: {self._format_item(value, indent + 1)}"
             lines.append(f"{indent_str}{field_prefix}")
 
@@ -90,24 +98,35 @@ class CFunction(CNode):
         self.type = type
         self.is_static = is_static
 
-    def __str__(self):
-        body_str = "".join(
-            f"{str(b)}{';' if not isinstance(b, CBlock) else ''}\n" for b in self.body
-        )
+    def str(self, indent_level=0):
+        prefix = self.INDENT * indent_level
         args_str = ", ".join(str(a) for a in self.args)
         static_str = "static " if self.is_static else ""
+        lines = [f"{prefix}{static_str}{self.type} {self.c_name}({args_str}) {{"]
 
-        return (
-            f"{static_str}{str(self.type)} {self.c_name}({args_str}) {{\n{body_str}}}"
-        )
+        for node in self.body:
+            lines.append(node.str(indent_level + 1) + self._statement_suffix(node))
+
+        lines.append(f"{prefix}}}")
+        return "\n".join(lines)
+
+    def __str__(self):
+        return self.str()
+
+    @staticmethod
+    def _statement_suffix(node):
+        return "" if isinstance(node, (CIf, CWhile, CFor, CBlock)) else ";"
 
 
 class CReturn(CNode):
     def __init__(self, value):
         self.value = value
 
+    def str(self, indent_level=0):
+        return f"{self.INDENT * indent_level}return {self.value}"
+
     def __str__(self):
-        return f"return {str(self.value)}"
+        return self.str()
 
 
 class CImport(CNode):
@@ -174,9 +193,20 @@ class CElif(CNode):
         self.cond = cond
         self.body = body
 
+    def str(self, indent_level=0):
+        prefix = self.INDENT * indent_level
+        lines = [f"{prefix}else if ({self.cond}) {{"]
+        for node in self.body:
+            lines.append(self._render_statement(node, indent_level + 1))
+        lines.append(f"{prefix}}}")
+        return "\n".join(lines)
+
     def __str__(self):
-        body_str = "".join(f"{str(b)};\n" for b in self.body)
-        return f"else if ({str(self.cond)}) {{\n{body_str}}}"
+        return self.str()
+
+    def _render_statement(self, node, indent_level):
+        result = node.str(indent_level)
+        return result if isinstance(node, (CIf, CWhile, CFor, CBlock)) else result + ";"
 
 
 class CIf(CNode):
@@ -186,22 +216,34 @@ class CIf(CNode):
         self.elifs = elifs
         self.else_body = else_body
 
-    def __str__(self):
-        def format_stmt(stmt):
-            s = str(stmt)
-            return f"{s}\n" if s.endswith(";") else f"{s};\n"
+    def str(self, indent_level=0):
+        prefix = self.INDENT * indent_level
+        lines = [f"{prefix}if ({self.cond}) {{"]
 
-        body_str = "".join(format_stmt(b) for b in self.body)
-        parts = [f"if ({str(self.cond)}) {{\n{body_str}}}"]
+        for node in self.body:
+            lines.append(self._render_statement(node, indent_level + 1))
 
-        if self.elifs:
-            parts.append("\n".join(str(e) for e in self.elifs))
+        lines.append(f"{prefix}}}")
+
+        for node in self.elifs or []:
+            lines.append(node.str(indent_level))
 
         if self.else_body:
-            else_body_str = "".join(format_stmt(b) for b in self.else_body)
-            parts.append(f"else {{\n{else_body_str}}}")
+            lines[-1] += " else {"
+            lines.pop()
+            lines.append(f"{prefix}}} else {{")
+            for node in self.else_body:
+                lines.append(self._render_statement(node, indent_level + 1))
+            lines.append(f"{prefix}}}")
 
-        return "\n".join(parts)
+        return "\n".join(lines)
+
+    def __str__(self):
+        return self.str()
+
+    def _render_statement(self, node, indent_level):
+        result = node.str(indent_level)
+        return result if isinstance(node, (CIf, CWhile, CFor, CBlock)) else result + ";"
 
 
 class CGroup(CNode):
@@ -209,19 +251,7 @@ class CGroup(CNode):
         self.expr = expr
 
     def __str__(self):
-        return f"({str(self.expr)})"
-
-
-class CBlock(CNode):
-    def __init__(self, body):
-        self.body = body
-
-    def __str__(self):
-        total = len(self.body)
-        return "".join(
-            f"{str(stmt)};\n" if i < total - 1 else str(stmt)
-            for i, stmt in enumerate(self.body)
-        )
+        return f"({self.expr})"
 
 
 class CFor(CNode):
@@ -230,9 +260,22 @@ class CFor(CNode):
         self.range = range
         self.body = body
 
+    def str(self, indent_level=0):
+        prefix = self.INDENT * indent_level
+        lines = [
+            f"{prefix}for (int {self.target} = 0; "
+            f"{self.target} < {self.range}; {self.target}++) {{"
+        ]
+        for node in self.body:
+            result = node.str(indent_level + 1)
+            if not isinstance(node, (CIf, CWhile, CFor, CBlock)):
+                result += ";"
+            lines.append(result)
+        lines.append(f"{prefix}}}")
+        return "\n".join(lines)
+
     def __str__(self):
-        body_str = "".join(f"{str(b)};\n" for b in self.body)
-        return f"for (int {self.target} = 0; {self.target} < {self.range}; {self.target}++) {{\n{body_str}}}"
+        return self.str()
 
 
 class CWhile(CNode):
@@ -240,9 +283,19 @@ class CWhile(CNode):
         self.cond = cond
         self.body = body
 
+    def str(self, indent_level=0):
+        prefix = self.INDENT * indent_level
+        lines = [f"{prefix}while ({self.cond}) {{"]
+        for node in self.body:
+            result = node.str(indent_level + 1)
+            if not isinstance(node, (CIf, CWhile, CFor, CBlock)):
+                result += ";"
+            lines.append(result)
+        lines.append(f"{prefix}}}")
+        return "\n".join(lines)
+
     def __str__(self):
-        body_str = "".join(f"{str(b)};\n" for b in self.body)
-        return f"while ({str(self.cond)}) {{\n{body_str}}}"
+        return self.str()
 
 
 class CBoolean(CNode):
@@ -266,17 +319,29 @@ class CBlock(CNode):
         self.name = name
         self.body = body
 
+    def str(self, indent_level=0):
+        prefix = self.INDENT * indent_level
+        lines = [f"{prefix}{self.name}:"]
+        for node in self.body:
+            result = node.str(indent_level + 1)
+            if not isinstance(node, (CIf, CWhile, CFor, CBlock)):
+                result += ";"
+            lines.append(result)
+        return "\n".join(lines)
+
     def __str__(self):
-        body_str = "".join(f"{str(b)};\n" for b in self.body)
-        return f"{self.name}:\n{body_str}"
+        return self.str()
 
 
 class CGoto(CNode):
     def __init__(self, block):
         self.block = block
 
+    def str(self, indent_level=0):
+        return f"{self.INDENT * indent_level}goto {self.block}"
+
     def __str__(self):
-        return f"goto {self.block}"
+        return self.str()
 
 
 class CGlobal(CNode):
@@ -286,19 +351,26 @@ class CGlobal(CNode):
         self.initializer = initializer
 
     def __str__(self):
-        return f"{self.type} {self.name}"
+        if self.initializer is None:
+            return f"{self.type} {self.name}"
+        return f"{self.type} {self.name} = {self.initializer}"
 
 
 class CStruct(CNode):
-    """A C struct definition."""
-
     def __init__(self, name, fields):
         self.name = name
         self.fields = fields
 
+    def str(self, indent_level=0):
+        prefix = self.INDENT * indent_level
+        lines = [f"{prefix}typedef struct {{"]
+        for field in self.fields:
+            lines.append(f"{self.INDENT * (indent_level + 1)}{field};")
+        lines.append(f"{prefix}}} {self.name}")
+        return "\n".join(lines)
+
     def __str__(self):
-        field_str = "".join(f"    {str(f)};\n" for f in self.fields)
-        return f"typedef struct {{\n{field_str}}} {self.name}"
+        return self.str()
 
 
 class CFieldDecl(CNode):
@@ -348,10 +420,10 @@ class CUnaryOp(CNode):
         return f"{self.type} {self.name} = {self.op}{self.value}"
 
 
-class CCast:
+class CCast(CNode):
     def __init__(self, target_type, value):
         self.target_type = target_type
         self.value = value
 
     def __str__(self):
-        return f"({self.target_type.str()}){self.value.str()}"
+        return f"({self.target_type}){self.value}"
