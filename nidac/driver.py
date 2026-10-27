@@ -11,8 +11,8 @@ from LIR_gen import IRLowerer
 from C_gen import C_Gen
 from C_gen import HeaderGenerator
 from utils import SysArgs, ExecutionTimer, NodeIdAllocator
+from utils.errors import NidavellirFileNotFoundError
 from .gcc import compile_c_file, run_compiled_file
-
 import sys
 
 sys.set_int_max_str_digits(0)
@@ -252,8 +252,26 @@ class Nidac:
     # ------------------------------------------------------------------
 
     def read_file(self):
-        with open(self.file_path, "r") as f:
-            self.source = f.read()
+        if self.file_path is None:
+            raise ValueError("file_path must be provided when source is None")
+
+        path = Path(self.file_path).expanduser().resolve()
+
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                self.source = f.read()
+        except FileNotFoundError:
+            raise NidavellirFileNotFoundError(
+                "Cannot find source file",
+                file_path=str(path),
+            ) from None
+        except IsADirectoryError:
+            raise NidavellirFileNotFoundError(
+                "Source path points to a directory, not a file",
+                file_path=str(path),
+            ) from None
+
+        self.file_path = str(path)
 
     @staticmethod
     def parse_from_source_code(source_code):

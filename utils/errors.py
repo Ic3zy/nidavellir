@@ -23,6 +23,7 @@ class Line:
 
 RED = "\033[31m"
 BRIGHT_RED = "\033[91m"
+CYAN = "\033[96m"
 YELLOW = "\033[33m"
 GRAY = "\033[90m"
 BOLD = "\033[1m"
@@ -105,3 +106,25 @@ class NidavellirInternalError(NidavellirError):
 
 class NidavellirNotImplementedError(NidavellirError):
     pass
+
+
+class NidavellirFileNotFoundError(NidavellirError):
+    def __init__(self, message, file_path=None, line=None):
+        self.file_path = file_path
+        super().__init__(message, line)
+
+    def __str__(self):
+        parts = [
+            f"{BRIGHT_RED}{BOLD}File not found{RESET}",
+            f"  {self.message}",
+        ]
+
+        if self.file_path:
+            location = f"  {GRAY}--> {RESET}{CYAN}{self.file_path}{RESET}"
+
+            if self.line is not None:
+                location += f"{GRAY}:{RESET}" f"{YELLOW}{self.line.line}{RESET}"
+
+            parts.append(location)
+
+        return "\n".join(parts)

@@ -1,0 +1,19 @@
+# Nidavellir Hello World
+# Demonstrates automatic type inference and explicit type annotations.
+#
+# By default, Nidavellir infers types from values and function return types.
+# Explicit type annotations can be used when desired.
+
+# Automatic type inference
+def nidavellir_hello():
+    return "Hello, Nidavellir!"
+
+hello = nidavellir_hello()
+print(hello)
+
+# Explicit type annotations
+def str nidavellir_hello_manual():
+    return "Hello, Nidavellir!"
+
+str hello_manual = nidavellir_hello_manual()
+print(hello_manual)
