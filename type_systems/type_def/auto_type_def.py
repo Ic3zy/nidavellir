@@ -254,13 +254,42 @@ class AutoTypeDefEngine:
             lookup = target.lookup
             if isinstance(lookup, FunctionSymbol):
                 return lookup
+            else:
+                return self._get_function_from_target(lookup)
 
         if hasattr(target, "value"):
             return self._get_function_from_target(target.value)
 
+        raise Exception(target, isinstance(target, VariableSymbol))
+
     def _set_arg_uses(self, sym, uses: list):
         for idx, arg in enumerate(sym.args):
             arg.uses.append(uses[idx])
+
+    def _check_args_counts(self, sym, fn_sym):
+        if not hasattr(sym, "args"):
+            raise NidavellirInternalError(
+                f"Symbol '{sym.ast_node.target}' does not have arguments",
+                sym.ast_node.line,
+            )
+
+        original_name = fn_sym.ast_node.name
+        alias_info = (
+            f" (alias of '{original_name}')"
+            if sym.ast_node.target != original_name
+            else ""
+        )
+
+        message = (
+            f"Call to function '{sym.ast_node.target}'{alias_info} requires "
+            f"{len(fn_sym.args)} arguments, but {len(sym.args)} were provided"
+        )
+
+        if len(fn_sym.args) != len(sym.args):
+            raise NidavellirTypeError(
+                message,
+                sym.ast_node.line,
+            )
 
     def process_CallSymbol(self, sym):
         lk = sym.lookup
@@ -268,6 +297,8 @@ class AutoTypeDefEngine:
             self._process_FunctionSymbol(lk)
         else:
             fn = self._get_function_from_target(lk)
+            self._check_args_counts(sym, fn)
+
             calls = self._get_calls_from_value(lk)
             for call in calls:
                 arg_uses = []
