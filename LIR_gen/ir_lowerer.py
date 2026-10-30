@@ -203,12 +203,19 @@ class IRLowerer:
         is_reassign = hir.re_assign
         chain = hir.chain or []
 
-        value_lirs = self.process(value)
-        value_id = self.get_current_value_id()
+        is_no_value = False
+        if isinstance(value, NoneIR) and value.air:
+            is_no_value = True
+
+        if not is_no_value:
+            value_lirs = self.process(value)
+            value_id = self.get_current_value_id()
 
         as_lir = None
 
         if chain:
+            if is_no_value:
+                raise Exception("Cannot assign to member without value")
             # "obj.member = value": store into the member of the object.
             base = self._load_base(target, hir.base_type)
 
@@ -245,7 +252,9 @@ class IRLowerer:
             self.blocks.emit(declare_lir)
             as_lir = declare_lir
 
-        lirs.append(value_lirs)
+        if not is_no_value:
+            lirs.append(value_lirs)
+
         lirs.append(as_lir)
         return lirs
 
