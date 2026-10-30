@@ -437,11 +437,12 @@ class AutoTypeDefEngine:
         for stmt in sym.body:
             self.process(stmt)
 
-        for elif_sym in sym.elifs:
-            self.process(elif_sym.cond)
+        if sym.elifs is not None:
+            for elif_sym in sym.elifs:
+                self.process(elif_sym.cond)
 
-            for stmt in elif_sym.body:
-                self.process(stmt)
+                for stmt in elif_sym.body:
+                    self.process(stmt)
 
         if sym.else_body is not None:
             for stmt in sym.else_body:

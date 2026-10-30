@@ -45,6 +45,9 @@ class SymbolTreeBuilder:
         if var is None:
             var = self.stm.lookup_func_name(ast.name)
 
+        if isinstance(var, UnavailableSymbol):
+            raise NidavellirSemanticError(var.why, ast.line)
+
         if var is None:
             raise NidavellirNameError(f"Variable '{ast.name}' is not defined", ast.line)
 
@@ -119,7 +122,7 @@ class SymbolTreeBuilder:
         if final_sym.type is None:
             final_sym.type = self.resolve(ast.type)
 
-        target_sym = self.stm.current_scope.lookup_assignment_name(target)
+        target_sym = re_assign
 
         if target_sym is not None:
             final_sym.parent_assign = target_sym
@@ -297,30 +300,112 @@ class SymbolTreeBuilder:
         # raise Exception(ast)
         return ForSymbol(target, source, body, loop_count, ast)
 
-    def stmt_ElifAST(self, ast):
-        cond = ast.cond
-        body = ast.body
+    def process_branch(self, body, scope_type):
+        scope = self.stm.enter_scope(scope_type)
 
-        cond_sym = self.process_eval(cond)
-        body_sym = self.process_from_list(body)
+        symbols = self.process_from_list(body)
 
-        return ElifSymbol(cond_sym, body_sym, ast)
+        self.stm.exit_scope()
+
+        assignments = scope.registry.norm_assignments
+
+        return symbols, scope, assignments
+
+    def extend_dicts(self, root, ext):
+        for k, v in ext.items():
+            if k in root:
+                continue
+
+            root[k] = v
+
+    def process_elifs(self, elifs) -> tuple[list, list]:
+        if not elifs or elifs is None:
+            return None, None
+
+        elif_assignments = []
+        elif_syms = []
+        for elf in elifs:
+            cond_sym = self.process_eval(elf.cond)
+            body_sym, scope, assignments = self.process_branch(elf.body, "elif")
+            elif_syms.append(ElifSymbol(cond_sym, body_sym, elf, scope))
+
+            elif_assignments.append(assignments)
+
+        return elif_assignments, elif_syms
+
+    def check_name_exists_from_all_elifs(self, elif_assigns, name):
+        for elif_assign in elif_assigns:
+            if name not in elif_assign:
+                return False
+
+        return True
+
+    def process_ifs_assignments(
+        self, if_assigns: dict, elif_assigns: list, else_assigns: dict
+    ):
+        assign_merge = {}
+        unavailable = {}
+        top_assigns = {**else_assigns, **if_assigns}
+
+        if elif_assigns is not None:
+            for assignment in elif_assigns:
+                self.extend_dicts(top_assigns, assignment)
+
+        for name, sym in top_assigns.items():
+            if_check = name in if_assigns
+            else_check = name in else_assigns
+            elif_check = (
+                self.check_name_exists_from_all_elifs(elif_assigns, name)
+                if elif_assigns
+                else True
+            )
+
+            if if_check and else_check and elif_check:
+                assign_merge[name] = sym
+            else:
+                unav_sym = UnavailableSymbol(
+                    "This variable is declared within an if statement, but is not defined in every branch. Therefore, it is inaccessible.",
+                    sym.ast_node,
+                )
+                unavailable[name] = unav_sym
+
+        for key, val in unavailable.items():
+            self.stm.define_assignment_norm(key, val)
+
+        for key, val in assign_merge.items():
+            self.stm.define_assignment_norm(key, val)
+
+        # raise Exception(assign_merge, "\n\n\nUNAVAILABLE: ", unavailable)
 
     def stmt_IfAST(self, ast):
-        cond = ast.cond
-        body = ast.body
+        cond_sym = self.process_eval(ast.cond)
 
-        elifs = ast.elifs
-        else_body = ast.else_body
+        body_sym, body_scope, if_assignments = self.process_branch(ast.body, "if")
 
-        cond_sym = self.process_eval(cond)
-        body_sym = self.process_from_list(body)
-        elifs_sym = self.process_from_list(elifs)
+        elif_assignments, elif_syms = self.process_elifs(ast.elifs)
 
-        if else_body is not None:
-            else_body = self.process_from_list(else_body.body)
+        else_body = None
+        else_scope = None
+        else_assignments = None
 
-        return IfSymbol(cond_sym, body_sym, elifs_sym, else_body, ast)
+        if ast.else_body is not None:
+            else_body, else_scope, else_assignments = self.process_branch(
+                ast.else_body.body, "else"
+            )
+
+        self.process_ifs_assignments(
+            if_assignments, elif_assignments, else_assignments or {}
+        )
+
+        return IfSymbol(
+            cond_sym,
+            body_sym,
+            elif_syms,
+            else_body,
+            ast,
+            body_scope,
+            else_scope,
+        )
 
     def stmt_WhileAST(self, ast):
         cond = ast.cond

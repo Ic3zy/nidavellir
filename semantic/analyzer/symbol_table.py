@@ -147,6 +147,10 @@ class SymbolTableManager:
 
     # Definitions register the name in the current scope and the ID globally.
 
+    def define_assignment_norm(self, name, symbol):
+        self.current_scope.define_assignment(name, symbol)
+        return symbol
+
     def define_assignment(self, name, symbol_id, symbol):
         self.current_scope.define_assignment(name, symbol)
         self.global_scope.define_symbol_id(symbol_id, symbol)

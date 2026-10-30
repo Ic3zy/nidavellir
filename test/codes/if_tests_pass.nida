@@ -1,0 +1,73 @@
+#nida_test
+condition = True
+if condition:
+    x = 10
+else:
+    x = 20
+print(x)
+
+#nida_test
+condition_a = True
+condition_b = False
+if condition_a:
+    x = 10
+elif condition_b:
+    x = 20
+else:
+    x = 30
+print(x)
+
+
+#nida_test
+condition = True
+if condition:
+    x = 10
+    y = "hello"
+else:
+    x = 20
+    y = "world"
+print(x)
+print(y)
+
+#nida_test
+condition = True
+x = 10
+if condition:
+    x = 20
+else:
+    x = 30
+print(x)
+
+#nida_test
+condition = True
+x = 10
+if condition:
+    y = 20
+print(x)
+
+#nida_test
+condition_a = True
+condition_b = False
+if condition_a:
+    if condition_b:
+        x = 10
+    else:
+        x = 20
+else:
+    x = 30
+print(x)
+
+#nida_test
+condition_a = True
+condition_b = False
+if condition_a:
+    if condition_b:
+        x = 10
+    else:
+        x = 20
+    y = 30
+else:
+    x = 40
+    y = 50
+print(x)
+print(y)

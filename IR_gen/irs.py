@@ -28,6 +28,10 @@ class IR:
                         is_last=True,
                     )
                 )
+            elif "Symbol" in val.__class__.__name__:
+                lines.append(
+                    f"{child_indent}{c_marker}{key}: <NidaSym: {val.__class__.__name__}>"
+                )
             elif isinstance(val, list):
                 if not val:
                     lines.append(f"{child_indent}{c_marker}{key}: []")

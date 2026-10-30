@@ -258,21 +258,32 @@ class ForSymbol(Symbol):
         self.type = None
 
 
+class UnavailableSymbol(Symbol):
+    def __init__(self, why, ast_node):
+        self.why = why
+        self.ast_node = ast_node
+
+
 class IfSymbol(Symbol):
-    def __init__(self, cond, body, elifs, else_body, ast_node):
+    def __init__(
+        self, cond, body, elifs, else_body, ast_node, body_scope, else_scope=None
+    ):
         self.cond = cond
         self.body = body
+        self.body_scope = body_scope
 
         self.elifs = elifs
         self.else_body = else_body
+        self.else_scope = else_scope
 
         self.ast_node = ast_node
 
 
 class ElifSymbol(Symbol):
-    def __init__(self, cond, body, ast_node):
+    def __init__(self, cond, body, ast_node, scope):
         self.cond = cond
         self.body = body
+        self.scope = scope
         self.ast_node = ast_node
 
 
