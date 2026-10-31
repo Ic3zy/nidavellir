@@ -238,6 +238,7 @@ class IRGen:
         body = ast.body
         elifs = ast.elifs
         else_body = ast.else_body
+        lk = self.get_lk(ast)
 
         cond_ir = self.gen(cond)
         body_irs = []
@@ -251,7 +252,7 @@ class IRGen:
 
         else_body_irs = self.gen(else_body) if else_body is not None else None
 
-        return IfIR(cond_ir, body_irs, elifs_irs, else_body_irs)
+        return IfIR(cond_ir, body_irs, elifs_irs, else_body_irs, lk)
 
     def gen_GroupAST(self, ast):
         expr = ast.expr

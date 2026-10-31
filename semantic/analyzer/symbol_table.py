@@ -18,7 +18,7 @@ class SymbolRegistry:
         self.symbols_by_id = {}
 
     def _define(self, table, name, symbol, category):
-        if name in table:
+        if name in table and not isinstance(table[name], UnavailableSymbol):
             raise NidavellirSemanticError(
                 f"{category} '{name}' already exists in scope "
                 "and cannot be redefined",

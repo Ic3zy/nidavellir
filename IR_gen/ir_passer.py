@@ -275,6 +275,27 @@ class IRPasser:
             chain_types=[field_type],
         )
 
+    def stmt_IfIR(self, ir):
+        if_sym = ir.if_sym
+        merges = if_sym.merges
+        assigns = []
+
+        for merge in merges:
+            assign_sym = merge.merge_assign_sym
+
+            if assign_sym.is_re_assign is not None:
+                continue
+
+            assign_ir = AssignIR(
+                assign_sym.name,
+                NoneIR(True),
+                assign_sym.type,
+            )
+
+            assigns.append(IR_Box(assign_ir, destination=PreMain))
+
+        return [*assigns, IR_Box(ir)]
+
     def stmt_IRImport(self, ir):
         body = ir.resolved_module.hirs
         new_body = self.run_stmts(body)

@@ -247,8 +247,11 @@ class IRLowerer:
             self.blocks.emit(store_lir)
             as_lir = store_lir
         else:
-            const_id = self.get_current_value_id()
-            declare_lir = DeclareLIR(target, type_str, const_id)
+            if not is_no_value:
+                const_id = self.get_current_value_id()
+                declare_lir = DeclareLIR(target, type_str, const_id)
+            else:
+                declare_lir = DeclareOnlyLIR(target, type_str)
             self.blocks.emit(declare_lir)
             as_lir = declare_lir
 

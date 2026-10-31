@@ -41,6 +41,12 @@ class DeclareLIR(LIR):
         self.value = value
 
 
+class DeclareOnlyLIR:
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
+
+
 class StoreLIR(LIR):
     def __init__(self, name, type, value):
         self.name = name

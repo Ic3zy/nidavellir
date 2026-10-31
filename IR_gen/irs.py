@@ -192,11 +192,12 @@ class IRImport(IR):
 
 
 class IfIR(IR):
-    def __init__(self, cond, body, elifs, else_body):
+    def __init__(self, cond, body, elifs, else_body, if_sym):
         self.cond = cond
         self.body = body
         self.elifs = elifs
         self.else_body = else_body
+        self.if_sym = if_sym
 
 
 class ElifIR(IR):

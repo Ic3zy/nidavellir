@@ -208,6 +208,12 @@ class C_Gen:
         value = CVariable(val_name)
         return CAssign(name, value, type)
 
+    def process_DeclareOnlyLIR(self, lir):
+        name = lir.name
+        type = CTypeTranslator.translate(lir.type)
+        value = CNone(is_str=False)
+        return CAssign(name, value, type)
+
     def process_StoreLIR(self, lir):
         name = lir.name
         type = CTypeTranslator.translate(lir.type)

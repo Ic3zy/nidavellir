@@ -105,6 +105,8 @@ class SymbolTreeBuilder:
     def stmt_AssignAST(self, ast):
         target = ast.target
         re_assign = self.stm.lookup_assignment_name(target)
+        if isinstance(re_assign, UnavailableSymbol):
+            re_assign = None
 
         assign_id = re_assign.ast_node.node_id if re_assign is not None else ast.node_id
         assign_name = self.id_alloc.name_of(assign_id)
@@ -340,34 +342,107 @@ class SymbolTreeBuilder:
 
         return True
 
+    def link_merge(self, assign, name_assign):
+        if isinstance(assign, MergeAssignmentSymbol):
+            assign = assign.merge_assign_sym
+
+        if not isinstance(assign, AssignSymbol):
+            return
+
+        merge_assign = name_assign.get(assign.ast_node.target)
+
+        if merge_assign is None:
+            return
+
+        previous_merge = assign.is_re_assign
+
+        if previous_merge is not None and previous_merge is not merge_assign:
+            previous_merge.name = merge_assign.name
+            previous_merge.is_re_assign = merge_assign
+
+            for use in previous_merge.uses:
+                use.name = merge_assign.name
+                use.is_re_assign = merge_assign
+
+                if use not in merge_assign.uses:
+                    merge_assign.uses.append(use)
+
+            previous_merge.uses.clear()
+
+        assign.is_re_assign = merge_assign
+        assign.name = merge_assign.name
+
+        if assign not in merge_assign.uses:
+            merge_assign.uses.append(assign)
+
+    def create_merges(self, assignments, branches):
+        merges = []
+        name_assign = {}
+
+        for name, source in assignments.items():
+            if isinstance(source, MergeAssignmentSymbol):
+                source = source.final_sym
+
+            ast = source.ast_node
+
+            final_sym = AssignSymbol(
+                self.id_alloc.anon(),
+                ast.type,
+                None,
+                ast,
+                None,
+            )
+
+            name_assign[name] = final_sym
+
+            merges.append(
+                MergeAssignmentSymbol(
+                    final_sym,
+                    ast,
+                    name,
+                )
+            )
+
+        for branch in branches:
+            for assign in branch.values():
+                self.link_merge(assign, name_assign)
+
+        return merges
+
     def process_ifs_assignments(
         self, if_assigns: dict, elif_assigns: list, else_assigns: dict
     ):
+        branches = [if_assigns]
+
+        if elif_assigns:
+            branches.extend(elif_assigns)
+
+        branches.append(else_assigns or {})
+
+        all_names = set()
+
+        for branch in branches:
+            all_names.update(branch)
+
         assign_merge = {}
         unavailable = {}
-        top_assigns = {**else_assigns, **if_assigns}
 
-        if elif_assigns is not None:
-            for assignment in elif_assigns:
-                self.extend_dicts(top_assigns, assignment)
+        for name in all_names:
+            sources = [branch[name] for branch in branches if name in branch]
 
-        for name, sym in top_assigns.items():
-            if_check = name in if_assigns
-            else_check = name in else_assigns
-            elif_check = (
-                self.check_name_exists_from_all_elifs(elif_assigns, name)
-                if elif_assigns
-                else True
-            )
-
-            if if_check and else_check and elif_check:
-                assign_merge[name] = sym
+            if len(sources) == len(branches):
+                assign_merge[name] = sources[0]
             else:
-                unav_sym = UnavailableSymbol(
-                    "This variable is declared within an if statement, but is not defined in every branch. Therefore, it is inaccessible.",
-                    sym.ast_node,
+                source = sources[0]
+
+                if isinstance(source, MergeAssignmentSymbol):
+                    source = source.final_sym
+
+                unavailable[name] = UnavailableSymbol(
+                    "This variable is declared within an if statement, "
+                    "but is not defined in every branch.",
+                    source.ast_node,
                 )
-                unavailable[name] = unav_sym
 
         for key, val in unavailable.items():
             self.stm.define_assignment_norm(key, val)
@@ -375,7 +450,7 @@ class SymbolTreeBuilder:
         for key, val in assign_merge.items():
             self.stm.define_assignment_norm(key, val)
 
-        # raise Exception(assign_merge, "\n\n\nUNAVAILABLE: ", unavailable)
+        return self.create_merges(assign_merge, branches)
 
     def stmt_IfAST(self, ast):
         cond_sym = self.process_eval(ast.cond)
@@ -393,7 +468,7 @@ class SymbolTreeBuilder:
                 ast.else_body.body, "else"
             )
 
-        self.process_ifs_assignments(
+        merges = self.process_ifs_assignments(
             if_assignments, elif_assignments, else_assignments or {}
         )
 
@@ -405,6 +480,7 @@ class SymbolTreeBuilder:
             ast,
             body_scope,
             else_scope,
+            merges,
         )
 
     def stmt_WhileAST(self, ast):

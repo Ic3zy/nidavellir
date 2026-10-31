@@ -128,3 +128,24 @@ class NidavellirFileNotFoundError(NidavellirError):
             parts.append(location)
 
         return "\n".join(parts)
+
+
+class NidavellirGccError(NidavellirError):
+    def __init__(self, message, stderr=None, returncode=None):
+        self.stderr = stderr
+        self.returncode = returncode
+        super().__init__(message)
+
+    def __str__(self):
+        parts = [f"\n{RED}{BOLD}GCC Compilation Error{RESET}"]
+
+        if self.returncode is not None:
+            parts.append(f"{GRAY}Exit code: {self.returncode}{RESET}")
+
+        if self.stderr:
+            parts.append(self.stderr.rstrip())
+
+        else:
+            parts.append(f"{YELLOW}{self.message}{RESET}")
+
+        return "\n".join(parts)

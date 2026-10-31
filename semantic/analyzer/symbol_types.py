@@ -266,7 +266,15 @@ class UnavailableSymbol(Symbol):
 
 class IfSymbol(Symbol):
     def __init__(
-        self, cond, body, elifs, else_body, ast_node, body_scope, else_scope=None
+        self,
+        cond,
+        body,
+        elifs,
+        else_body,
+        ast_node,
+        body_scope,
+        else_scope=None,
+        merges=None,
     ):
         self.cond = cond
         self.body = body
@@ -277,6 +285,8 @@ class IfSymbol(Symbol):
         self.else_scope = else_scope
 
         self.ast_node = ast_node
+
+        self.merges = merges
 
 
 class ElifSymbol(Symbol):
@@ -372,3 +382,11 @@ class ListLiteralSymbol(Symbol):
 
     def set_type_to_AST(self):
         self.ast_node.type = self.type
+
+
+class MergeAssignmentSymbol(Symbol):
+    def __init__(self, assign_sym, ast_node, norm_debug_name=None):
+        self.merge_assign_sym = assign_sym
+        self.ast_node = ast_node
+
+        self.norm_debug_name = norm_debug_name

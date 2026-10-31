@@ -19,6 +19,9 @@ class AutoTypeDefEngine:
     def __init__(self, sym_tree):
         self.sym_tree = sym_tree
 
+    def process_NoneSymbol(self, sym):
+        sym.type = NoneType()
+
     def process_BooleanSymbol(self, sym):
         sym.type = BooleanType()
 
@@ -71,13 +74,42 @@ class AutoTypeDefEngine:
 
             if sym.type is None:
                 with TypeUpdate(sym):
-                    type = sym.value.type
-                    sym.type = type
+                    types = sym.value.type
+                    sym.type = types
                     if sym.type is None:
                         raise NidavellirTypeError(
                             "Cannot determine type of assigned value",
                             sym.ast_node.line,
                         )
+        elif sym.uses:
+            infered_types = []
+            last_type = None
+            for use in sym.uses:
+                if use.type is None:
+                    self.process(use)
+
+                if use.type is None:
+                    raise NidavellirTypeError(
+                        "Cannot determine type of assigned value", sym.ast_node.line
+                    )
+
+                if last_type is not None and type(last_type) != type(use.type):
+                    raise NidavellirTypeError(
+                        f"Cannot determine type of assigned value, {last_type} -> {use.type}",
+                        sym.ast_node.line,
+                    )
+
+                last_type = use.type
+
+                infered_types.append(use.type)
+
+            if infered_types and last_type:
+                sym.type = last_type
+
+            else:
+                raise NidavellirTypeError(
+                    "Cannot determine type of assigned value", sym.ast_node.line
+                )
 
         if sym.chain:
             base = sym.base_sym
@@ -447,6 +479,11 @@ class AutoTypeDefEngine:
         if sym.else_body is not None:
             for stmt in sym.else_body:
                 self.process(stmt)
+
+        merges = sym.merges
+        for merge in merges:
+            assign_sym = merge.merge_assign_sym
+            self.process(assign_sym)
 
     def process_ListLiteralSymbol(self, sym):
         for element_sym in sym.elements:
