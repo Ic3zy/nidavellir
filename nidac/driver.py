@@ -239,7 +239,8 @@ class Nidac:
             f.write(self.final_c_code)
 
         compile_c_file(c_path, SysArgs.output)
-        self.run_binary(SysArgs.output)
+        if not SysArgs.no_auto_run:
+            self.run_binary(SysArgs.output)
 
     def run_binary(self, binary_path: str, args: list[str] = None):
         if self.final_c_code is None:

@@ -47,9 +47,9 @@ class IRGen:
 
         chain = getattr(ast, "chain", []) or []
 
-        if isinstance(value, UnaryOpAST):
-            val_res = self._gen_unary_op(target, value)
-        elif value is None:
+        # if isinstance(value, UnaryOpAST):
+        #     val_res = self._gen_unary_op(target, value)
+        if value is None:
             val_res = NoneIR(air=True)
         else:
             val_res = self.gen(value)
