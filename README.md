@@ -30,6 +30,8 @@ This repository is preserved as part of Nidavellir's development history. Its or
 The compiler driver for Nidavellir is **`nidac`**.
 
 ---
+<details>
+    <summary>Project Readme</summary>
 ## Identity & Core Philosophy
 
 - **Language vs. Driver**: **Nidavellir** is the programming language (source files use the `.nida` extension). **`nidac`** is the compiler driver.
