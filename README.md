@@ -24,14 +24,13 @@ This repository is preserved as part of Nidavellir's development history. Its or
 
 
 
-
+<details>
+    <summary>Project Readme</summary>
 **Nidavellir** is a statically-typed programming language designed to provide low-overhead syntax while maintaining native execution and explicit compiler control.
 
 The compiler driver for Nidavellir is **`nidac`**.
 
 ---
-<details>
-    <summary>Project Readme</summary>
 ## Identity & Core Philosophy
 
 - **Language vs. Driver**: **Nidavellir** is the programming language (source files use the `.nida` extension). **`nidac`** is the compiler driver.
